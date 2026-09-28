@@ -1800,13 +1800,17 @@ func (c *IntegrationTestFramework) ControllerTests() {
 				for _, b := range runningMachines[0].ObjectMeta.OwnerReferences {
 					if b.Kind == "MachineSet" {
 						originalOwnerRefMcsName = b.Name
+						break
 					}
 				}
 				gomega.Expect(originalOwnerRefMcsName).ToNot(gomega.Equal(""))
 
 				ginkgo.By("Trigger inPlace rollout by updating MachineClass")
 				retryErr := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-					md, _ := c.ControlCluster.McmClient.MachineV1alpha1().MachineDeployments(controlClusterNamespace).Get(ctx, helpers.InPlaceMcdNameHappyPath, metav1.GetOptions{})
+					md, err := c.ControlCluster.McmClient.MachineV1alpha1().MachineDeployments(controlClusterNamespace).Get(ctx, helpers.InPlaceMcdNameHappyPath, metav1.GetOptions{})
+					if err != nil {
+						return err
+					}
 					md.Spec.Template.Spec.Class.Name = testMachineClassResources[1]
 					_, updateErr := c.ControlCluster.McmClient.MachineV1alpha1().MachineDeployments(controlClusterNamespace).Update(ctx, md, metav1.UpdateOptions{})
 					return updateErr
@@ -1823,7 +1827,10 @@ func (c *IntegrationTestFramework) ControllerTests() {
 
 				ginkgo.By("Add node.machine.sapcloud.io/update-result:successful label to node")
 				retryErr = retry.RetryOnConflict(retry.DefaultRetry, func() error {
-					node, _ := c.TargetCluster.Clientset.CoreV1().Nodes().Get(ctx, runningMachines[0].ObjectMeta.Labels[v1alpha1.NodeLabelKey], metav1.GetOptions{})
+					node, err := c.TargetCluster.Clientset.CoreV1().Nodes().Get(ctx, runningMachines[0].ObjectMeta.Labels[v1alpha1.NodeLabelKey], metav1.GetOptions{})
+					if err != nil {
+						return err
+					}
 					node.ObjectMeta.Labels[v1alpha1.LabelKeyNodeUpdateResult] = v1alpha1.LabelValueNodeUpdateSuccessful
 					_, updateErr := c.TargetCluster.Clientset.CoreV1().Nodes().Update(ctx, node, metav1.UpdateOptions{})
 					return updateErr
@@ -1872,7 +1879,7 @@ func (c *IntegrationTestFramework) ControllerTests() {
 					c.pollingInterval).Should(gomega.BeTrue())
 
 				ginkgo.By("Verify that old mcs has been scaled to zero")
-				// Old mcs is not removed because mcd.Spec.RevisionHistoryLimit is set to it's default value nil.
+				// Old mcs is not removed because mcd.Spec.RevisionHistoryLimit is set to its default value nil.
 				gomega.Eventually(
 					func() bool {
 						oldMcs, err := c.ControlCluster.McmClient.MachineV1alpha1().MachineSets(controlClusterNamespace).Get(ctx, originalOwnerRefMcsName, metav1.GetOptions{})
@@ -1897,7 +1904,10 @@ func (c *IntegrationTestFramework) ControllerTests() {
 
 				ginkgo.By("Trigger inPlace rollout by updating MachineClass")
 				retryErr := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-					md, _ := c.ControlCluster.McmClient.MachineV1alpha1().MachineDeployments(controlClusterNamespace).Get(ctx, helpers.InPlaceMcdNameFailure, metav1.GetOptions{})
+					md, err := c.ControlCluster.McmClient.MachineV1alpha1().MachineDeployments(controlClusterNamespace).Get(ctx, helpers.InPlaceMcdNameFailure, metav1.GetOptions{})
+					if err != nil {
+						return err
+					}
 					md.Spec.Template.Spec.Class.Name = testMachineClassResources[1]
 					_, updateErr := c.ControlCluster.McmClient.MachineV1alpha1().MachineDeployments(controlClusterNamespace).Update(ctx, md, metav1.UpdateOptions{})
 					return updateErr
@@ -1915,7 +1925,10 @@ func (c *IntegrationTestFramework) ControllerTests() {
 				ginkgo.By("Simulate failed update by setting update-result=failed and failure reason annotation on node")
 				nodeName := runningMachines[0].ObjectMeta.Labels[v1alpha1.NodeLabelKey]
 				retryErr = retry.RetryOnConflict(retry.DefaultRetry, func() error {
-					node, _ := c.TargetCluster.Clientset.CoreV1().Nodes().Get(ctx, nodeName, metav1.GetOptions{})
+					node, err := c.TargetCluster.Clientset.CoreV1().Nodes().Get(ctx, nodeName, metav1.GetOptions{})
+					if err != nil {
+						return err
+					}
 					node.ObjectMeta.Labels[v1alpha1.LabelKeyNodeUpdateResult] = v1alpha1.LabelValueNodeUpdateFailed
 					if node.Annotations == nil {
 						node.Annotations = map[string]string{}
@@ -1973,7 +1986,10 @@ func (c *IntegrationTestFramework) ControllerTests() {
 
 				ginkgo.By("Trigger inPlace rollout by updating MachineClass")
 				retryErr := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-					md, _ := c.ControlCluster.McmClient.MachineV1alpha1().MachineDeployments(controlClusterNamespace).Get(ctx, helpers.InPlaceMcdNameTimeout, metav1.GetOptions{})
+					md, err := c.ControlCluster.McmClient.MachineV1alpha1().MachineDeployments(controlClusterNamespace).Get(ctx, helpers.InPlaceMcdNameTimeout, metav1.GetOptions{})
+					if err != nil {
+						return err
+					}
 					md.Spec.Template.Spec.Class.Name = testMachineClassResources[1]
 					_, updateErr := c.ControlCluster.McmClient.MachineV1alpha1().MachineDeployments(controlClusterNamespace).Update(ctx, md, metav1.UpdateOptions{})
 					return updateErr
@@ -2023,7 +2039,10 @@ func (c *IntegrationTestFramework) ControllerTests() {
 
 				ginkgo.By("Trigger inPlace rollout by updating MachineClass")
 				retryErr := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-					md, _ := c.ControlCluster.McmClient.MachineV1alpha1().MachineDeployments(controlClusterNamespace).Get(ctx, helpers.InPlaceMcdNameManual, metav1.GetOptions{})
+					md, err := c.ControlCluster.McmClient.MachineV1alpha1().MachineDeployments(controlClusterNamespace).Get(ctx, helpers.InPlaceMcdNameManual, metav1.GetOptions{})
+					if err != nil {
+						return err
+					}
 					md.Spec.Template.Spec.Class.Name = testMachineClassResources[1]
 					_, updateErr := c.ControlCluster.McmClient.MachineV1alpha1().MachineDeployments(controlClusterNamespace).Update(ctx, md, metav1.UpdateOptions{})
 					return updateErr
@@ -2054,7 +2073,10 @@ func (c *IntegrationTestFramework) ControllerTests() {
 
 				ginkgo.By("Manually label node as selected-for-update to trigger inPlace update")
 				retryErr = retry.RetryOnConflict(retry.DefaultRetry, func() error {
-					node, _ := c.TargetCluster.Clientset.CoreV1().Nodes().Get(ctx, nodeName, metav1.GetOptions{})
+					node, err := c.TargetCluster.Clientset.CoreV1().Nodes().Get(ctx, nodeName, metav1.GetOptions{})
+					if err != nil {
+						return err
+					}
 					node.ObjectMeta.Labels[v1alpha1.LabelKeyNodeSelectedForUpdate] = "true"
 					_, updateErr := c.TargetCluster.Clientset.CoreV1().Nodes().Update(ctx, node, metav1.UpdateOptions{})
 					return updateErr
@@ -2071,7 +2093,10 @@ func (c *IntegrationTestFramework) ControllerTests() {
 
 				ginkgo.By("Simulate successful update result on node")
 				retryErr = retry.RetryOnConflict(retry.DefaultRetry, func() error {
-					node, _ := c.TargetCluster.Clientset.CoreV1().Nodes().Get(ctx, nodeName, metav1.GetOptions{})
+					node, err := c.TargetCluster.Clientset.CoreV1().Nodes().Get(ctx, nodeName, metav1.GetOptions{})
+					if err != nil {
+						return err
+					}
 					node.ObjectMeta.Labels[v1alpha1.LabelKeyNodeUpdateResult] = v1alpha1.LabelValueNodeUpdateSuccessful
 					_, updateErr := c.TargetCluster.Clientset.CoreV1().Nodes().Update(ctx, node, metav1.UpdateOptions{})
 					return updateErr
