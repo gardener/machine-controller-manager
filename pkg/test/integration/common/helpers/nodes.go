@@ -26,7 +26,7 @@ func (c *Cluster) getNodes() (*corev1.NodeList, error) {
 	return c.Clientset.CoreV1().Nodes().List(context.Background(), metav1.ListOptions{})
 }
 
-// GetNumberOfReadyNodes tries to retrieve the list of node objects in the cluster.
+// GetNumberOfReadyNodes tries to retrieve number of ready nodes in the cluster.
 func (c *Cluster) GetNumberOfReadyNodes() int16 {
 	nodes, _ := c.getNodes()
 	count := 0
@@ -43,7 +43,7 @@ func (c *Cluster) GetNumberOfReadyNodes() int16 {
 // AttemptNodeRecovery sets an annotation on the node, which is used by a kwok stage when IT is
 // running in a virtual cluster. It performs node recovery by setting the `Ready` condition to true
 // after the node lease renewal blocking VAP is removed. This is ineffectual for live clusters.
-func (c *Cluster) AttemptNodeRecovery(ctx context.Context, nodeName string, attempt int) {
+func (c *Cluster) AttemptNodeRecovery(ctx context.Context, nodeName string, attempt string) {
 	patch := fmt.Appendf(nil, `{"metadata":{"annotations":{"kwok/node-recovery":"%d"}}}`, attempt)
 	_, err := c.Clientset.CoreV1().Nodes().Patch(ctx, nodeName, types.StrategicMergePatchType, patch, metav1.PatchOptions{})
 	if err != nil && !apierrors.IsNotFound(err) {

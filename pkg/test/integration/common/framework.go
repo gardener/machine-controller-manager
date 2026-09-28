@@ -142,10 +142,10 @@ type IntegrationTestFramework struct {
 
 // NewIntegrationTestFramework creates a new IntegrationTestFramework
 // initializing resource tracker implementation.
-// Optially the timeout and polling interval are configurable as optional arguments
-// The default values used for Eventually to probe kubernetes cluster resources is
-// 300 seconds for timeout and 500 milliseconds polling interval for the simulated provider,
-// and 2 seconds with a real infrastructure provider.
+// The timeout and polling interval are configurable as optional arguments
+// The default values used by Eventually to probe kubernetes cluster resources are:
+// 1) 300 seconds for timeout
+// 2) 500 milliseconds polling interval for the simulated provider and 2 seconds with a real infrastructure provider.
 // for machine creation, deletion, machinedeployment update e.t.c.,
 // The first optional argument is the timeoutSeconds
 // The second optional argument is the pollingIntervalSeconds
@@ -1140,7 +1140,7 @@ func (c *IntegrationTestFramework) ControllerTests() {
 				ginkgo.By(fmt.Sprintf("wait for machine to recover and move to Running phase: %s", runningMachines[0].Name))
 				gomega.Eventually(func() bool {
 					if isSimulatedProvider {
-						c.TargetCluster.AttemptNodeRecovery(ctx, runningMachines[0].Labels[v1alpha1.NodeLabelKey], int(time.Now().UnixMilli()))
+						c.TargetCluster.AttemptNodeRecovery(ctx, runningMachines[0].Labels[v1alpha1.NodeLabelKey], time.Now().String())
 					}
 					return c.ControlCluster.AreMachinesRunning(ctx, []string{runningMachines[0].Name}, controlClusterNamespace)
 				}, c.timeout, c.pollingInterval).
@@ -1292,7 +1292,7 @@ func (c *IntegrationTestFramework) ControllerTests() {
 				ginkgo.By(fmt.Sprintf("wait for machine to recover and move to Running phase: %s", preservedMachine.Name))
 				gomega.Eventually(func() bool {
 					if isSimulatedProvider {
-						c.TargetCluster.AttemptNodeRecovery(ctx, preservedMachine.Labels[v1alpha1.NodeLabelKey], int(time.Now().UnixMilli()))
+						c.TargetCluster.AttemptNodeRecovery(ctx, preservedMachine.Labels[v1alpha1.NodeLabelKey], time.Now().String())
 					}
 					return c.ControlCluster.AreMachinesRunning(ctx, []string{preservedMachine.Name}, controlClusterNamespace)
 				}, c.timeout, c.pollingInterval).
@@ -1519,7 +1519,7 @@ func (c *IntegrationTestFramework) ControllerTests() {
 				ginkgo.By(fmt.Sprintf("wait for machine to recover and move to Running phase: %s", runningMachines[0].Name))
 				gomega.Eventually(func() bool {
 					if isSimulatedProvider {
-						c.TargetCluster.AttemptNodeRecovery(ctx, runningMachines[0].Labels[v1alpha1.NodeLabelKey], int(time.Now().UnixMilli()))
+						c.TargetCluster.AttemptNodeRecovery(ctx, runningMachines[0].Labels[v1alpha1.NodeLabelKey], time.Now().String())
 					}
 					return c.ControlCluster.AreMachinesRunning(ctx, []string{runningMachines[0].Name}, controlClusterNamespace)
 				}, c.timeout, c.pollingInterval).
@@ -1587,7 +1587,7 @@ func (c *IntegrationTestFramework) ControllerTests() {
 				ginkgo.By(fmt.Sprintf("wait for machine to recover and move to Running phase: %s", runningMachines[0].Name))
 				gomega.Eventually(func() bool {
 					if isSimulatedProvider {
-						c.TargetCluster.AttemptNodeRecovery(ctx, runningMachines[0].Labels[v1alpha1.NodeLabelKey], int(time.Now().UnixMilli()))
+						c.TargetCluster.AttemptNodeRecovery(ctx, runningMachines[0].Labels[v1alpha1.NodeLabelKey], time.Now().String())
 					}
 					return c.ControlCluster.AreMachinesRunning(ctx, []string{runningMachines[0].Name}, controlClusterNamespace)
 				}, c.timeout, c.pollingInterval).
@@ -2182,7 +2182,7 @@ func (c *IntegrationTestFramework) ControllerTests() {
 	// Testcase #05 | Orphaned Resources
 	ginkgo.Describe("orphaned resources", func() {
 		// Ensure the test machine deployment is deleted before querying the cloud provider for orphans.
-		ginkgo.BeforeEach(func() {
+		ginkgo.BeforeAll(func() {
 			ginkgo.By("Ensuring the test machine deployment is deleted")
 			err := c.ControlCluster.McmClient.
 				MachineV1alpha1().
