@@ -44,10 +44,10 @@ func (c *Cluster) GetNumberOfReadyNodes() int16 {
 // running in a virtual cluster. It performs node recovery by setting the `Ready` condition to true
 // after the node lease renewal blocking VAP is removed. This is ineffectual for live clusters.
 func (c *Cluster) AttemptNodeRecovery(ctx context.Context, nodeName string, attempt string) {
-	patch := fmt.Appendf(nil, `{"metadata":{"annotations":{"kwok/node-recovery":"%d"}}}`, attempt)
+	patch := fmt.Appendf(nil, `{"metadata":{"annotations":{"kwok/node-recovery":"%s"}}}`, attempt)
 	_, err := c.Clientset.CoreV1().Nodes().Patch(ctx, nodeName, types.StrategicMergePatchType, patch, metav1.PatchOptions{})
 	if err != nil && !apierrors.IsNotFound(err) {
-		log.Printf("AttemptNodeRecovery: failed to patch node %q (attempt %d): %v\n", nodeName, attempt, err)
+		log.Printf("AttemptNodeRecovery: failed to patch node %q (attempt %s): %v\n", nodeName, attempt, err)
 	}
 }
 
