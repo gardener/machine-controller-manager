@@ -12,7 +12,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func TestGetPreserveAnnotationValue(t *testing.T) {
+func TestDeterminePreservationAction(t *testing.T) {
 	tests := []struct {
 		name                     string
 		node                     *corev1.Node
@@ -54,7 +54,7 @@ func TestGetPreserveAnnotationValue(t *testing.T) {
 			machine: &v1alpha1.Machine{
 				ObjectMeta: metav1.ObjectMeta{
 					ResourceVersion: "1",
-					Annotations: map[string]string{},
+					Annotations:     map[string]string{},
 				},
 			},
 			expectedValue:            "",
@@ -206,11 +206,25 @@ func TestGetPreserveAnnotationValue(t *testing.T) {
 			expectedValue:            "",
 			shouldHandlePreservation: false,
 		},
+		{
+			name: "node nil, machine has LastAppliedNodePreserveValue annotation",
+			node: nil,
+			machine: &v1alpha1.Machine{
+				ObjectMeta: metav1.ObjectMeta{
+					ResourceVersion: "1",
+					Annotations: map[string]string{
+						LastAppliedNodePreserveValueAnnotationKey: PreserveMachineAnnotationValueNow,
+					},
+				},
+			},
+			expectedValue:            PreserveMachineAnnotationValueNow,
+			shouldHandlePreservation: true,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			val, shouldHandlePreservation := DeterminePreservationActionFromAnnotation(tt.node, tt.machine)
+			val, shouldHandlePreservation := DeterminePreservationAction(tt.node, tt.machine)
 			if val != tt.expectedValue {
 				t.Errorf("expected value %q, got %q", tt.expectedValue, val)
 			}

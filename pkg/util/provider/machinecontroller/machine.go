@@ -473,7 +473,7 @@ func (c *controller) triggerCreationFlow(ctx context.Context, createMachineReque
 							LastUpdateTime: metav1.Now(),
 						}
 
-						if val, shouldHandlePreservation := machineutils.DeterminePreservationActionFromAnnotation(node, machine); shouldHandlePreservation && val == machineutils.PreserveMachineAnnotationValueWhenFailed {
+						if val, shouldHandlePreservation := machineutils.DeterminePreservationAction(node, machine); shouldHandlePreservation && val == machineutils.PreserveMachineAnnotationValueWhenFailed {
 							machineCurrentStatus.PreserveExpiryTime = &metav1.Time{Time: metav1.Now().Add(c.getEffectiveMachinePreserveTimeout(machine).Duration)}
 						}
 
@@ -667,7 +667,7 @@ func (c *controller) initializeMachine(ctx context.Context, machine *v1alpha1.Ma
 		if currentStatus.Phase == v1alpha1.MachineFailed {
 			// check if preservation is needed for the failed machine
 			node, _ := c.nodeLister.Get(machine.Labels[v1alpha1.NodeLabelKey])
-			if val, shouldHandlePreservation := machineutils.DeterminePreservationActionFromAnnotation(node, machine); shouldHandlePreservation && val == machineutils.PreserveMachineAnnotationValueWhenFailed {
+			if val, shouldHandlePreservation := machineutils.DeterminePreservationAction(node, machine); shouldHandlePreservation && val == machineutils.PreserveMachineAnnotationValueWhenFailed {
 				currentStatus.PreserveExpiryTime = &metav1.Time{Time: metav1.Now().Add(c.getEffectiveMachinePreserveTimeout(machine).Duration)}
 			}
 		}
@@ -833,7 +833,7 @@ func (c *controller) manageMachinePreservation(ctx context.Context, machine *v1a
 		klog.V(3).Infof("node %q not found. Will check the machine %q for annotation:%q", nodeName, machine.Name, machineutils.PreserveMachineAnnotationKey)
 	}
 
-	preserveAnnotationValue, shouldHandlePreservation := machineutils.DeterminePreservationActionFromAnnotation(node, machine)
+	preserveAnnotationValue, shouldHandlePreservation := machineutils.DeterminePreservationAction(node, machine)
 	if !shouldHandlePreservation {
 		return
 	}

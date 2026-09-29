@@ -233,11 +233,11 @@ func PatchMachine(
 	return machineClient.Patch(ctx, machine.Name, types.MergePatchType, patch, metav1.PatchOptions{}, subresources...)
 }
 
-// DeterminePreservationActionFromAnnotation returns the preserve annotation value for the given node and machine
+// DeterminePreservationAction returns the preserve annotation value for the given node and machine
 // and a boolean informing whether we need to do any work or skip.
 // Invalid annotation values won't change the preservation state.
 // If Node has invalid annotation but Machine has a valid annotation - node takes precedence. We won't change the preservation state.
-func DeterminePreservationActionFromAnnotation(
+func DeterminePreservationAction(
 	node *corev1.Node,
 	machine *v1alpha1.Machine,
 ) (annotationValue string, shouldHandlePreservation bool) {
@@ -267,6 +267,11 @@ func DeterminePreservationActionFromAnnotation(
 		}
 	}
 	// node doesn't exist
+	if val, ok := machine.Annotations[LastAppliedNodePreserveValueAnnotationKey]; ok {
+		// LastAppliedNodePreserveValueAnnotationKey annotation present
+		// Preservation to be done based on this annotation value
+		return val, true
+	}
 	if val, ok := machine.Annotations[PreserveMachineAnnotationKey]; ok {
 		// machine has PreserveMachineAnnotationKey present
 		if AllowedPreserveAnnotationValues.Has(val) {
