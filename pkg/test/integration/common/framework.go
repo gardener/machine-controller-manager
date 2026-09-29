@@ -1636,13 +1636,13 @@ func (c *IntegrationTestFramework) ControllerTests() {
 					Should(gomega.BeTrue())
 
 				// Add the node.machine.sapcloud.io/preserve=when-failed annotation to the second machine that is running to ensure it is preserved when it fails
-				ginkgo.By(fmt.Sprintf("add the node.machine.sapcloud.io/preserve=when-failed annotation to the other running machine: %s", runningMachines[0].Name))
+				ginkgo.By(fmt.Sprintf("add the node.machine.sapcloud.io/preserve=when-failed annotation to the other running machine: %s", runningMachines[1].Name))
 				ginkgo.DeferCleanup(func() {
-					ginkgo.By(fmt.Sprintf("remove the node.machine.sapcloud.io/preserve=when-failed annotation from the preserved machine: %s", runningMachines[0].Name))
-					err = c.ControlCluster.PatchMachineAnnotations(ctx, runningMachines[0].Name, controlClusterNamespace, nil)
+					ginkgo.By(fmt.Sprintf("remove the node.machine.sapcloud.io/preserve=when-failed annotation from the preserved machine: %s", runningMachines[1].Name))
+					err = c.ControlCluster.PatchMachineAnnotations(ctx, runningMachines[1].Name, controlClusterNamespace, nil)
 					gomega.Expect(err).To(gomega.BeNil())
 				})
-				err = c.ControlCluster.PatchMachineAnnotations(ctx, runningMachines[0].Name, controlClusterNamespace, map[string]any{
+				err = c.ControlCluster.PatchMachineAnnotations(ctx, runningMachines[1].Name, controlClusterNamespace, map[string]any{
 					mc_utils.PreserveMachineAnnotationKey: mc_utils.PreserveMachineAnnotationValueWhenFailed,
 				})
 				gomega.Expect(err).To(gomega.BeNil())
