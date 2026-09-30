@@ -682,7 +682,7 @@ func (c *IntegrationTestFramework) ControllerTests() {
 	ginkgo.Describe("machine resource", func() {
 		var initialNodes int16
 		ginkgo.Context("creation", func() {
-			ginkgo.It("should not lead to any errors and add 2 more node in target cluster", func() {
+			ginkgo.It("should not lead to any errors and add 3 more node in target cluster", func() {
 				// In case of existing deployments creating nodes when starting simulated
 				// provider, the change in node count can be >1, this delay prevents
 				// checking node count immediately to allow for a correct initial count
@@ -692,27 +692,27 @@ func (c *IntegrationTestFramework) ControllerTests() {
 				// Probe nodes currently available in target cluster
 				initialNodes = c.TargetCluster.GetNumberOfNodes()
 				ginkgo.By("Checking for errors")
-				gomega.Expect(c.ControlCluster.CreateMachines([]string{helpers.McName, helpers.NodeDeleteMcName}, controlClusterNamespace, gnaSecretNameLabelValue)).To(gomega.BeNil())
+				gomega.Expect(c.ControlCluster.CreateMachines([]string{helpers.McName, helpers.NodeDeleteMcName, helpers.SuspensionMcName}, controlClusterNamespace, gnaSecretNameLabelValue)).To(gomega.BeNil())
 
-				ginkgo.By("Waiting until number of ready nodes is 2 more than initial nodes")
+				ginkgo.By("Waiting until number of ready nodes is 3 more than initial nodes")
 				gomega.Eventually(
 					c.TargetCluster.GetNumberOfNodes,
 					c.timeout,
 					c.pollingInterval).
-					Should(gomega.BeNumerically("==", initialNodes+2))
+					Should(gomega.BeNumerically("==", initialNodes+3))
 
 				gomega.Eventually(
 					c.TargetCluster.GetNumberOfReadyNodes,
 					c.timeout,
 					c.pollingInterval).
-					Should(gomega.BeNumerically("==", initialNodes+2))
+					Should(gomega.BeNumerically("==", initialNodes+3))
 
 				// Wait for machine to be running
 				gomega.Eventually(
 					c.ControlCluster.AreMachinesRunning,
 					c.timeout,
 					c.pollingInterval).
-					WithArguments(ctx, []string{helpers.McName}, controlClusterNamespace).
+					WithArguments(ctx, []string{helpers.McName, helpers.NodeDeleteMcName, helpers.SuspensionMcName}, controlClusterNamespace).
 					Should(gomega.BeTrue())
 			})
 		})
@@ -741,17 +741,17 @@ func (c *IntegrationTestFramework) ControllerTests() {
 							WithArguments(ctx, helpers.McName, controlClusterNamespace).
 							Should(gomega.BeTrue())
 
-						ginkgo.By("Waiting until number of ready nodes is equal to number of initial nodes+1")
+						ginkgo.By("Waiting until number of ready nodes is equal to number of initial nodes+2")
 						gomega.Eventually(
 							c.TargetCluster.GetNumberOfNodes,
 							c.timeout,
 							c.pollingInterval).
-							Should(gomega.BeNumerically("==", initialNodes+1))
+							Should(gomega.BeNumerically("==", initialNodes+2))
 						gomega.Eventually(
 							c.TargetCluster.GetNumberOfReadyNodes,
 							c.timeout,
 							c.pollingInterval).
-							Should(gomega.BeNumerically("==", initialNodes+1))
+							Should(gomega.BeNumerically("==", initialNodes+2))
 					}
 
 				})
@@ -759,13 +759,12 @@ func (c *IntegrationTestFramework) ControllerTests() {
 				ginkgo.It("should suspend deletion until the suspension annotation is removed", func() {
 					suspensionAnnotationKey := v1alpha1.AnnotationKeySuspendInstanceDeletionPrefix + "/integration-test"
 
-					ginkgo.By("Creating a machine for the suspension test")
-					gomega.Expect(c.ControlCluster.CreateMachine(controlClusterNamespace, gnaSecretNameLabelValue)).To(gomega.Succeed())
+					ginkgo.By("Waiting for the suspension test machine to be running")
 					gomega.Eventually(
 						c.ControlCluster.AreMachinesRunning,
 						c.timeout,
 						c.pollingInterval).
-						WithArguments(ctx, []string{helpers.McName}, controlClusterNamespace).
+						WithArguments(ctx, []string{helpers.SuspensionMcName}, controlClusterNamespace).
 						Should(gomega.BeTrue())
 
 					ginkgo.By("Adding the instance deletion suspension annotation")
@@ -773,7 +772,7 @@ func (c *IntegrationTestFramework) ControllerTests() {
 						machine, err := c.ControlCluster.McmClient.
 							MachineV1alpha1().
 							Machines(controlClusterNamespace).
-							Get(ctx, helpers.McName, metav1.GetOptions{})
+							Get(ctx, helpers.SuspensionMcName, metav1.GetOptions{})
 						if err != nil {
 							return err
 						}
@@ -794,7 +793,7 @@ func (c *IntegrationTestFramework) ControllerTests() {
 						c.ControlCluster.McmClient.
 							MachineV1alpha1().
 							Machines(controlClusterNamespace).
-							Delete(ctx, helpers.McName, metav1.DeleteOptions{})).
+							Delete(ctx, helpers.SuspensionMcName, metav1.DeleteOptions{})).
 						Should(gomega.BeNil(), "No Errors while deleting machine")
 
 					ginkgo.By("Waiting for InstanceDeletionSuspended=True")
@@ -802,7 +801,7 @@ func (c *IntegrationTestFramework) ControllerTests() {
 						machine, err := c.ControlCluster.McmClient.
 							MachineV1alpha1().
 							Machines(controlClusterNamespace).
-							Get(ctx, helpers.McName, metav1.GetOptions{})
+							Get(ctx, helpers.SuspensionMcName, metav1.GetOptions{})
 						if err != nil {
 							return false
 						}
@@ -815,7 +814,7 @@ func (c *IntegrationTestFramework) ControllerTests() {
 						machine, err := c.ControlCluster.McmClient.
 							MachineV1alpha1().
 							Machines(controlClusterNamespace).
-							Get(ctx, helpers.McName, metav1.GetOptions{})
+							Get(ctx, helpers.SuspensionMcName, metav1.GetOptions{})
 						if err != nil {
 							return err
 						}
@@ -833,7 +832,7 @@ func (c *IntegrationTestFramework) ControllerTests() {
 						c.ControlCluster.IsMachineDeleted,
 						c.timeout,
 						c.pollingInterval).
-						WithArguments(ctx, helpers.McName, controlClusterNamespace).
+						WithArguments(ctx, helpers.SuspensionMcName, controlClusterNamespace).
 						Should(gomega.BeTrue())
 				})
 			})

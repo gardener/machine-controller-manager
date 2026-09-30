@@ -38,6 +38,8 @@ const (
 	InPlaceMcdNameTimeout = "test-mcd-inplace-timeout"
 	// InPlaceMcdNameManual is the name of the MCD used for the manual orchestration inplace update test
 	InPlaceMcdNameManual = "test-mcd-inplace-manual"
+	// SuspensionMcName is the name of the test machine used for the instance deletion suspension test
+	SuspensionMcName = "suspension-test-machine"
 )
 
 var (
