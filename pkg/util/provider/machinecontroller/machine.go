@@ -652,21 +652,24 @@ func (c *controller) initializeMachine(ctx context.Context, machine *v1alpha1.Ma
 	if err != nil {
 		errStatus, ok := status.FromError(err)
 		if !ok {
-			klog.Errorf("Cannot decode Driver error for machine %q: %s. Unexpected behaviour as Driver errors are expected to be of type status.Status", machine.Name, err)
+			klog.Errorf("cannot decode Driver error for machine %q: %s. Unexpected behaviour as Driver errors are expected to be of type status.Status", machine.Name, err)
 			return nil, machineutils.LongRetry, err
 		}
 		if errStatus.Code() == codes.Unimplemented {
 			klog.V(3).Infof("Provider does not support Driver.InitializeMachine - skipping VM instance initialization for %q.", machine.Name)
 			return nil, 0, nil
 		}
-		klog.Errorf("Error occurred while initializing VM instance for machine %q: %s", machine.Name, err)
+		klog.Errorf("error occurred while initializing VM instance for machine %q: %s", machine.Name, err)
 		currentStatus := v1alpha1.CurrentStatus{
 			Phase:          c.getCreateFailurePhase(machine),
 			LastUpdateTime: metav1.Now(),
 		}
 		if currentStatus.Phase == v1alpha1.MachineFailed {
 			// check if preservation is needed for the failed machine
-			node, _ := c.nodeLister.Get(machine.Labels[v1alpha1.NodeLabelKey])
+			node, err := c.nodeLister.Get(machine.Labels[v1alpha1.NodeLabelKey])
+			if err != nil {
+				klog.V(3).Infof("node %q not found.", machine.Labels[v1alpha1.NodeLabelKey])
+			}
 			if val, shouldHandlePreservation := machineutils.DeterminePreservationAction(node, machine); shouldHandlePreservation && val == machineutils.PreserveMachineAnnotationValueWhenFailed {
 				currentStatus.PreserveExpiryTime = &metav1.Time{Time: metav1.Now().Add(c.getEffectiveMachinePreserveTimeout(machine).Duration)}
 			}
