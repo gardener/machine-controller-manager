@@ -15,18 +15,20 @@ import (
 	clientretry "k8s.io/client-go/util/retry"
 )
 
-// CloneAndAddCondition adds condition to the conditions slice if
-func CloneAndAddCondition(conditions []v1.NodeCondition, condition v1.NodeCondition) []v1.NodeCondition {
+// CloneAndAddCondition adds condition to the conditions slice if it has changed.
+func CloneAndAddCondition(conditions []v1.NodeCondition, condition v1.NodeCondition) ([]v1.NodeCondition, bool) {
 	if condition.Type == "" || condition.Status == "" {
-		return conditions
+		return conditions, false
 	}
 	// Clone
 	var newConditions []v1.NodeCondition
+	updated := true
 
 	for _, existingCondition := range conditions {
 		if existingCondition.Type != condition.Type { // filter out the condition that is being updated
 			newConditions = append(newConditions, existingCondition)
 		} else { // condition with this type already exists
+			updated = existingCondition.Status != condition.Status || existingCondition.Reason != condition.Reason || existingCondition.Message != condition.Message
 			if existingCondition.Status == condition.Status && existingCondition.Reason == condition.Reason {
 				// condition status and reason are  the same, keep existing transition time
 				condition.LastTransitionTime = existingCondition.LastTransitionTime
@@ -35,14 +37,14 @@ func CloneAndAddCondition(conditions []v1.NodeCondition, condition v1.NodeCondit
 	}
 
 	newConditions = append(newConditions, condition)
-	return newConditions
+	return newConditions, updated
 }
 
 // AddOrUpdateCondition adds a condition to the condition list. Returns a new copy of updated Node
 func AddOrUpdateCondition(node *v1.Node, condition v1.NodeCondition) *v1.Node {
 	newNode := node.DeepCopy()
 	nodeConditions := newNode.Status.Conditions
-	newNode.Status.Conditions = CloneAndAddCondition(nodeConditions, condition)
+	newNode.Status.Conditions, _ = CloneAndAddCondition(nodeConditions, condition)
 	return newNode
 }
 

@@ -126,9 +126,9 @@ const (
 
 // GetMachineCondition returns a condition matching the type from the machine's status.
 func GetMachineCondition(machine *v1alpha1.Machine, conditionType v1.NodeConditionType) *v1.NodeCondition {
-	for index := range machine.Status.Conditions {
-		if machine.Status.Conditions[index].Type == conditionType {
-			return &machine.Status.Conditions[index]
+	for _, cond := range machine.Status.Conditions {
+		if cond.Type == conditionType {
+			return &cond
 		}
 	}
 	return nil

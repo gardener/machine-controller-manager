@@ -1586,6 +1586,7 @@ var _ = Describe("machine", func() {
 					Expect(actualCondition.Type).To(Equal(expectedCondition.Type))
 					Expect(actualCondition.Status).To(Equal(expectedCondition.Status))
 					Expect(actualCondition.Message).To(Equal(expectedCondition.Message))
+					Expect(actualCondition.Reason).To(Equal(expectedCondition.Reason))
 				}
 
 				if _, suspended := annotationsutils.IsInstanceDeletionSuspended(machine); suspended {
@@ -1594,6 +1595,7 @@ var _ = Describe("machine", func() {
 					Expect(actualCondition.Type).To(Equal(v1alpha1.ConditionInstanceDeletionSuspended))
 					Expect(actualCondition.Status).To(Equal(corev1.ConditionTrue))
 					Expect(actualCondition.Message).To(Equal(fmt.Sprintf("Instance Deletion suspended by %s for %s.", terminationHookOwner, terminationHookPurpose)))
+					Expect(actualCondition.Reason).To(Equal(v1alpha1.InstanceDeletionSuspended))
 				}
 
 				if data.expect.nodeDeleted {
@@ -3274,6 +3276,7 @@ var _ = Describe("machine", func() {
 								Type:    v1alpha1.ConditionInstanceDeletionSuspended,
 								Status:  corev1.ConditionTrue,
 								Message: fmt.Sprintf("Instance Deletion suspended by %s for %s.", terminationHookOwner, terminationHookPurpose),
+								Reason:  v1alpha1.InstanceDeletionSuspended,
 							}},
 						},
 						nil,
@@ -3325,6 +3328,7 @@ var _ = Describe("machine", func() {
 								Type:    v1alpha1.ConditionInstanceDeletionSuspended,
 								Status:  corev1.ConditionFalse,
 								Message: "Instance Deletion is no longer suspended.",
+								Reason:  v1alpha1.InstanceDeletionResumed,
 							}},
 						},
 						nil,
@@ -3379,6 +3383,7 @@ var _ = Describe("machine", func() {
 								Type:    v1alpha1.ConditionInstanceDeletionSuspended,
 								Status:  corev1.ConditionTrue,
 								Message: fmt.Sprintf("Instance Deletion suspended by %s for %s.", terminationHookOwner, terminationHookPurpose),
+								Reason:  v1alpha1.InstanceDeletionSuspended,
 							}},
 						},
 						nil,

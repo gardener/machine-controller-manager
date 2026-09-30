@@ -17,9 +17,10 @@ import (
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/klog/v2"
 )
 
-const maxInstanceDeletionSuspensionMessageLength = 256
+const maxInstanceDeletionSuspensionDetailsLength = 256
 
 // AddOrUpdateAnnotation tries to add an annotation. Returns a new copy of updated Node and true if something was updated
 // false otherwise.
@@ -121,27 +122,23 @@ func IsInstanceDeletionSuspended(machine *v1alpha1.Machine) (string, bool) {
 		return "", false
 	}
 
-	details := make([]string, 0, len(suspensions))
-	for i, suspension := range suspensions {
-		detail := suspension.owner
-		if suspension.owner == "" {
-			detail = "unknown owner"
-		}
-		if suspension.purpose != "" {
-			detail += " for " + suspension.purpose
-		}
-		details = append(details, detail)
-		if len(strings.Join(details, ", ")) > maxInstanceDeletionSuspensionMessageLength {
-			if i == 0 {
+	const prefix = "Instance Deletion suspended by "
+	var details []string
+	for _, suspension := range suspensions {
+		detail := suspension.owner + " for " + suspension.purpose
+		if len(prefix+strings.Join(append(details, detail), ", ")+".") > maxInstanceDeletionSuspensionDetailsLength {
+			omitted := len(suspensions) - len(details)
+			if len(details) == 0 {
 				details = []string{fmt.Sprintf("%d owner(s)", len(suspensions))}
 			} else {
-				details = append(details[:i], fmt.Sprintf("and %d other owner(s)", len(suspensions)-i))
+				details = append(details, fmt.Sprintf("and %d other owner(s)", omitted))
 			}
 			break
 		}
+		details = append(details, detail)
 	}
 
-	return "Instance Deletion suspended by " + strings.Join(details, ", ") + ".", true
+	return prefix + strings.Join(details, ", ") + ".", true
 }
 
 type instanceDeletionSuspension struct {
@@ -154,18 +151,21 @@ func getInstanceDeletionSuspensions(machine *v1alpha1.Machine) []instanceDeletio
 		return nil
 	}
 
-	var suspensions []instanceDeletionSuspension
-	if owner, exists := machine.Annotations[v1alpha1.AnnotationKeySuspendInstanceDeletionPrefix]; exists {
-		// Support the base annotation as a boolean-style hook.
-		suspensions = append(suspensions, instanceDeletionSuspension{owner: owner})
-	}
-
 	prefix := v1alpha1.AnnotationKeySuspendInstanceDeletionPrefix + "/"
+	var suspensions []instanceDeletionSuspension
 	for annotation, owner := range machine.Annotations {
+		if annotation == v1alpha1.AnnotationKeySuspendInstanceDeletionPrefix {
+			klog.Warningf("Ignoring invalid instance deletion suspension annotation %q: purpose and owner must be non-empty", annotation)
+			continue
+		}
 		if !strings.HasPrefix(annotation, prefix) {
 			continue
 		}
 		purpose := strings.TrimPrefix(annotation, prefix)
+		if purpose == "" || owner == "" {
+			klog.Warningf("Ignoring invalid instance deletion suspension annotation %q: purpose and owner must be non-empty", annotation)
+			continue
+		}
 		suspensions = append(suspensions, instanceDeletionSuspension{purpose: purpose, owner: owner})
 	}
 

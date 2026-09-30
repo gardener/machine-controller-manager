@@ -335,14 +335,14 @@ var _ = Describe("annotations", func() {
 			Expect(message).To(Equal(fmt.Sprintf("Instance Deletion suspended by %s for %s, %s for %s.", anotherTerminationHookOwner, anotherTerminationHookPurpose, terminationHookOwner, terminationHookPurpose)))
 		})
 
-		It("uses unknown owner when a suspension annotation has no owner", func() {
+		It("ignores a suspension annotation when the owner is empty", func() {
 			machine := &v1alpha1.Machine{ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{
 				v1alpha1.AnnotationKeySuspendInstanceDeletionPrefix + "/" + anotherTerminationHookPurpose: "",
 			}}}
 
 			message, suspended := IsInstanceDeletionSuspended(machine)
-			Expect(suspended).To(BeTrue())
-			Expect(message).To(Equal(fmt.Sprintf("Instance Deletion suspended by unknown owner for %s.", anotherTerminationHookPurpose)))
+			Expect(message).To(BeEmpty())
+			Expect(suspended).To(BeFalse())
 		})
 
 		It("limits oversized messages and reports omitted owners", func() {
@@ -371,7 +371,7 @@ var _ = Describe("annotations", func() {
 			Expect(message).To(Equal("Instance Deletion suspended by 2 owner(s)."))
 		})
 
-		It("returns a message and true for the standalone suspension annotation", func() {
+		It("ignores a suspension annotation when the purpose is empty", func() {
 			machine := &v1alpha1.Machine{ObjectMeta: metav1.ObjectMeta{
 				Annotations: map[string]string{
 					v1alpha1.AnnotationKeySuspendInstanceDeletionPrefix: terminationHookOwner,
@@ -379,8 +379,8 @@ var _ = Describe("annotations", func() {
 			}}
 
 			message, suspended := IsInstanceDeletionSuspended(machine)
-			Expect(suspended).To(BeTrue())
-			Expect(message).To(Equal(fmt.Sprintf("Instance Deletion suspended by %s.", terminationHookOwner)))
+			Expect(message).To(BeEmpty())
+			Expect(suspended).To(BeFalse())
 		})
 
 		It("returns an empty message and false when no suspension annotation exists", func() {
