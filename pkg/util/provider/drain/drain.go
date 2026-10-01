@@ -225,12 +225,11 @@ func NewDrainOptions(
 		pvLister:                     pvLister,
 		pdbLister:                    pdbLister,
 		nodeLister:                   nodeLister,
-		podLister:                    podLister,
 		volumeAttachmentHandler:      volumeAttachmentHandler,
 		podSynced:                    podSynced,
 	}
 
-	if drainOptions.podLister != nil {
+	if podLister != nil {
 		drainOptions.SetPodProvider(&podProvider{Lister: podLister})
 	}
 
