@@ -2033,6 +2033,7 @@ func (c *IntegrationTestFramework) ControllerTests() {
 				for _, ref := range runningMachines[0].ObjectMeta.OwnerReferences {
 					if ref.Kind == "MachineSet" {
 						originalMcsName = ref.Name
+						break
 					}
 				}
 				gomega.Expect(originalMcsName).ToNot(gomega.Equal(""))

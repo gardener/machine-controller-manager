@@ -39,7 +39,7 @@ const (
 )
 
 var (
-	testLabels = map[string]string{"name": "test-label"}
+	testLabels = map[string]string{"test-label": "test-machine"}
 )
 
 // CreateMachines creates test-machines using machineclass "test-mc"
@@ -54,6 +54,7 @@ func (c *Cluster) CreateMachines(mcNames []string, namespace string, gnaSecretNa
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      mcName,
 						Namespace: namespace,
+						Labels:    testLabels,
 					},
 					Spec: v1alpha1.MachineSpec{
 						Class: v1alpha1.ClassSpec{
@@ -90,28 +91,7 @@ func (c *Cluster) CreateMachineDeployment(namespace string, gnaSecretName string
 
 // GetRunningMachineList lists all running machines that contain the given machine labels and returns the list of such machines
 func (c *Cluster) GetRunningMachineList(ctx context.Context, namespace string) ([]v1alpha1.Machine, error) {
-	selector := labels.SelectorFromSet(testLabels)
-
-	var runningMachines []v1alpha1.Machine
-
-	machineList, err := c.McmClient.MachineV1alpha1().Machines(namespace).List(
-		ctx,
-		metav1.ListOptions{
-			LabelSelector: selector.String(),
-		},
-	)
-	if err != nil {
-		log.Printf("error listing machines: %v\n", err)
-		return nil, err
-	}
-
-	for _, mc := range machineList.Items {
-		if mc.Status.CurrentStatus.Phase == v1alpha1.MachineRunning {
-			runningMachines = append(runningMachines, mc)
-		}
-	}
-
-	return runningMachines, nil
+	return c.GetRunningMachineListByLabel(ctx, namespace, testLabels)
 }
 
 // IsMachineDeleted returns boolean value indicating whether the specified machine is deleted or not
