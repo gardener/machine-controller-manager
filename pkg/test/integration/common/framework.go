@@ -2180,7 +2180,7 @@ func (c *IntegrationTestFramework) ControllerTests() {
 	})
 
 	// Testcase #05 | Orphaned Resources
-	ginkgo.Describe("orphaned resources", func() {
+	ginkgo.Describe("orphaned resources", ginkgo.Ordered, func() {
 		// Ensure the test machine deployment is deleted before querying the cloud provider for orphans.
 		ginkgo.BeforeAll(func() {
 			ginkgo.By("Ensuring the test machine deployment is deleted")
