@@ -962,7 +962,6 @@ func (c *controller) manageAutoPreservationOfFailedMachines(ctx context.Context,
 		return autoPreservationCandidates[i].CreationTimestamp.After(autoPreservationCandidates[j].CreationTimestamp.Time)
 	})
 
-	var errs []error
 	for index, machine := range autoPreservationCandidates {
 		if autoPreservationCapacityRemaining == 0 {
 			break
@@ -978,8 +977,7 @@ func (c *controller) manageAutoPreservationOfFailedMachines(ctx context.Context,
 		}, true)
 		if err != nil {
 			klog.Errorf("could not annotate machine %q for auto-preservation: %v", machine.Name, err)
-			errs = append(errs, err)
-			continue
+			return nil, err
 		}
 
 		klog.V(2).Infof("Setting PreserveExpiryTime on machine %q for auto-preservation as part of machine set %q", machine.Name, machineSet.Name)
@@ -993,15 +991,14 @@ func (c *controller) manageAutoPreservationOfFailedMachines(ctx context.Context,
 		}, true, "status")
 		if err != nil {
 			klog.Errorf("could not set PreserveExpiryTime on machine %q for auto-preservation: %v", annotatedMachine.Name, err)
-			errs = append(errs, err)
-			continue
+			return nil, err
 		}
 
 		autoPreservationCandidates[index] = preservedMachine
 		autoPreservationCapacityRemaining--
 	}
 
-	return append(autoPreservationCandidates, others...), errors.Join(errs...)
+	return append(autoPreservationCandidates, others...), nil
 }
 
 func (c *controller) stopAutoPreservationForMachines(ctx context.Context, machines []*v1alpha1.Machine, numToStop int) int {
