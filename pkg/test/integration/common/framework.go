@@ -42,6 +42,8 @@ import (
 
 const (
 	dwdIgnoreScalingAnnotation = "dependency-watchdog.gardener.cloud/ignore-scaling"
+	terminationHookPurpose     = "integration-test"
+	terminationHookOwner       = "integration-test"
 )
 
 var (
@@ -757,7 +759,7 @@ func (c *IntegrationTestFramework) ControllerTests() {
 				})
 
 				ginkgo.It("should suspend deletion until the suspension annotation is removed", func() {
-					suspensionAnnotationKey := v1alpha1.AnnotationKeySuspendInstanceDeletionPrefix + "/integration-test"
+					suspensionAnnotationKey := v1alpha1.AnnotationKeySuspendInstanceDeletionPrefix + "/" + terminationHookPurpose
 
 					ginkgo.By("Waiting for the suspension test machine to be running")
 					gomega.Eventually(
@@ -768,25 +770,12 @@ func (c *IntegrationTestFramework) ControllerTests() {
 						Should(gomega.BeTrue())
 
 					ginkgo.By("Adding the instance deletion suspension annotation")
-					retryErr := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-						machine, err := c.ControlCluster.McmClient.
-							MachineV1alpha1().
-							Machines(controlClusterNamespace).
-							Get(ctx, helpers.SuspensionMcName, metav1.GetOptions{})
-						if err != nil {
-							return err
-						}
-						if machine.Annotations == nil {
-							machine.Annotations = make(map[string]string)
-						}
-						machine.Annotations[suspensionAnnotationKey] = "integration-test"
-						_, err = c.ControlCluster.McmClient.
-							MachineV1alpha1().
-							Machines(controlClusterNamespace).
-							Update(ctx, machine, metav1.UpdateOptions{})
-						return err
+					err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+						return c.ControlCluster.PatchMachineAnnotations(ctx, helpers.SuspensionMcName, controlClusterNamespace, map[string]any{
+							suspensionAnnotationKey: terminationHookOwner,
+						})
 					})
-					gomega.Expect(retryErr).NotTo(gomega.HaveOccurred())
+					gomega.Expect(err).NotTo(gomega.HaveOccurred())
 
 					ginkgo.By("Deleting the machine")
 					gomega.Expect(
@@ -810,22 +799,8 @@ func (c *IntegrationTestFramework) ControllerTests() {
 					}, c.timeout, c.pollingInterval).Should(gomega.BeTrue())
 
 					ginkgo.By("Removing the instance deletion suspension annotation")
-					retryErr = retry.RetryOnConflict(retry.DefaultRetry, func() error {
-						machine, err := c.ControlCluster.McmClient.
-							MachineV1alpha1().
-							Machines(controlClusterNamespace).
-							Get(ctx, helpers.SuspensionMcName, metav1.GetOptions{})
-						if err != nil {
-							return err
-						}
-						delete(machine.Annotations, suspensionAnnotationKey)
-						_, err = c.ControlCluster.McmClient.
-							MachineV1alpha1().
-							Machines(controlClusterNamespace).
-							Update(ctx, machine, metav1.UpdateOptions{})
-						return err
-					})
-					gomega.Expect(retryErr).NotTo(gomega.HaveOccurred())
+					err = c.removeMachineAnnotation(ctx, helpers.SuspensionMcName, suspensionAnnotationKey)
+					gomega.Expect(err).NotTo(gomega.HaveOccurred())
 
 					ginkgo.By("Waiting until the machine object is deleted")
 					gomega.Eventually(
@@ -2382,9 +2357,17 @@ func (c *IntegrationTestFramework) cleanTestResources(ctx context.Context, timeo
 	if err := c.cleanMachineDeployment(ctx, helpers.McdName, timeout); err != nil {
 		log.Println(err.Error())
 	}
-	// Check and delete machine resource
-	if err := c.cleanMachine(ctx, helpers.McName, timeout); err != nil {
+
+	ginkgo.By("Removing termination hooks from machines")
+	if err := c.removeMachineAnnotation(ctx, helpers.SuspensionMcName, v1alpha1.AnnotationKeySuspendInstanceDeletionPrefix+"/"+terminationHookPurpose); err != nil {
 		log.Println(err.Error())
+	}
+
+	for _, machineName := range []string{helpers.McName, helpers.NodeDeleteMcName, helpers.SuspensionMcName} {
+		// Check and delete machine resource
+		if err := c.cleanMachine(ctx, machineName, timeout); err != nil {
+			log.Println(err.Error())
+		}
 	}
 
 	for _, machineClassName := range testMachineClassResources {
@@ -2398,6 +2381,18 @@ func (c *IntegrationTestFramework) cleanTestResources(ctx context.Context, timeo
 	if err := c.TargetCluster.DeleteVAPToRestartKubeletUpdates(ctx); err != nil {
 		log.Println(err.Error())
 	}
+}
+
+func (c *IntegrationTestFramework) removeMachineAnnotation(ctx context.Context, machineName, annotationKey string) error {
+	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		err := c.ControlCluster.PatchMachineAnnotations(ctx, machineName, controlClusterNamespace, map[string]any{
+			annotationKey: nil,
+		})
+		if apierrors.IsNotFound(err) {
+			return nil
+		}
+		return err
+	})
 }
 
 func (c *IntegrationTestFramework) cleanMachineDeployment(ctx context.Context, name string, timeout int64) error {
