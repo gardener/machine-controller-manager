@@ -190,40 +190,6 @@ func (c *controller) getSecret(ref *v1.SecretReference, MachineClassName string)
 	return secretRef, err
 }
 
-// nodeConditionsHaveChanged compares two node status.conditions to see if any of the statuses have changed
-func nodeConditionsHaveChanged(oldConditions []v1.NodeCondition, newConditions []v1.NodeCondition) ([]v1.NodeCondition, []v1.NodeCondition, bool) {
-	var (
-		oldConditionsByType      = make(map[v1.NodeConditionType]v1.NodeCondition, len(oldConditions))
-		newConditionsByType      = make(map[v1.NodeConditionType]v1.NodeCondition, len(newConditions))
-		addedOrUpdatedConditions = make([]v1.NodeCondition, 0, len(newConditions))
-		removedConditions        = make([]v1.NodeCondition, 0, len(oldConditions))
-	)
-
-	for _, c := range oldConditions {
-		oldConditionsByType[c.Type] = c
-	}
-	for _, c := range newConditions {
-		newConditionsByType[c.Type] = c
-	}
-
-	// checking for any added/updated new condition
-	for _, c := range newConditions {
-		oldC, exists := oldConditionsByType[c.Type]
-		if !exists || (oldC.Status != c.Status) || (c.Type == v1alpha1.NodeInPlaceUpdate && oldC.Reason != c.Reason) {
-			addedOrUpdatedConditions = append(addedOrUpdatedConditions, c)
-		}
-	}
-
-	// checking for any deleted condition
-	for _, c := range oldConditions {
-		if _, exists := newConditionsByType[c.Type]; !exists {
-			removedConditions = append(removedConditions, c)
-		}
-	}
-
-	return addedOrUpdatedConditions, removedConditions, len(addedOrUpdatedConditions) != 0 || len(removedConditions) != 0
-}
-
 func mergeDataMaps(in map[string][]byte, dataMaps ...map[string][]byte) map[string][]byte {
 	out := make(map[string][]byte)
 
@@ -948,10 +914,9 @@ func (c *controller) reconcileMachineHealth(ctx context.Context, machine *v1alph
 			cloneDirty = true
 		}
 	} else {
-		populatedConditions, removedConditions, isChanged := nodeConditionsHaveChanged(machine.Status.Conditions, node.Status.Conditions)
+		populatedConditions, removedConditions, isChanged := nodeops.NodeConditionsHaveChanged(machine.Status.Conditions, node.Status.Conditions)
 		if isChanged {
-			clone.Status.Conditions = node.Status.Conditions
-
+			clone.Status.Conditions = nodeops.ReplacePreservingPureMachineConditions(clone.Status.Conditions, node.Status.Conditions)
 			klog.V(3).Infof("Conditions of node %q backing machine %q with providerID %q have changed.\nAdded/Updated Conditions:\n\n%s\nRemoved Conditions:\n\n%s\n", getNodeName(machine), machine.Name, getProviderID(machine), getFormattedNodeConditions(populatedConditions), getFormattedNodeConditions(removedConditions))
 			cloneDirty = true
 		}
@@ -1140,8 +1105,8 @@ func (c *controller) reconcileMachineHealth(ctx context.Context, machine *v1alph
 
 				updateTime := metav1.Now()
 				clone.Status.Conditions = nodeops.CloneAndAddCondition(clone.Status.Conditions, v1.NodeCondition{
-					Type:               v1alpha1.ConditionMachineFailed,
-					Status:             v1.ConditionTrue,
+					Type:               v1alpha1.ConditionMachineJoined,
+					Status:             v1.ConditionFalse,
 					LastHeartbeatTime:  updateTime,
 					LastTransitionTime: updateTime,
 					Reason:             codes.FailedJoin.String(),

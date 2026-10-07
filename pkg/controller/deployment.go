@@ -69,20 +69,20 @@ var controllerKind = v1alpha1.SchemeGroupVersion.WithKind("MachineDeployment")
 // GroupVersionKind is the version kind used to identify objects managed by machine-controller-manager
 var GroupVersionKind = "machine.sapcloud.io/v1alpha1"
 
-func (dc *controller) addMachineDeployment(obj any) {
+func (c *controller) addMachineDeployment(obj any) {
 	d := obj.(*v1alpha1.MachineDeployment)
 	klog.V(4).Infof("Adding machine deployment %s", d.Name)
-	dc.enqueueMachineDeployment(d)
+	c.enqueueMachineDeployment(d)
 }
 
-func (dc *controller) updateMachineDeployment(old, cur any) {
+func (c *controller) updateMachineDeployment(old, cur any) {
 	oldD := old.(*v1alpha1.MachineDeployment)
 	curD := cur.(*v1alpha1.MachineDeployment)
 	klog.V(4).Infof("Updating machine deployment %s", oldD.Name)
-	dc.enqueueMachineDeployment(curD)
+	c.enqueueMachineDeployment(curD)
 }
 
-func (dc *controller) deleteMachineDeployment(obj any) {
+func (c *controller) deleteMachineDeployment(obj any) {
 	d, ok := obj.(*v1alpha1.MachineDeployment)
 	if !ok {
 		tombstone, ok := obj.(cache.DeletedFinalStateUnknown)
@@ -97,47 +97,47 @@ func (dc *controller) deleteMachineDeployment(obj any) {
 		}
 	}
 	klog.V(4).Infof("Deleting machine deployment %s", d.Name)
-	dc.enqueueMachineDeployment(d)
+	c.enqueueMachineDeployment(d)
 }
 
 // addMachineSet enqueues the deployment that manages a MachineSet when the MachineSet is created.
-func (dc *controller) addMachineSetToDeployment(obj any) {
+func (c *controller) addMachineSetToDeployment(obj any) {
 	is := obj.(*v1alpha1.MachineSet)
 
 	if is.DeletionTimestamp != nil {
 		// On a restart of the controller manager, it's possible for an object to
 		// show up in a state that is already pending deletion.
-		dc.deleteMachineSetToDeployment(is)
+		c.deleteMachineSetToDeployment(is)
 		return
 	}
 
 	// If it has a ControllerRef, that's all that matters.
 	if controllerRef := metav1.GetControllerOf(is); controllerRef != nil {
-		d := dc.resolveDeploymentControllerRef(is.Namespace, controllerRef)
+		d := c.resolveDeploymentControllerRef(is.Namespace, controllerRef)
 		if d == nil {
 			return
 		}
 		klog.V(4).Infof("MachineSet %s added.", is.Name)
-		dc.enqueueMachineDeployment(d)
+		c.enqueueMachineDeployment(d)
 		return
 	}
 
 	// Otherwise, it's an orphan. Get a list of all matching Deployments and sync
 	// them to see if anyone wants to adopt it.
-	ds := dc.getMachineDeploymentsForMachineSet(is)
+	ds := c.getMachineDeploymentsForMachineSet(is)
 	if len(ds) == 0 {
 		return
 	}
 	klog.V(4).Infof("Orphan MachineSet %s added.", is.Name)
 	for _, d := range ds {
-		dc.enqueueMachineDeployment(d)
+		c.enqueueMachineDeployment(d)
 	}
 }
 
 // getDeploymentsForMachineSet returns a list of Deployments that potentially
 // match a MachineSet.
-func (dc *controller) getMachineDeploymentsForMachineSet(machineSet *v1alpha1.MachineSet) []*v1alpha1.MachineDeployment {
-	deployments, err := dc.GetMachineDeploymentsForMachineSet(machineSet)
+func (c *controller) getMachineDeploymentsForMachineSet(machineSet *v1alpha1.MachineSet) []*v1alpha1.MachineDeployment {
+	deployments, err := c.GetMachineDeploymentsForMachineSet(machineSet)
 	if err != nil || len(deployments) == 0 {
 		return nil
 	}
@@ -158,7 +158,7 @@ func (dc *controller) getMachineDeploymentsForMachineSet(machineSet *v1alpha1.Ma
 // is updated and wake them up. If the anything of the MachineSets have changed, we need to
 // awaken both the old and new deployments. old and cur must be *extensions.MachineSet
 // types.
-func (dc *controller) updateMachineSetToDeployment(old, cur any) {
+func (c *controller) updateMachineSetToDeployment(old, cur any) {
 	curMachineSet := cur.(*v1alpha1.MachineSet)
 	oldMachineSet := old.(*v1alpha1.MachineSet)
 	if curMachineSet.ResourceVersion == oldMachineSet.ResourceVersion {
@@ -172,19 +172,19 @@ func (dc *controller) updateMachineSetToDeployment(old, cur any) {
 	controllerRefChanged := !reflect.DeepEqual(curControllerRef, oldControllerRef)
 	if controllerRefChanged && oldControllerRef != nil {
 		// The ControllerRef was changed. Sync the old controller, if any.
-		if d := dc.resolveDeploymentControllerRef(oldMachineSet.Namespace, oldControllerRef); d != nil {
-			dc.enqueueMachineDeployment(d)
+		if d := c.resolveDeploymentControllerRef(oldMachineSet.Namespace, oldControllerRef); d != nil {
+			c.enqueueMachineDeployment(d)
 		}
 	}
 
 	// If it has a ControllerRef, that's all that matters.
 	if curControllerRef != nil {
-		d := dc.resolveDeploymentControllerRef(curMachineSet.Namespace, curControllerRef)
+		d := c.resolveDeploymentControllerRef(curMachineSet.Namespace, curControllerRef)
 		if d == nil {
 			return
 		}
 		klog.V(4).Infof("MachineSet %s updated.", curMachineSet.Name)
-		dc.enqueueMachineDeployment(d)
+		c.enqueueMachineDeployment(d)
 		return
 	}
 
@@ -192,13 +192,13 @@ func (dc *controller) updateMachineSetToDeployment(old, cur any) {
 	// to see if anyone wants to adopt it now.
 	labelChanged := !reflect.DeepEqual(curMachineSet.Labels, oldMachineSet.Labels)
 	if labelChanged || controllerRefChanged {
-		ds := dc.getMachineDeploymentsForMachineSet(curMachineSet)
+		ds := c.getMachineDeploymentsForMachineSet(curMachineSet)
 		if len(ds) == 0 {
 			return
 		}
 		klog.V(4).Infof("Orphan MachineSet %s updated.", curMachineSet.Name)
 		for _, d := range ds {
-			dc.enqueueMachineDeployment(d)
+			c.enqueueMachineDeployment(d)
 		}
 	}
 }
@@ -206,7 +206,7 @@ func (dc *controller) updateMachineSetToDeployment(old, cur any) {
 // deleteMachineSet enqueues the deployment that manages a MachineSet when
 // the MachineSet is deleted. obj could be an *v1alpha1.MachineSet, or
 // a DeletionFinalStateUnknown marker item.
-func (dc *controller) deleteMachineSetToDeployment(obj any) {
+func (c *controller) deleteMachineSetToDeployment(obj any) {
 	machineSet, ok := obj.(*v1alpha1.MachineSet)
 
 	// When a delete is dropped, the relist will notice a Machine in the store not
@@ -231,16 +231,16 @@ func (dc *controller) deleteMachineSetToDeployment(obj any) {
 		// No controller should care about orphans being deleted.
 		return
 	}
-	d := dc.resolveDeploymentControllerRef(machineSet.Namespace, controllerRef)
+	d := c.resolveDeploymentControllerRef(machineSet.Namespace, controllerRef)
 	if d == nil {
 		return
 	}
 	klog.V(4).Infof("MachineSet %s deleted.", machineSet.Name)
-	dc.enqueueMachineDeployment(d)
+	c.enqueueMachineDeployment(d)
 }
 
 // updateMachineToMachineDeployment will enqueue the machine deployment if the machine InPlaceUpdate node condition changes to UpdateSuccessful.
-func (dc *controller) updateMachineToMachineDeployment(old, cur any) {
+func (c *controller) updateMachineToMachineDeployment(old, cur any) {
 	oldMachine, ok := old.(*v1alpha1.Machine)
 	if !ok {
 		return
@@ -258,15 +258,15 @@ func (dc *controller) updateMachineToMachineDeployment(old, cur any) {
 	currMachineConditionReasonUpdateSuccessful := currMachineCondition != nil && currMachineCondition.Reason == v1alpha1.UpdateSuccessful
 
 	if !oldMachineConditionReasonUpdateSuccessful && currMachineConditionReasonUpdateSuccessful {
-		d := dc.getMachineDeploymentForMachine(curMachine)
+		d := c.getMachineDeploymentForMachine(curMachine)
 		if d != nil {
-			dc.enqueueMachineDeployment(d)
+			c.enqueueMachineDeployment(d)
 		}
 	}
 }
 
 // deleteMachine will enqueue a Recreate Deployment once all of its Machines have stopped running.
-func (dc *controller) deleteMachineToMachineDeployment(obj any) {
+func (c *controller) deleteMachineToMachineDeployment(obj any) {
 	ctx := context.Background()
 	machine, ok := obj.(*v1alpha1.Machine)
 
@@ -287,13 +287,13 @@ func (dc *controller) deleteMachineToMachineDeployment(obj any) {
 		}
 	}
 	klog.V(4).Infof("Machine %s deleted.", machine.Name)
-	if d := dc.getMachineDeploymentForMachine(machine); d != nil && d.Spec.Strategy.Type == v1alpha1.RecreateMachineDeploymentStrategyType {
+	if d := c.getMachineDeploymentForMachine(machine); d != nil && d.Spec.Strategy.Type == v1alpha1.RecreateMachineDeploymentStrategyType {
 		// Sync if this Deployment now has no more Machines.
-		machineSets, err := ListMachineSets(d, IsListFromClient(ctx, dc.controlMachineClient))
+		machineSets, err := ListMachineSets(d, IsListFromClient(ctx, c.controlMachineClient))
 		if err != nil {
 			return
 		}
-		machineMap, err := dc.getMachineMapForMachineDeployment(d, machineSets)
+		machineMap, err := c.getMachineMapForMachineDeployment(d, machineSets)
 		if err != nil {
 			return
 		}
@@ -302,44 +302,44 @@ func (dc *controller) deleteMachineToMachineDeployment(obj any) {
 			numMachines += len(machineList.Items)
 		}
 		if numMachines == 0 {
-			dc.enqueueMachineDeployment(d)
+			c.enqueueMachineDeployment(d)
 		}
 	}
 }
 
-func (dc *controller) enqueueMachineDeployment(deployment *v1alpha1.MachineDeployment) {
+func (c *controller) enqueueMachineDeployment(deployment *v1alpha1.MachineDeployment) {
 	key, err := KeyFunc(deployment)
 	if err != nil {
 		utilruntime.HandleError(fmt.Errorf("couldn't get key for object %#v: %v", deployment, err))
 		return
 	}
 
-	dc.machineDeploymentQueue.Add(key)
+	c.machineDeploymentQueue.Add(key)
 }
 
-func (dc *controller) enqueueRateLimited(deployment *v1alpha1.MachineDeployment) {
+func (c *controller) enqueueRateLimited(deployment *v1alpha1.MachineDeployment) {
 	key, err := KeyFunc(deployment)
 	if err != nil {
 		utilruntime.HandleError(fmt.Errorf("couldn't get key for object %#v: %v", deployment, err))
 		return
 	}
 
-	dc.machineDeploymentQueue.AddRateLimited(key)
+	c.machineDeploymentQueue.AddRateLimited(key)
 }
 
 // enqueueMachineDeploymentAfter will enqueue a deployment after the provided amount of time.
-func (dc *controller) enqueueMachineDeploymentAfter(deployment *v1alpha1.MachineDeployment, after time.Duration) {
+func (c *controller) enqueueMachineDeploymentAfter(deployment *v1alpha1.MachineDeployment, after time.Duration) {
 	key, err := KeyFunc(deployment)
 	if err != nil {
 		utilruntime.HandleError(fmt.Errorf("couldn't get key for object %#v: %v", deployment, err))
 		return
 	}
 
-	dc.machineDeploymentQueue.AddAfter(key, after)
+	c.machineDeploymentQueue.AddAfter(key, after)
 }
 
 // getDeploymentForMachine returns the deployment managing the given Machine.
-func (dc *controller) getMachineDeploymentForMachine(machine *v1alpha1.Machine) *v1alpha1.MachineDeployment {
+func (c *controller) getMachineDeploymentForMachine(machine *v1alpha1.Machine) *v1alpha1.MachineDeployment {
 	// Find the owning machine set
 	var is *v1alpha1.MachineSet
 	var err error
@@ -353,7 +353,7 @@ func (dc *controller) getMachineDeploymentForMachine(machine *v1alpha1.Machine) 
 		return nil
 	}
 
-	is, err = dc.machineSetLister.MachineSets(machine.Namespace).Get(controllerRef.Name)
+	is, err = c.machineSetLister.MachineSets(machine.Namespace).Get(controllerRef.Name)
 	if err != nil || is.UID != controllerRef.UID {
 		klog.V(4).Infof("Cannot get machineset %q for machine %q: %v", controllerRef.Name, machine.Name, err)
 		return nil
@@ -364,19 +364,19 @@ func (dc *controller) getMachineDeploymentForMachine(machine *v1alpha1.Machine) 
 	if controllerRef == nil {
 		return nil
 	}
-	return dc.resolveDeploymentControllerRef(is.Namespace, controllerRef)
+	return c.resolveDeploymentControllerRef(is.Namespace, controllerRef)
 }
 
 // resolveControllerRef returns the controller referenced by a ControllerRef,
 // or nil if the ControllerRef could not be resolved to a matching controller
 // of the correct Kind.
-func (dc *controller) resolveDeploymentControllerRef(namespace string, controllerRef *metav1.OwnerReference) *v1alpha1.MachineDeployment {
+func (c *controller) resolveDeploymentControllerRef(namespace string, controllerRef *metav1.OwnerReference) *v1alpha1.MachineDeployment {
 	// We can't look up by UID, so look up by Name and then verify UID.
 	// Don't even try to look up by Name if it's the wrong Kind.
 	if controllerRef.Kind != controllerKind.Kind {
 		return nil
 	}
-	d, err := dc.controlMachineClient.MachineDeployments(namespace).Get(context.TODO(), controllerRef.Name, metav1.GetOptions{})
+	d, err := c.controlMachineClient.MachineDeployments(namespace).Get(context.TODO(), controllerRef.Name, metav1.GetOptions{})
 	if err != nil {
 		return nil
 	}
@@ -391,10 +391,10 @@ func (dc *controller) resolveDeploymentControllerRef(namespace string, controlle
 // getMachineSetsForDeployment uses ControllerRefManager to reconcile
 // ControllerRef by adopting and orphaning.
 // It returns the list of MachineSets that this Deployment should manage.
-func (dc *controller) getMachineSetsForMachineDeployment(ctx context.Context, d *v1alpha1.MachineDeployment) ([]*v1alpha1.MachineSet, error) {
+func (c *controller) getMachineSetsForMachineDeployment(ctx context.Context, d *v1alpha1.MachineDeployment) ([]*v1alpha1.MachineSet, error) {
 	// List all MachineSets to find those we own but that no longer match our
 	// selector. They will be orphaned by ClaimMachineSets().
-	machineSets, err := dc.machineSetLister.List(labels.Everything())
+	machineSets, err := c.machineSetLister.List(labels.Everything())
 	if err != nil {
 		return nil, err
 	}
@@ -405,7 +405,7 @@ func (dc *controller) getMachineSetsForMachineDeployment(ctx context.Context, d 
 	// If any adoptions are attempted, we should first recheck for deletion with
 	// an uncached quorum read sometime after listing MachineSets (see #42639).
 	canAdoptFunc := RecheckDeletionTimestamp(func() (metav1.Object, error) {
-		fresh, err := dc.controlMachineClient.MachineDeployments(d.Namespace).Get(ctx, d.Name, metav1.GetOptions{})
+		fresh, err := c.controlMachineClient.MachineDeployments(d.Namespace).Get(ctx, d.Name, metav1.GetOptions{})
 		if err != nil {
 			return nil, err
 		}
@@ -414,7 +414,7 @@ func (dc *controller) getMachineSetsForMachineDeployment(ctx context.Context, d 
 		}
 		return fresh, nil
 	})
-	cm := NewMachineSetControllerRefManager(dc.machineSetControl, d, deploymentSelector, controllerKind, canAdoptFunc)
+	cm := NewMachineSetControllerRefManager(c.machineSetControl, d, deploymentSelector, controllerKind, canAdoptFunc)
 	ISes, err := cm.ClaimMachineSets(ctx, machineSets)
 	return ISes, err
 }
@@ -423,13 +423,13 @@ func (dc *controller) getMachineSetsForMachineDeployment(ctx context.Context, d 
 //
 // It returns a map from MachineSet UID to a list of Machines controlled by that RS,
 // according to the Machine's ControllerRef.
-func (dc *controller) getMachineMapForMachineDeployment(d *v1alpha1.MachineDeployment, machineSets []*v1alpha1.MachineSet) (map[types.UID]*v1alpha1.MachineList, error) {
+func (c *controller) getMachineMapForMachineDeployment(d *v1alpha1.MachineDeployment, machineSets []*v1alpha1.MachineSet) (map[types.UID]*v1alpha1.MachineList, error) {
 	// Get all Machines that potentially belong to this Deployment.
 	selector, err := metav1.LabelSelectorAsSelector(d.Spec.Selector)
 	if err != nil {
 		return nil, err
 	}
-	machines, err := dc.machineLister.List(selector)
+	machines, err := c.machineLister.List(selector)
 	if err != nil {
 		return nil, err
 	}
@@ -455,7 +455,7 @@ func (dc *controller) getMachineMapForMachineDeployment(d *v1alpha1.MachineDeplo
 
 // reconcileClusterMachineDeployment will sync the deployment with the given key.
 // This function is not meant to be invoked concurrently with the same key.
-func (dc *controller) reconcileClusterMachineDeployment(key string) error {
+func (c *controller) reconcileClusterMachineDeployment(key string) error {
 	ctx := context.Background()
 	startTime := time.Now()
 	klog.V(4).Infof("Started syncing machine deployment %q (%v)", key, startTime)
@@ -467,7 +467,7 @@ func (dc *controller) reconcileClusterMachineDeployment(key string) error {
 	if err != nil {
 		return err
 	}
-	deployment, err := dc.controlMachineClient.MachineDeployments(dc.namespace).Get(ctx, name, metav1.GetOptions{})
+	deployment, err := c.controlMachineClient.MachineDeployments(c.namespace).Get(ctx, name, metav1.GetOptions{})
 	if apierrors.IsNotFound(err) {
 		klog.V(4).Infof("Deployment %v has been deleted", key)
 		return nil
@@ -498,7 +498,7 @@ func (dc *controller) reconcileClusterMachineDeployment(key string) error {
 	}
 
 	// Resync the MachineDeployment after 10 minutes to avoid missing out on missed out events
-	defer dc.enqueueMachineDeploymentAfter(deployment, 10*time.Minute)
+	defer c.enqueueMachineDeploymentAfter(deployment, 10*time.Minute)
 
 	// Deep-copy otherwise we are mutating our cache.
 	// TODO: Deep-copy only when needed.
@@ -506,15 +506,15 @@ func (dc *controller) reconcileClusterMachineDeployment(key string) error {
 
 	// Manipulate finalizers
 	if d.DeletionTimestamp == nil {
-		dc.addMachineDeploymentFinalizers(ctx, d)
+		c.addMachineDeploymentFinalizers(ctx, d)
 	}
 
 	everything := metav1.LabelSelector{}
 	if reflect.DeepEqual(d.Spec.Selector, &everything) {
-		dc.recorder.Eventf(d, v1.EventTypeWarning, "SelectingAll", "This deployment is selecting all machines. A non-empty selector is required.")
+		c.recorder.Eventf(d, v1.EventTypeWarning, "SelectingAll", "This deployment is selecting all machines. A non-empty selector is required.")
 		if d.Status.ObservedGeneration < d.Generation {
 			d.Status.ObservedGeneration = d.Generation
-			if _, err := dc.controlMachineClient.MachineDeployments(d.Namespace).UpdateStatus(ctx, d, metav1.UpdateOptions{}); err != nil {
+			if _, err := c.controlMachineClient.MachineDeployments(d.Namespace).UpdateStatus(ctx, d, metav1.UpdateOptions{}); err != nil {
 				return fmt.Errorf("failed to update status for machine deployment %s: %w", deployment.Name, err)
 
 			}
@@ -524,7 +524,7 @@ func (dc *controller) reconcileClusterMachineDeployment(key string) error {
 
 	// List MachineSets owned by this Deployment, while reconciling ControllerRef
 	// through adoption/orphaning.
-	machineSets, err := dc.getMachineSetsForMachineDeployment(ctx, d)
+	machineSets, err := c.getMachineSetsForMachineDeployment(ctx, d)
 	if err != nil {
 		return err
 	}
@@ -533,7 +533,7 @@ func (dc *controller) reconcileClusterMachineDeployment(key string) error {
 	//
 	// * check if a Machine is labeled correctly with the Machine-template-hash label.
 	// * check that no old Machines are running in the middle of Recreate Deployments.
-	machineMap, err := dc.getMachineMapForMachineDeployment(d, machineSets)
+	machineMap, err := c.getMachineMapForMachineDeployment(d, machineSets)
 	if err != nil {
 		return err
 	}
@@ -543,71 +543,73 @@ func (dc *controller) reconcileClusterMachineDeployment(key string) error {
 			return nil
 		}
 		if len(machineSets) == 0 {
-			dc.deleteMachineDeploymentFinalizers(ctx, d)
+			c.deleteMachineDeploymentFinalizers(ctx, d)
 			return nil
 		}
 		klog.V(4).Infof("Deleting all child MachineSets as MachineDeployment %s has set deletionTimestamp", d.Name)
-		dc.terminateMachineSets(ctx, machineSets, d)
-		return dc.syncStatusOnly(ctx, d, machineSets, machineMap)
+		c.terminateMachineSets(ctx, machineSets, d)
+		return c.syncStatusOnly(ctx, d, machineSets, machineMap)
 	}
 
 	// Update deployment conditions with an Unknown condition when pausing/resuming
 	// a deployment. In this way, we can be sure that we won't timeout when a user
 	// resumes a Deployment with a set progressDeadlineSeconds.
-	if err = dc.checkPausedConditions(ctx, d); err != nil {
+	if err = c.checkPausedConditions(ctx, d); err != nil {
 		return err
 	}
 
 	// Temporary code for backward compatibility, can be removed in later release
-	d, err = dc.adjustingMachineDeploymentDeletionAnnotations(ctx, d)
+	d, err = c.adjustingMachineDeploymentDeletionAnnotations(ctx, d)
 	if err != nil {
 		return err
 	}
 
-	err = dc.updateMachineAndMachineDeploymentDeletionAnnotations(ctx, d)
+	err = c.updateMachineAndMachineDeploymentDeletionAnnotations(ctx, d)
 	if err != nil {
 		return err
 	}
 
 	if d.Spec.Paused {
 		klog.V(3).Infof("Scaling detected for machineDeployment %s which is paused", d.Name)
-		return dc.sync(ctx, d, machineSets, machineMap)
+		return c.sync(ctx, d, machineSets, machineMap)
 	}
 
 	// rollback is not re-entrant in case the underlying machine sets are updated with a new
 	// revision so we should ensure that we won't proceed to update machine sets until we
 	// make sure that the deployment has cleaned up its rollback spec in subsequent enqueues.
 	if d.Spec.RollbackTo != nil {
-		return dc.rollback(ctx, d, machineSets, machineMap)
+		return c.rollback(ctx, d, machineSets, machineMap)
 	}
 
-	if adjusted, err := dc.checkAndAdjustMachineReplaceCycleCountAndEffectiveCreationTimeout(ctx, d, machineMap); adjusted || err != nil {
-		return err
+	if adjusted, err := c.checkAndAdjustMachineEffectiveCreationTimeout(ctx, d, machineMap); adjusted {
+		return nil
+	} else if err != nil {
+		klog.Warningf("could not check and adjust %q: %v", v1alpha1.AnnotationKeyMachineEffectiveCreationTimeout, err)
 	}
 
-	scalingEvent, err := dc.isScalingEvent(ctx, d, machineSets, machineMap)
+	scalingEvent, err := c.isScalingEvent(ctx, d, machineSets, machineMap)
 
 	if err != nil {
 		return err
 	}
 	if scalingEvent {
 		klog.V(3).Infof("Scaling detected for machineDeployment %s", d.Name)
-		return dc.sync(ctx, d, machineSets, machineMap)
+		return c.sync(ctx, d, machineSets, machineMap)
 	}
 
 	switch d.Spec.Strategy.Type {
 	case v1alpha1.RecreateMachineDeploymentStrategyType:
-		return dc.rolloutRecreate(ctx, d, machineSets, machineMap)
+		return c.rolloutRecreate(ctx, d, machineSets, machineMap)
 	case v1alpha1.RollingUpdateMachineDeploymentStrategyType:
-		return dc.rolloutRolling(ctx, d, machineSets, machineMap)
+		return c.rolloutRolling(ctx, d, machineSets, machineMap)
 	case v1alpha1.InPlaceUpdateMachineDeploymentStrategyType:
-		return dc.rolloutInPlace(ctx, d, machineSets, machineMap)
+		return c.rolloutInPlace(ctx, d, machineSets, machineMap)
 	}
 
 	return fmt.Errorf("unexpected deployment strategy type: %s", d.Spec.Strategy.Type)
 }
 
-func (dc *controller) terminateMachineSets(ctx context.Context, machineSets []*v1alpha1.MachineSet, _ *v1alpha1.MachineDeployment) {
+func (c *controller) terminateMachineSets(ctx context.Context, machineSets []*v1alpha1.MachineSet, _ *v1alpha1.MachineDeployment) {
 	var (
 		wg               sync.WaitGroup
 		numOfMachinesets = len(machineSets)
@@ -621,7 +623,7 @@ func (dc *controller) terminateMachineSets(ctx context.Context, machineSets []*v
 			if machineSet.DeletionTimestamp != nil {
 				return
 			}
-			if err := dc.controlMachineClient.MachineSets(machineSet.Namespace).Delete(ctx, machineSet.Name, metav1.DeleteOptions{}); err != nil {
+			if err := c.controlMachineClient.MachineSets(machineSet.Namespace).Delete(ctx, machineSet.Name, metav1.DeleteOptions{}); err != nil {
 				klog.Errorf("failed to delete machineset %s: %v", machineSet.Name, err)
 			}
 		}(machineSet)
@@ -634,43 +636,43 @@ func (dc *controller) terminateMachineSets(ctx context.Context, machineSets []*v
 	Manipulate Finalizers
 */
 
-func (dc *controller) addMachineDeploymentFinalizers(ctx context.Context, machineDeployment *v1alpha1.MachineDeployment) {
+func (c *controller) addMachineDeploymentFinalizers(ctx context.Context, machineDeployment *v1alpha1.MachineDeployment) {
 	clone := machineDeployment.DeepCopy()
 
 	if finalizers := sets.NewString(clone.Finalizers...); !finalizers.Has(DeleteFinalizerName) {
 		finalizers.Insert(DeleteFinalizerName)
-		dc.updateMachineDeploymentFinalizers(ctx, clone, finalizers.List())
+		c.updateMachineDeploymentFinalizers(ctx, clone, finalizers.List())
 	}
 }
 
-func (dc *controller) deleteMachineDeploymentFinalizers(ctx context.Context, machineDeployment *v1alpha1.MachineDeployment) {
+func (c *controller) deleteMachineDeploymentFinalizers(ctx context.Context, machineDeployment *v1alpha1.MachineDeployment) {
 	clone := machineDeployment.DeepCopy()
 
 	if finalizers := sets.NewString(clone.Finalizers...); finalizers.Has(DeleteFinalizerName) {
 		finalizers.Delete(DeleteFinalizerName)
-		dc.updateMachineDeploymentFinalizers(ctx, clone, finalizers.List())
+		c.updateMachineDeploymentFinalizers(ctx, clone, finalizers.List())
 	}
 }
 
-func (dc *controller) updateMachineDeploymentFinalizers(ctx context.Context, machineDeployment *v1alpha1.MachineDeployment, finalizers []string) {
+func (c *controller) updateMachineDeploymentFinalizers(ctx context.Context, machineDeployment *v1alpha1.MachineDeployment, finalizers []string) {
 	// Get the latest version of the machineDeployment so that we can avoid conflicts
-	machineDeployment, err := dc.controlMachineClient.MachineDeployments(machineDeployment.Namespace).Get(ctx, machineDeployment.Name, metav1.GetOptions{})
+	machineDeployment, err := c.controlMachineClient.MachineDeployments(machineDeployment.Namespace).Get(ctx, machineDeployment.Name, metav1.GetOptions{})
 	if err != nil {
 		return
 	}
 
 	clone := machineDeployment.DeepCopy()
 	clone.Finalizers = finalizers
-	_, err = dc.controlMachineClient.MachineDeployments(machineDeployment.Namespace).Update(ctx, clone, metav1.UpdateOptions{})
+	_, err = c.controlMachineClient.MachineDeployments(machineDeployment.Namespace).Update(ctx, clone, metav1.UpdateOptions{})
 	if err != nil {
 		// Keep retrying until update goes through
 		klog.Warning("Updated failed, retrying")
-		dc.updateMachineDeploymentFinalizers(ctx, machineDeployment, finalizers)
+		c.updateMachineDeploymentFinalizers(ctx, machineDeployment, finalizers)
 	}
 }
 
-func (dc *controller) updateMachineAndMachineDeploymentDeletionAnnotations(ctx context.Context, mcd *v1alpha1.MachineDeployment) (err error) {
-	tgd := dc.computeMachineTriggerDeletionData(mcd)
+func (c *controller) updateMachineAndMachineDeploymentDeletionAnnotations(ctx context.Context, mcd *v1alpha1.MachineDeployment) (err error) {
+	tgd := c.computeMachineTriggerDeletionData(mcd)
 	if tgd == nil {
 		return nil
 	}
@@ -684,7 +686,7 @@ func (dc *controller) updateMachineAndMachineDeploymentDeletionAnnotations(ctx c
 		if mcdDeepCopy.Annotations[machineutils.TriggerDeletionByMCM] == "" {
 			delete(mcdDeepCopy.Annotations, machineutils.TriggerDeletionByMCM)
 		}
-		_, err = dc.controlMachineClient.MachineDeployments(mcd.Namespace).Update(ctx, mcdDeepCopy, metav1.UpdateOptions{})
+		_, err = c.controlMachineClient.MachineDeployments(mcd.Namespace).Update(ctx, mcdDeepCopy, metav1.UpdateOptions{})
 		if err != nil {
 			klog.Errorf("failed to update MachineDeployment %q with #%d machine names still pending deletion, triggerDeletionAnnotValue=%q", mcd.Name, len(tgd.markedMachines), mcdDeepCopy.Annotations[machineutils.TriggerDeletionByMCM])
 			return
@@ -705,7 +707,7 @@ func (dc *controller) updateMachineAndMachineDeploymentDeletionAnnotations(ctx c
 		if machineDeepCopy.Annotations[machineutils.MarkedForDeletionTime] == "" {
 			machineDeepCopy.Annotations[machineutils.MarkedForDeletionTime] = tgd.markedMachineDeletionTimes[i]
 		}
-		_, err = dc.controlMachineClient.Machines(machine.Namespace).Update(ctx, machineDeepCopy, metav1.UpdateOptions{})
+		_, err = c.controlMachineClient.Machines(machine.Namespace).Update(ctx, machineDeepCopy, metav1.UpdateOptions{})
 		if err != nil {
 			klog.Errorf("failed to set MachinePriority=1 annotation on Machine %q of MachineDeployment %q: %v", machine.Name, mcd.Name, err)
 			return
@@ -717,7 +719,7 @@ func (dc *controller) updateMachineAndMachineDeploymentDeletionAnnotations(ctx c
 }
 
 // computeMachineTriggerDeletionData computes the data related to machines that are triggered for deletion based on the annotation on the MachineDeployment.
-func (dc *controller) computeMachineTriggerDeletionData(mcd *v1alpha1.MachineDeployment) *triggerDeletionData {
+func (c *controller) computeMachineTriggerDeletionData(mcd *v1alpha1.MachineDeployment) *triggerDeletionData {
 	oldTriggerDeletionAnnotationList := annotations.GetMachineNamesWithDeletionTimesTriggeredForDeletion(mcd)
 	newTriggerDeletionAnnotationList := make([]string, 0)
 	markedMachines := make([]*v1alpha1.Machine, 0)
@@ -741,7 +743,7 @@ func (dc *controller) computeMachineTriggerDeletionData(mcd *v1alpha1.MachineDep
 			klog.Warningf("Invalid formatting of deletion time %q for machine %q in MachineDeployment %q annotation", machineDeletionTime, machineName, mcd.Name)
 			continue
 		}
-		machine, gerr := dc.machineLister.Machines(dc.namespace).Get(machineName)
+		machine, gerr := c.machineLister.Machines(c.namespace).Get(machineName)
 		// The machine is deleted and hence we can remove it from the annotation.
 		if apierrors.IsNotFound(gerr) {
 			klog.V(4).Infof("Machine %q is not found in MachineDeployment %q - skip adding to newTriggerDeletionAnnotationList", machineName, mcd.Name)
@@ -767,7 +769,7 @@ func (dc *controller) computeMachineTriggerDeletionData(mcd *v1alpha1.MachineDep
 }
 
 // TODO: separate the logic of adjusting the annotation value and updating the annotation on the MachineDeployment into two functions, and add unit tests for the function that computes the new annotation value.
-func (dc *controller) adjustingMachineDeploymentDeletionAnnotations(ctx context.Context, mcd *v1alpha1.MachineDeployment) (*v1alpha1.MachineDeployment, error) {
+func (c *controller) adjustingMachineDeploymentDeletionAnnotations(ctx context.Context, mcd *v1alpha1.MachineDeployment) (*v1alpha1.MachineDeployment, error) {
 	if mcd.Annotations[machineutils.TriggerDeletionByMCM] == "" {
 		return mcd, nil
 	}
@@ -793,7 +795,7 @@ func (dc *controller) adjustingMachineDeploymentDeletionAnnotations(ctx context.
 	newTriggerDeletionAnnot := strings.Join(newTriggerDeletionAnnotList, ",")
 	if oldTriggerDeletionAnnot != newTriggerDeletionAnnot {
 		mcdDeepCopy.Annotations[machineutils.TriggerDeletionByMCM] = newTriggerDeletionAnnot
-		newMCD, err := dc.controlMachineClient.MachineDeployments(mcd.Namespace).Update(ctx, mcdDeepCopy, metav1.UpdateOptions{})
+		newMCD, err := c.controlMachineClient.MachineDeployments(mcd.Namespace).Update(ctx, mcdDeepCopy, metav1.UpdateOptions{})
 		if err != nil {
 			klog.Errorf("failed to update MachineDeployment %q with annotation %q=%q", mcdDeepCopy.Name, machineutils.TriggerDeletionByMCM, mcdDeepCopy.Annotations[machineutils.TriggerDeletionByMCM])
 			return nil, err
@@ -804,70 +806,105 @@ func (dc *controller) adjustingMachineDeploymentDeletionAnnotations(ctx context.
 	return mcdDeepCopy, nil
 }
 
-// checkAndAdjustMachineReplaceCycleCountAndEffectiveCreationTimeout tracks the number of consecutive
-// failure cycles in which machines failed to join the cluster (tracked via [v1alpha1.AnnotationKeyMachineReplaceCycleCount]),
+// checkAndAdjustMachineEffectiveCreationTimeout tracks the number of failure replace-cycles
+// in which machines failed to join the cluster (tracked via [v1alpha1.AnnotationKeyMachineReplaceCycleCount]),
 // and grows the MachineDeployment's effective creation timeout (tracked via [v1alpha1.AnnotationKeyMachineEffectiveCreationTimeout])
-// by [constants.DefaultCreationTimeoutGrowthFactor] each time that count reaches the configured threshold. When
-// machines do join successfully, it shrinks the timeout back to the observed max join duration.
-func (dc *controller) checkAndAdjustMachineReplaceCycleCountAndEffectiveCreationTimeout(ctx context.Context, mcd *v1alpha1.MachineDeployment, machineMap map[types.UID]*v1alpha1.MachineList) (adjusted bool, err error) {
+// by the configured growth factor each time that count reaches the configured threshold.
+//
+// The window for counting failures and joins is the period from
+// [v1alpha1.AnnotationKeyMachineReplaceCycleCountLastAppliedAt] to now. When at least
+// [constants.DefaultSuccessJoinCountThreshold] machines join successfully within the current window with no
+// failures, it shrinks the timeout back to the average observed join duration (floored at the spec creation timeout).
+// If no machines have joined or failed for a full max-creation-timeout window, all adjust annotations are cleared
+// and the timeout resets to the spec creation timeout.
+func (c *controller) checkAndAdjustMachineEffectiveCreationTimeout(ctx context.Context, mcd *v1alpha1.MachineDeployment, machineMap map[types.UID]*v1alpha1.MachineList) (adjusted bool, err error) {
 	oldInfo, err := getCreationTimeoutAdjustInfo(mcd)
 	if err != nil {
 		return
 	}
-	windowStartMark := oldInfo.replaceCycleCountLastAdjustedAt.Time
+	replaceCycleCountThreshold := GetReplaceCycleCountThresholdOnMachineDeploymentOrDefault(mcd, c.safetyOptions.MachineReplaceCycleCountThreshold)
+	creationTimeoutGrowthPercent := GetCreationTimeoutGrowthPercentOnMachineDeploymentOrDefault(mcd, c.safetyOptions.MachineCreationTimeoutGrowthPercent)
+	creationTimeoutGrowthFactor := 1.0 + float64(creationTimeoutGrowthPercent)/100.0
+	windowStartMark := oldInfo.replaceCycleCountLastAppliedAt.Time
 	now := metav1.Now()
-	joinStartMark := now.Add(-constants.DefaultMaxJoinDurationLookback)
-	numFailedJoinInWindow, numJoinedInWindow, maxJoinDuration := getNumFailedJoinedAndMaxJoinDurationSince(flattenMachineMap(machineMap), windowStartMark, joinStartMark)
-	klog.V(4).Infof("For MachineDeployment %q, numFailedJoinInWindow=%d,numJoinedInWindow=%d,maxJoinDuration=%s, replaceCount=%d, replaceCycleCountLastAdjustedAt: %s",
-		mcd.Name, numFailedJoinInWindow, numJoinedInWindow, maxJoinDuration, oldInfo.replaceCycleCount, oldInfo.replaceCycleCountLastAdjustedAt.Time.Format(time.RFC3339))
+	numFailedJoinInWindow, numJoinedInWindow, avgJoinDuration := getNumFailedJoinedAndAvgJoinDurationSince(flattenMachineMap(machineMap), windowStartMark)
+	klog.V(4).Infof("For MachineDeployment %q, numFailedJoinInWindow=%d,numJoinedInWindow=%d,avgJoinDuration=%s, replaceCount=%d, replaceCycleCountLastAppliedAt: %s",
+		mcd.Name, numFailedJoinInWindow, numJoinedInWindow, avgJoinDuration, oldInfo.replaceCycleCount, oldInfo.replaceCycleCountLastAppliedAt.Time.Format(time.RFC3339))
+	specCreationTimeout := GetSpecCreationTimeoutOnMachineDeploymentOrDefault(mcd, constants.DefaultMachineCreationTimeout)
+	maxCreationTimeout := computeMaxCreationTimeout(specCreationTimeout, creationTimeoutGrowthFactor, constants.DefaultMaxCreationTimeoutGrowthCount)
 	newInfo := oldInfo
-	if numJoinedInWindow > 0 && now.Sub(oldInfo.effectiveCreationTimeoutLastAdjustedAt.Time) > oldInfo.effectiveCreationTimeout.Duration {
-		specCreationTimeout := GetSpecCreationTimeoutOrDefaultOnMachineDeployment(mcd)
-		newInfo.effectiveCreationTimeout.Duration = max(specCreationTimeout.Duration, maxJoinDuration.Duration)
-		newInfo.effectiveCreationTimeoutLastAdjustedAt = now
-	} else if numFailedJoinInWindow > 0 && now.Sub(windowStartMark) > oldInfo.effectiveCreationTimeout.Duration {
-		// replace-cycle-count only increments once per timeout window if there are non-zero machines that failed to join in that window.
+	if numFailedJoinInWindow == 0 && oldInfo.isMaxTimeoutElapsed(now, maxCreationTimeout) {
+		// No failures and a full max-timeout window has elapsed since the timeout was last applied; clear all adjust annotations so the timeout resets to the spec timeout.
+		klog.V(3).Infof("For MachineDeployment %q, clearing all creation-timeout relevant annotations after idle max-creation-timeout window of %q elapsed", mcd.Name, maxCreationTimeout)
+		newInfo.reset = true
+	} else if numFailedJoinInWindow > 0 && oldInfo.isReplaceCycleCountWindowElapsed(now) {
+		// Only increment once per window to avoid multiple increments within the same failure cycle.
 		newInfo.replaceCycleCount++
-		newInfo.replaceCycleCountLastAdjustedAt = now
-		if newInfo.replaceCycleCount >= int(dc.safetyOptions.MachineReplaceCycleCountThreshold) {
-			newInfo.effectiveCreationTimeout = increaseEffectiveCreationTimeout(oldInfo.effectiveCreationTimeout, constants.DefaultCreationTimeoutGrowthFactor, metav1.Duration{Duration: constants.DefaultCreationTimeoutMax})
-			newInfo.effectiveCreationTimeoutLastAdjustedAt = now
+		newInfo.replaceCycleCountLastAppliedAt = now
+		if newInfo.replaceCycleCount >= replaceCycleCountThreshold {
+			newInfo.effectiveCreationTimeout = increaseEffectiveCreationTimeout(oldInfo.effectiveCreationTimeout, creationTimeoutGrowthFactor, maxCreationTimeout)
+			newInfo.effectiveCreationTimeoutLastAppliedAt = now
 			newInfo.replaceCycleCount = 0 // reset replace-cycle-count after you grow effective-creation-timeout
-			klog.V(3).Infof("For MachineDeployment %q, adjust threshold breached (numFailedJoinInWindow:%d, numJoinedInWindow:%d, replaceCycleCountLastAdjustedAt: %s, older replaceCycleCountLastAdjustedAt: %s)",
-				mcd.Name, numFailedJoinInWindow, numJoinedInWindow, newInfo.replaceCycleCountLastAdjustedAt.Format(time.RFC3339), oldInfo.replaceCycleCountLastAdjustedAt.Format(time.RFC3339))
+			klog.V(3).Infof("For MachineDeployment %q, adjust threshold breached (numFailedJoinInWindow:%d, numJoinedInWindow:%d, replaceCycleCountLastAppliedAt: %s, older replaceCycleCountLastAppliedAt: %s)",
+				mcd.Name, numFailedJoinInWindow, numJoinedInWindow, newInfo.replaceCycleCountLastAppliedAt.Format(time.RFC3339), oldInfo.replaceCycleCountLastAppliedAt.Format(time.RFC3339))
 		} else {
-			klog.V(4).Infof("For MachineDeployment %q, adjust threshold not breached (numFailedJoin:%d, numJoined:%d, replaceCycleCount:%d, replaceCycleCountLastAdjustedAt: %s)",
-				mcd.Name, numFailedJoinInWindow, numJoinedInWindow, newInfo.replaceCycleCount, newInfo.replaceCycleCountLastAdjustedAt.Format(time.RFC3339))
+			klog.V(4).Infof("For MachineDeployment %q, adjust threshold not breached (numFailedJoin:%d, numJoined:%d, replaceCycleCount:%d, replaceCycleCountLastAppliedAt: %s)",
+				mcd.Name, numFailedJoinInWindow, numJoinedInWindow, newInfo.replaceCycleCount, newInfo.replaceCycleCountLastAppliedAt.Format(time.RFC3339))
 		}
+	} else if numJoinedInWindow >= constants.DefaultSuccessJoinCountThreshold && oldInfo.isEffectiveCreationTimeoutWindowElapsed(now) {
+		// Machines are joining healthily; thus shrink the timeout back towards the observed average, floored at the spec timeout.
+		newInfo.effectiveCreationTimeout.Duration = max(specCreationTimeout.Duration, avgJoinDuration.Duration.Round(time.Second))
+		newInfo.effectiveCreationTimeoutLastAppliedAt = now
 	}
-	if adjustedAnnotations := createAdjustedAnnotations(oldInfo, newInfo); len(adjustedAnnotations) > 0 {
-		newMcd := mcd.DeepCopy()
-		for k, v := range adjustedAnnotations {
-			metav1.SetMetaDataAnnotation(&newMcd.ObjectMeta, k, v)
-		}
-		_, err = dc.controlMachineClient.MachineDeployments(mcd.Namespace).Update(ctx, newMcd, metav1.UpdateOptions{})
-		if err != nil {
-			return
-		}
-		adjusted = true
-		klog.V(3).Infof("For MachineDeployment %q, adjusted annotations: %q", mcd.Name, adjustedAnnotations)
+	klog.V(5).Infof("For MachineDeployment %q, old CreationTimeoutAdjustInfo=%s, new CreationTimeoutAdjustInfo=%s", mcd.Name, oldInfo, newInfo)
+	modifiedAnnotations, deletedAnnotationKeys := diffCreationTimeoutAnnotations(oldInfo, newInfo)
+	if len(modifiedAnnotations) == 0 && len(deletedAnnotationKeys) == 0 {
+		return
+	}
+	newMcd := mcd.DeepCopy()
+	for k, v := range modifiedAnnotations {
+		metav1.SetMetaDataAnnotation(&newMcd.ObjectMeta, k, v)
+	}
+	for _, k := range deletedAnnotationKeys {
+		delete(newMcd.Annotations, k)
+	}
+	_, err = c.controlMachineClient.MachineDeployments(mcd.Namespace).Update(ctx, newMcd, metav1.UpdateOptions{})
+	if err != nil {
+		return
+	}
+	adjusted = true
+	if len(deletedAnnotationKeys) > 0 {
+		klog.V(3).Infof("For MachineDeployment %q, cleared all creation-timeout relevant annotations after max-creation-timeout window of %q elapsed", mcd.Name, maxCreationTimeout)
+	} else {
+		klog.V(3).Infof("For MachineDeployment %q, adjusted creation-timeout relevant annotations: %q", mcd.Name, modifiedAnnotations)
 	}
 	return
 }
 
-func createAdjustedAnnotations(oldInfo, newInfo creationTimeoutAdjustInfo) (adjustedAnnotations map[string]string) {
-	adjustedAnnotations = make(map[string]string)
+// diffCreationTimeoutAnnotations computes the annotation changes needed given the old and new creationTimeoutAdjustInfo.
+// It returns modifiedAnnotations (keys to set) and deletedAnnotationKeys (keys to remove).
+func diffCreationTimeoutAnnotations(oldInfo, newInfo creationTimeoutAdjustInfo) (modifiedAnnotations map[string]string, deletedAnnotationKeys []string) {
+	modifiedAnnotations = make(map[string]string)
+	if newInfo.reset {
+		deletedAnnotationKeys = []string{
+			v1alpha1.AnnotationKeyMachineEffectiveCreationTimeout,
+			v1alpha1.AnnotationKeyMachineEffectiveCreationTimeoutLastAppliedAt,
+			v1alpha1.AnnotationKeyMachineReplaceCycleCount,
+			v1alpha1.AnnotationKeyMachineReplaceCycleCountLastAppliedAt,
+		}
+		return
+	}
 	if oldInfo.replaceCycleCount != newInfo.replaceCycleCount {
-		countStr := strconv.Itoa(newInfo.replaceCycleCount)
-		lastAdjustedAt := newInfo.replaceCycleCountLastAdjustedAt.Time.Format(time.RFC3339)
-		adjustedAnnotations[v1alpha1.AnnotationKeyMachineReplaceCycleCount] = countStr
-		adjustedAnnotations[v1alpha1.AnnotationKeyMachineReplaceCycleCountLastAdjustedAt] = lastAdjustedAt
+		countStr := strconv.FormatInt(int64(newInfo.replaceCycleCount), 10)
+		lastAppliedAt := newInfo.replaceCycleCountLastAppliedAt.Time.Format(time.RFC3339)
+		modifiedAnnotations[v1alpha1.AnnotationKeyMachineReplaceCycleCount] = countStr
+		modifiedAnnotations[v1alpha1.AnnotationKeyMachineReplaceCycleCountLastAppliedAt] = lastAppliedAt
 	}
 	if oldInfo.effectiveCreationTimeout.Duration != newInfo.effectiveCreationTimeout.Duration {
 		durationStr := newInfo.effectiveCreationTimeout.Duration.String()
-		lastAdjustedAt := newInfo.effectiveCreationTimeoutLastAdjustedAt.Time.Format(time.RFC3339)
-		adjustedAnnotations[v1alpha1.AnnotationKeyMachineEffectiveCreationTimeout] = durationStr
-		adjustedAnnotations[v1alpha1.AnnotationKeyMachineEffectiveCreationTimeoutLastAdjustedAt] = lastAdjustedAt
+		lastAppliedAt := newInfo.effectiveCreationTimeoutLastAppliedAt.Time.Format(time.RFC3339)
+		modifiedAnnotations[v1alpha1.AnnotationKeyMachineEffectiveCreationTimeout] = durationStr
+		modifiedAnnotations[v1alpha1.AnnotationKeyMachineEffectiveCreationTimeoutLastAppliedAt] = lastAppliedAt
 	}
 	return
 }
@@ -878,18 +915,18 @@ func getCreationTimeoutAdjustInfo(mcd *v1alpha1.MachineDeployment) (adjustInfo c
 		klog.Warningf("Failed to get effective-creation-timeout for MachineDeployment %q: %v", mcd.Name, err)
 		return
 	}
-	adjustInfo.effectiveCreationTimeoutLastAdjustedAt, err = annotations.GetMachineEffectiveCreationTimeoutLastAdjustedAt(mcd)
+	adjustInfo.effectiveCreationTimeoutLastAppliedAt, err = annotations.GetMachineEffectiveCreationTimeoutLastAppliedAt(mcd)
 	if err != nil {
-		klog.Warningf("Failed to get annotation %q on MachineDeployment %q: %v", v1alpha1.AnnotationKeyMachineEffectiveCreationTimeoutLastAdjustedAt, mcd.Name, err)
+		klog.Warningf("Failed to get annotation %q on MachineDeployment %q: %v", v1alpha1.AnnotationKeyMachineEffectiveCreationTimeoutLastAppliedAt, mcd.Name, err)
 		return
 	}
-	adjustInfo.replaceCycleCountLastAdjustedAt, err = annotations.GetMachineReplaceCycleCountLastAdjustedAt(mcd)
+	adjustInfo.replaceCycleCountLastAppliedAt, err = annotations.GetMachineReplaceCycleCountLastAppliedAt(mcd)
 	if err != nil {
-		klog.Warningf("Failed to get annotation %q on MachineDeployment %q: %v", v1alpha1.AnnotationKeyMachineReplaceCycleCountLastAdjustedAt, mcd.Name, err)
+		klog.Warningf("Failed to get annotation %q on MachineDeployment %q: %v", v1alpha1.AnnotationKeyMachineReplaceCycleCountLastAppliedAt, mcd.Name, err)
 		return
 	}
-	if adjustInfo.replaceCycleCountLastAdjustedAt.IsZero() {
-		adjustInfo.replaceCycleCountLastAdjustedAt = mcd.CreationTimestamp
+	if adjustInfo.replaceCycleCountLastAppliedAt.IsZero() {
+		adjustInfo.replaceCycleCountLastAppliedAt = mcd.CreationTimestamp
 	}
 	adjustInfo.replaceCycleCount, err = annotations.GetMachineReplaceCycleCount(mcd)
 	if err != nil {
@@ -907,54 +944,92 @@ func flattenMachineMap(machineMap map[types.UID]*v1alpha1.MachineList) []v1alpha
 	return machines
 }
 
-func getNumFailedJoinedAndMaxJoinDurationSince(machines []v1alpha1.Machine, windowStartMark time.Time, joinStartMark time.Time) (numFailedInWindow int, numJoinedInWindow int, maxJoinDuration metav1.Duration) {
+// getNumFailedJoinedAndAvgJoinDurationSince returns the number of machines that failed to join and the number
+// that successfully joined since windowStartMark, along with the average join duration of the successful ones.
+func getNumFailedJoinedAndAvgJoinDurationSince(machines []v1alpha1.Machine, windowStartMark time.Time) (numFailedInWindow int, numJoinedInWindow int, avgJoinDuration metav1.Duration) {
+	var totalJoinDuration time.Duration
 	for _, m := range machines {
-		machineFailedCond := nodeops.FilterNodeConditionOfType(m.Status.Conditions, v1alpha1.ConditionMachineFailed)
 		machineJoinedCond := nodeops.FilterNodeConditionOfType(m.Status.Conditions, v1alpha1.ConditionMachineJoined)
-		if machineJoinedCond != nil {
+		if machineJoinedCond == nil {
+			continue
+		}
+		if machineJoinedCond.Status == v1.ConditionTrue {
 			if machineJoinedCond.LastTransitionTime.After(windowStartMark) {
 				numJoinedInWindow++
+				totalJoinDuration += machineJoinedCond.LastTransitionTime.Sub(m.CreationTimestamp.Time)
 			}
-			if machineJoinedCond.LastTransitionTime.After(joinStartMark) {
-				joinDuration := machineJoinedCond.LastTransitionTime.Sub(m.CreationTimestamp.Time)
-				maxJoinDuration.Duration = max(maxJoinDuration.Duration, joinDuration)
-			}
-		} else if machineFailedCond != nil &&
-			machineFailedCond.LastTransitionTime.After(windowStartMark) &&
-			machineFailedCond.Reason == codes.FailedJoin.String() {
-			// currently we only adjust creation-timeout upwards for machines that failed to join cluster.
+		} else if machineJoinedCond.Status == v1.ConditionFalse &&
+			machineJoinedCond.LastTransitionTime.After(windowStartMark) &&
+			machineJoinedCond.Reason == codes.FailedJoin.String() {
 			numFailedInWindow++
 		}
+	}
+	if numJoinedInWindow > 0 {
+		avgJoinDuration.Duration = totalJoinDuration / time.Duration(numJoinedInWindow)
 	}
 	return
 }
 
-// increaseEffectiveCreationTimeout increases the currTimeout by the growthFactor bounded to maxTimeout. Returns currTimeout if there was no adjustment.
-func increaseEffectiveCreationTimeout(currTimeout metav1.Duration, growthFactor float64, maxTimeout metav1.Duration) metav1.Duration {
-	if growthFactor <= 1.0 || currTimeout.Duration >= maxTimeout.Duration || currTimeout.Duration <= 0 {
+// computeMaxCreationTimeout returns the ceiling timeout: `specTimeout * (1 + growthPercent/100)^maxGrowthCount`.
+func computeMaxCreationTimeout(specTimeout metav1.Duration, growthFactor float64, maxGrowthCount int) metav1.Duration {
+	maxTimeout := specTimeout.Duration
+	for range maxGrowthCount {
+		maxTimeout = time.Duration(float64(maxTimeout) * growthFactor)
+	}
+	return metav1.Duration{Duration: maxTimeout.Round(time.Second)}
+}
+
+// increaseEffectiveCreationTimeout increases `currTimeout` by `growthFactor` (derived from growthPercent as `1 + growthPercent/100`), capped at `maxCreationTimeout`.
+// Returns `currTimeout` unchanged if the cap is already reached or invalid values are specified.
+func increaseEffectiveCreationTimeout(currTimeout metav1.Duration, growthFactor float64, maxCreationTimeout metav1.Duration) metav1.Duration {
+	if growthFactor <= 1.0 || currTimeout.Duration <= 0 || maxCreationTimeout.Duration <= 0 {
 		return currTimeout
 	}
-	newDuration := time.Duration(float64(currTimeout.Duration) * growthFactor)
-	if newDuration > maxTimeout.Duration {
-		newDuration = maxTimeout.Duration
-	}
-	if newDuration == currTimeout.Duration {
+	if currTimeout.Duration >= maxCreationTimeout.Duration {
 		return currTimeout
+	}
+	newDuration := time.Duration(float64(currTimeout.Duration) * growthFactor).Round(time.Second)
+	if newDuration > maxCreationTimeout.Duration {
+		newDuration = maxCreationTimeout.Duration
 	}
 	return metav1.Duration{Duration: newDuration}
 }
 
 type creationTimeoutAdjustInfo struct {
-	effectiveCreationTimeout               metav1.Duration
-	effectiveCreationTimeoutLastAdjustedAt metav1.Time
-	replaceCycleCount                      int
-	replaceCycleCountLastAdjustedAt        metav1.Time
+	effectiveCreationTimeout              metav1.Duration
+	effectiveCreationTimeoutLastAppliedAt metav1.Time
+	replaceCycleCount                     int32
+	replaceCycleCountLastAppliedAt        metav1.Time
+	// reset indicates that all adjust annotations should be removed, resetting the effective-creation-timeout to the spec timeout.
+	reset bool
+}
+
+// isReplaceCycleCountWindowElapsed returns true if a full effectiveCreationTimeout window has elapsed since
+// [v1alpha1.AnnotationKeyMachineReplaceCycleCountLastAppliedAt].
+func (i creationTimeoutAdjustInfo) isReplaceCycleCountWindowElapsed(now metav1.Time) bool {
+	return now.Sub(i.replaceCycleCountLastAppliedAt.Time) > i.effectiveCreationTimeout.Duration
+}
+
+// isEffectiveCreationTimeoutWindowElapsed returns true if the effectiveCreationTimeout was previously applied
+// (i.e. [v1alpha1.AnnotationKeyMachineEffectiveCreationTimeoutLastAppliedAt] is set) and a full effectiveCreationTimeout
+// window has elapsed since then.
+func (i creationTimeoutAdjustInfo) isEffectiveCreationTimeoutWindowElapsed(now metav1.Time) bool {
+	return !i.effectiveCreationTimeoutLastAppliedAt.IsZero() && now.Sub(i.effectiveCreationTimeoutLastAppliedAt.Time) > i.effectiveCreationTimeout.Duration
+}
+
+// isMaxTimeoutElapsed returns true if an effective-creation-timeout is set and the full max-creation-timeout
+// window has elapsed since it was last applied.
+func (i creationTimeoutAdjustInfo) isMaxTimeoutElapsed(now metav1.Time, maxCreationTimeout metav1.Duration) bool {
+	if i.effectiveCreationTimeoutLastAppliedAt.IsZero() {
+		return false
+	}
+	return now.Sub(i.effectiveCreationTimeoutLastAppliedAt.Time) > maxCreationTimeout.Duration
 }
 
 func (i creationTimeoutAdjustInfo) String() string {
-	return fmt.Sprintf("(effectiveCreationTimeout=%q, effectiveCreationTimeoutLastAdjustedAt=%q, replaceCycleCount=%d, replaceCycleCountLastAdjustedAt=%q)",
+	return fmt.Sprintf("(effectiveCreationTimeout=%q, effectiveCreationTimeoutLastAppliedAt=%q, replaceCycleCount=%d, replaceCycleCountLastAppliedAt=%q)",
 		i.effectiveCreationTimeout,
-		i.effectiveCreationTimeoutLastAdjustedAt.Time.Format(time.RFC3339),
+		i.effectiveCreationTimeoutLastAppliedAt.Time.Format(time.RFC3339),
 		i.replaceCycleCount,
-		i.replaceCycleCountLastAdjustedAt.Time.Format(time.RFC3339))
+		i.replaceCycleCountLastAppliedAt.Time.Format(time.RFC3339))
 }

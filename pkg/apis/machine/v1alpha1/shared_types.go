@@ -60,6 +60,17 @@ type MachineConfiguration struct {
 	// NodeConditions are the set of conditions if set to true for MachineHealthTimeOut, machine will be declared failed.
 	// +optional
 	NodeConditions *string `json:"nodeConditions,omitempty"`
+
+	// MachineCreationTimeoutGrowthPercent is the percentage by which the effective-creation-timeout is grown when
+	// machines repeatedly fail to join the cluster (e.g. 50 means grow by 50%, equivalent to a 1.5× factor).
+	// Must be > 0. Overrides the global --machine-creation-timeout-growth-percent flag.
+	// +optional
+	MachineCreationTimeoutGrowthPercent *int32 `json:"creationTimeoutGrowthPercent,omitempty"`
+
+	// MachineReplaceCycleCountThreshold is the number of consecutive replace cycles with failed machine joins after
+	// which the effective-creation-timeout is grown. Overrides the global --machine-replace-cycle-count-threshold flag.
+	// +optional
+	MachineReplaceCycleCountThreshold *int32 `json:"replaceCycleCountThreshold,omitempty"`
 }
 
 // MachineSummary store the summary of machine.

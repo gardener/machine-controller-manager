@@ -285,6 +285,13 @@ spec:
                         description: MachineCreationTimeout is the timeout after which
                           machinie creation is declared failed.
                         type: string
+                      creationTimeoutGrowthPercent:
+                        description: |-
+                          MachineCreationTimeoutGrowthPercent is the percentage by which the effective-creation-timeout is grown when
+                          machines repeatedly fail to join the cluster (e.g. 50 means grow by 50%, equivalent to a 1.5× factor).
+                          Must be > 0. Overrides the global --machine-creation-timeout-growth-percent flag.
+                        format: int32
+                        type: integer
                       disableHealthTimeout:
                         description: |-
                           DisableHealthTimeout if set to true, health timeout will be ignored. Leading to machine never being declared failed.
@@ -432,6 +439,12 @@ spec:
                         description: ProviderID represents the provider's unique ID
                           given to a machine
                         type: string
+                      replaceCycleCountThreshold:
+                        description: |-
+                          MachineReplaceCycleCountThreshold is the number of consecutive replace cycles with failed machine joins after
+                          which the effective-creation-timeout is grown. Overrides the global --machine-replace-cycle-count-threshold flag.
+                        format: int32
+                        type: integer
                     type: object
                 type: object
             required:
