@@ -2552,7 +2552,7 @@ var _ = Describe("machineset", func() {
 			waitForCacheSync(stop, c)
 
 			fakeClient := c.controlMachineClient.(*faketyped.FakeMachineV1alpha1)
-			fakeClient.PrependReactor("patch", "machines", func(action testing.Action) (bool, runtime.Object, error) {
+			fakeClient.PrependReactor("patch", "machines", func(_ testing.Action) (bool, runtime.Object, error) {
 				return true, nil, fmt.Errorf("patch failed")
 			})
 
