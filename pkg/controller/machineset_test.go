@@ -2251,6 +2251,53 @@ var _ = Describe("machineset", func() {
 					preservedMachineCount: 0,
 				},
 			}),
+			Entry("should not trigger auto preservation of additional failed machines if AutoPreserveFailedMachineCount has reached AutoPreserveFailedMachineMax", testCase{
+				setup: setup{
+					autoPreserveFailedMachineCount: 2,
+					autoPreserveFailedMachineMax:   2,
+					// Two machines below are already auto-preserved, so the machineset is at capacity.
+					// machine-1 and machine-2 must therefore NOT get preserved now.
+					additionalMachines: []*machinev1.Machine{
+						{
+							ObjectMeta: metav1.ObjectMeta{
+								Name:              "machine-5",
+								Namespace:         testNamespace,
+								ResourceVersion:   "1",
+								CreationTimestamp: metav1.Time{Time: time.Now().Add(-2 * time.Hour)},
+								Annotations: map[string]string{
+									machineutils.PreserveMachineAnnotationKey: machineutils.PreserveMachineAnnotationValueAutoPreserved,
+								},
+							},
+							Status: machinev1.MachineStatus{
+								CurrentStatus: machinev1.CurrentStatus{
+									Phase:              MachineFailed,
+									PreserveExpiryTime: &metav1.Time{Time: time.Now().Add(1 * time.Hour)},
+								},
+							},
+						},
+						{
+							ObjectMeta: metav1.ObjectMeta{
+								Name:              "machine-6",
+								Namespace:         testNamespace,
+								ResourceVersion:   "1",
+								CreationTimestamp: metav1.Time{Time: time.Now().Add(-2 * time.Hour)},
+								Annotations: map[string]string{
+									machineutils.PreserveMachineAnnotationKey: machineutils.PreserveMachineAnnotationValueAutoPreserved,
+								},
+							},
+							Status: machinev1.MachineStatus{
+								CurrentStatus: machinev1.CurrentStatus{
+									Phase:              MachineFailed,
+									PreserveExpiryTime: &metav1.Time{Time: time.Now().Add(1 * time.Hour)},
+								},
+							},
+						},
+					},
+				},
+				expect: expect{
+					preservedMachineCount: 2,
+				},
+			}),
 			Entry("should trigger auto preservation of both failed machines if AutoPreserveFailedMachineCount is 0 and AutoPreserveFailedMachineMax is 2", testCase{
 				setup: setup{
 					autoPreserveFailedMachineCount: 0,
@@ -2294,6 +2341,51 @@ var _ = Describe("machineset", func() {
 				},
 				expect: expect{
 					preservedMachineCount: 0,
+				},
+			}),
+			Entry("should reduce auto-preserved machines to the new lower AutoPreserveFailedMachineMax", testCase{
+				setup: setup{
+					autoPreserveFailedMachineCount: 2,
+					autoPreserveFailedMachineMax:   1,
+					additionalMachines: []*machinev1.Machine{
+						{
+							ObjectMeta: metav1.ObjectMeta{
+								Name:              "machine-5",
+								Namespace:         testNamespace,
+								ResourceVersion:   "1",
+								CreationTimestamp: metav1.Time{Time: time.Now().Add(-3 * time.Hour)},
+								Annotations: map[string]string{
+									machineutils.PreserveMachineAnnotationKey: machineutils.PreserveMachineAnnotationValueAutoPreserved,
+								},
+							},
+							Status: machinev1.MachineStatus{
+								CurrentStatus: machinev1.CurrentStatus{
+									Phase:              MachineFailed,
+									PreserveExpiryTime: &metav1.Time{Time: time.Now().Add(1 * time.Hour)},
+								},
+							},
+						},
+						{
+							ObjectMeta: metav1.ObjectMeta{
+								Name:              "machine-6",
+								Namespace:         testNamespace,
+								ResourceVersion:   "1",
+								CreationTimestamp: metav1.Time{Time: time.Now().Add(-1 * time.Hour)},
+								Annotations: map[string]string{
+									machineutils.PreserveMachineAnnotationKey: machineutils.PreserveMachineAnnotationValueAutoPreserved,
+								},
+							},
+							Status: machinev1.MachineStatus{
+								CurrentStatus: machinev1.CurrentStatus{
+									Phase:              MachineFailed,
+									PreserveExpiryTime: &metav1.Time{Time: time.Now().Add(1 * time.Hour)},
+								},
+							},
+						},
+					},
+				},
+				expect: expect{
+					preservedMachineCount: 1,
 				},
 			}),
 		)
