@@ -64,7 +64,7 @@ var _ = Describe("drain", func() {
 		terminationGracePeriod    time.Duration
 		pvReattachTimeout         time.Duration
 		force                     bool
-		skipVolumeHandling        bool
+		skipVolumeDetach          bool
 		evictError                error
 		deleteError               error
 	}
@@ -168,7 +168,7 @@ var _ = Describe("drain", func() {
 			Timeout:                      2 * time.Minute,
 			volumeAttachmentHandler:      volumeAttachmentHandler,
 			podSynced:                    podSynced,
-			SkipVolumeDetach:             setup.skipVolumeHandling,
+			SkipVolumeDetach:             setup.skipVolumeDetach,
 		}
 		d.SetPodProvider(&podProvider{Lister: fakePodLister})
 
@@ -861,7 +861,7 @@ var _ = Describe("drain", func() {
 				// Because waitForDetach polling Interval is equal to terminationGracePeriodShort
 				minDrainDuration: terminationGracePeriodMedium,
 			}),
-		Entry("Successful drain with SkipVolumeHandling and eviction of pods with exclusive volumes",
+		Entry("Successful drain with skipVolumeDetach and eviction of pods with exclusive volumes",
 			&setup{
 				stats: stats{
 					nPodsWithoutPV:                0,
@@ -872,9 +872,9 @@ var _ = Describe("drain", func() {
 				},
 				attemptEviction:        true,
 				terminationGracePeriod: terminationGracePeriodShort,
-				skipVolumeHandling:     true,
+				skipVolumeDetach:       true,
 			},
-			// SkipVolumeHandling routes pods through evictPodsWithoutPv, which does NOT wait for volume detach.
+			// skipVolumeDetach routes pods through evictPodsWithoutPv, which does NOT wait for volume detach.
 			// The test only needs deletePod so that the fake eviction reactor finds and removes the pod.
 			[]podDrainHandler{deletePod},
 			&expectation{
@@ -891,7 +891,7 @@ var _ = Describe("drain", func() {
 				nEvictions:       2,
 				minDrainDuration: 0,
 			}),
-		Entry("Successful drain with SkipVolumeHandling without eviction of pods with exclusive volumes",
+		Entry("Successful drain with skipVolumeDetach without eviction of pods with exclusive volumes",
 			&setup{
 				stats: stats{
 					nPodsWithoutPV:                0,
@@ -902,7 +902,7 @@ var _ = Describe("drain", func() {
 				},
 				attemptEviction:        false,
 				terminationGracePeriod: terminationGracePeriodShort,
-				skipVolumeHandling:     true,
+				skipVolumeDetach:       true,
 			},
 			nil,
 			&expectation{
