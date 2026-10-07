@@ -928,34 +928,17 @@ func (c *controller) shouldFailedMachineBeTerminated(machine *v1alpha1.Machine) 
 // MachineSet's AutoPreserveFailedMachineMax field. If the AutoPreserveFailedMachineMax limit is breached, it removes the preserve=auto-preserved annotation from the machines which are nearest to preserve expiry.
 func (c *controller) manageAutoPreservationOfFailedMachines(ctx context.Context, machines []*v1alpha1.Machine, machineSet *v1alpha1.MachineSet) ([]*v1alpha1.Machine, error) {
 	// TODO@thiyyakat: if preservation is to be honoured across updates, capacity remaining should consider machines in all machinesets
-	autoPreservationCapacityRemaining := machineSet.Spec.AutoPreserveFailedMachineMax - machineSet.Status.AutoPreserveFailedMachineCount
+	autoPreservedMachines, autoPreservationCandidates, remaining := filterMachinesForAutoPreservation(machines)
+	autoPreservationCapacityRemaining := machineSet.Spec.AutoPreserveFailedMachineMax - int32(len(autoPreservedMachines)) // #nosec G115 (CWE-190) -- number of machines will not exceed MaxInt32
 	if autoPreservationCapacityRemaining == 0 {
 		// no capacity remaining, nothing to do
 		return machines, nil
 	} else if autoPreservationCapacityRemaining < 0 { // when autoPreserveFailedMachineMax is decreased, it can be negative.
-		updatedMachines, err := c.stopAutoPreservationForMachines(ctx, machines, int(-autoPreservationCapacityRemaining))
+		updatedMachines, err := c.stopAutoPreservationForMachines(ctx, autoPreservedMachines, int(-autoPreservationCapacityRemaining))
 		if err != nil {
 			return nil, err
 		}
-		return updatedMachines, nil
-	}
-
-	var autoPreservationCandidates []*v1alpha1.Machine
-	var others []*v1alpha1.Machine
-	for _, m := range machines {
-		// Skip machines which have not failed.
-		if !machineutils.IsFailed(m) {
-			others = append(others, m)
-			continue
-		}
-		// If the auto-preservation has not started or it is incomplete(annotation set but not the PreserveExpiryTime), we have work to do.
-		if !machineutils.AllowedPreserveAnnotationValues.Has(m.Annotations[machineutils.PreserveMachineAnnotationKey]) ||
-			m.Annotations[machineutils.PreserveMachineAnnotationKey] == machineutils.PreserveMachineAnnotationValueAutoPreserved && m.Status.CurrentStatus.PreserveExpiryTime == nil {
-			autoPreservationCandidates = append(autoPreservationCandidates, m)
-		} else {
-			// Machine is already preserved or is candidate for different preservation action(when-failed/false).
-			others = append(others, m)
-		}
+		return append(append(remaining, autoPreservationCandidates...), updatedMachines...), nil
 	}
 
 	sort.Slice(autoPreservationCandidates, func(i, j int) bool {
@@ -998,21 +981,13 @@ func (c *controller) manageAutoPreservationOfFailedMachines(ctx context.Context,
 		autoPreservationCapacityRemaining--
 	}
 
-	return append(autoPreservationCandidates, others...), nil
+	return append(remaining, append(autoPreservationCandidates, autoPreservedMachines...)...), nil
 }
 
-func (c *controller) stopAutoPreservationForMachines(ctx context.Context, machines []*v1alpha1.Machine, numToStop int) ([]*v1alpha1.Machine, error) {
-	var autoPreservedMachines, others []*v1alpha1.Machine
-	for _, m := range machines {
-		if m.Annotations[machineutils.PreserveMachineAnnotationKey] == machineutils.PreserveMachineAnnotationValueAutoPreserved {
-			autoPreservedMachines = append(autoPreservedMachines, m)
-		} else {
-			others = append(others, m)
-		}
-	}
+func (c *controller) stopAutoPreservationForMachines(ctx context.Context, autoPreservedMachines []*v1alpha1.Machine, numToStop int) ([]*v1alpha1.Machine, error) {
 	numOfAutoPreservedMachines := len(autoPreservedMachines)
 	if numOfAutoPreservedMachines == 0 {
-		return machines, nil
+		return autoPreservedMachines, nil
 	}
 	if numOfAutoPreservedMachines > numToStop {
 		sort.Sort(ActiveMachines(autoPreservedMachines))
@@ -1042,5 +1017,5 @@ func (c *controller) stopAutoPreservationForMachines(ctx context.Context, machin
 		autoPreservedMachines[index] = unpreservedMachine
 		numToStop--
 	}
-	return append(others, autoPreservedMachines...), nil
+	return autoPreservedMachines, nil
 }
