@@ -7,17 +7,19 @@ package machineutils
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 	"time"
 
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	v1alpha1client "github.com/gardener/machine-controller-manager/pkg/client/clientset/versioned/typed/machine/v1alpha1"
-	v1alpha1listers "github.com/gardener/machine-controller-manager/pkg/client/listers/machine/v1alpha1"
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	errorsutil "k8s.io/apimachinery/pkg/util/errors"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/sets"
-	"k8s.io/client-go/util/retry"
 	"k8s.io/klog/v2"
+
+	jsonpatch "gopkg.in/evanphx/json-patch.v4"
 )
 
 const (
@@ -82,7 +84,7 @@ const (
 	NodeScaledDown = "ScaleDown"
 
 	// NodeTerminationCondition describes nodes that are terminating
-	NodeTerminationCondition v1.NodeConditionType = "Terminating"
+	NodeTerminationCondition corev1.NodeConditionType = "Terminating"
 
 	// TaintNodeCriticalComponentsNotReady is the name of a gardener taint
 	// indicating that a node is not yet ready to have user workload scheduled
@@ -169,6 +171,12 @@ func IsTriggeredForDeletion(m *v1alpha1.Machine) bool {
 	return m.Annotations[MachinePriority] == "1"
 }
 
+// IsAutoPreserved checks whether the machine is auto-preserved:
+// it carries the auto-preserved annotation and its PreserveExpiryTime has been set.
+func IsAutoPreserved(m *v1alpha1.Machine) bool {
+	return (m.Annotations[PreserveMachineAnnotationKey] == PreserveMachineAnnotationValueAutoPreserved) && m.Status.CurrentStatus.PreserveExpiryTime != nil
+}
+
 // IsPreservationExpired checks if the preserve expiry time has passed for a machine
 func IsPreservationExpired(m *v1alpha1.Machine) bool {
 	t := m.Status.CurrentStatus.PreserveExpiryTime
@@ -187,34 +195,112 @@ func GetMachineDeploymentName(machine *v1alpha1.Machine) string {
 	return machine.Labels["name"]
 }
 
-// see https://github.com/kubernetes/kubernetes/issues/21479
-type updateMachineFunc func(machine *v1alpha1.Machine) error
-
-// UpdateMachineWithRetries updates a machine with given applyUpdate function. Note that machine not found error is ignored.
-func UpdateMachineWithRetries(ctx context.Context, machineClient v1alpha1client.MachineInterface, machineLister v1alpha1listers.MachineLister, namespace, name string, applyUpdate updateMachineFunc) (*v1alpha1.Machine, error) {
-	var machine *v1alpha1.Machine
-
-	retryErr := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
-		var err error
-		machine, err = machineLister.Machines(namespace).Get(name)
-		if err != nil {
-			return err
-		}
-		machine = machine.DeepCopy()
-		// Apply the update, then attempt to push it to the apiserver.
-		if applyErr := applyUpdate(machine); applyErr != nil {
-			return applyErr
-		}
-		machine, err = machineClient.Update(ctx, machine, metav1.UpdateOptions{})
-		return err
-	})
-
-	// Ignore the precondition violated error, this machine is already updated
-	// with the desired label.
-	if retryErr == errorsutil.ErrPreconditionViolated {
-		klog.V(4).Infof("Machine %s precondition doesn't hold, skip updating it.", name)
-		retryErr = nil
+// PatchMachine patches a machine using a merge patch derived from mutateFn applied to the given machine object.
+// If optimisticLock is true, the patch includes the current resourceVersion to detect concurrent updates.
+// subresources optionally targets a subresource (e.g. "status"); omit it to patch the main resource.
+func PatchMachine(
+	ctx context.Context,
+	machineClient v1alpha1client.MachineInterface,
+	machine *v1alpha1.Machine,
+	mutateFn func(*v1alpha1.Machine) error,
+	optimisticLock bool,
+	subresources ...string,
+) (*v1alpha1.Machine, error) {
+	original := machine
+	modified := machine.DeepCopy()
+	if err := mutateFn(modified); err != nil {
+		return nil, err
 	}
+	if optimisticLock {
+		version := original.GetResourceVersion()
+		if len(version) == 0 {
+			return nil, fmt.Errorf("cannot use OptimisticLock, object %q does not have any resource version we can use", machine.Name)
+		}
 
-	return machine, retryErr
+		original = original.DeepCopy()
+		original.SetResourceVersion("")
+		modified.SetResourceVersion(version)
+	}
+	base, err := json.Marshal(original)
+	if err != nil {
+		return nil, err
+	}
+	modifiedJSON, err := json.Marshal(modified)
+	if err != nil {
+		return nil, err
+	}
+	patch, err := jsonpatch.CreateMergePatch(base, modifiedJSON)
+	if err != nil {
+		return nil, err
+	}
+	if string(patch) == "{}" {
+		return machine, nil
+	}
+	return machineClient.Patch(ctx, machine.Name, types.MergePatchType, patch, metav1.PatchOptions{}, subresources...)
+}
+
+// DeterminePreservationAction returns the preserve annotation value for the given node and machine
+// and a boolean informing whether we need to do any work or skip.
+// Invalid annotation values won't change the preservation state.
+// If Node has invalid annotation but Machine has a valid annotation - node takes precedence. We won't change the preservation state.
+func DeterminePreservationAction(
+	node *corev1.Node,
+	machine *v1alpha1.Machine,
+) (annotationValue string, shouldHandlePreservation bool) {
+	if node != nil {
+		// node exists
+		if val, ok := node.Annotations[PreserveMachineAnnotationKey]; ok {
+			// node has PreserveMachineAnnotationKey annotation
+			if AllowedPreserveAnnotationValues.Has(val) {
+				// valid annotation value
+				return val, true
+			}
+			// invalid annotation value
+			klog.Warningf(
+				"Node %q doesn't have a valid annotation:%q=%q",
+				machine.Labels[v1alpha1.NodeLabelKey],
+				PreserveMachineAnnotationKey,
+				node.Annotations[PreserveMachineAnnotationKey],
+			)
+			// treat it as no-op
+			return "", false
+		}
+		// PreserveMachineAnnotationKey annotation absent
+		if _, ok := machine.Annotations[LastAppliedNodePreserveValueAnnotationKey]; ok {
+			// LastAppliedNodePreserveValueAnnotationKey annotation present
+			// Treat as annotation was intentionally removed from node to stop preservation
+			return "", true
+		}
+	}
+	// node doesn't exist
+	if val, ok := machine.Annotations[LastAppliedNodePreserveValueAnnotationKey]; ok {
+		// LastAppliedNodePreserveValueAnnotationKey annotation present
+		// Preservation to be done based on this annotation value
+		return val, true
+	}
+	if val, ok := machine.Annotations[PreserveMachineAnnotationKey]; ok {
+		// machine has PreserveMachineAnnotationKey present
+		if AllowedPreserveAnnotationValues.Has(val) {
+			// valid annotation value
+			return val, true
+		}
+		// invalid annotation value
+		klog.Warningf(
+			"Machine %q doesn't have a valid annotation:%q=%q",
+			machine.Name,
+			PreserveMachineAnnotationKey,
+			machine.Annotations[PreserveMachineAnnotationKey],
+		)
+		// treat it as no-op
+		return "", false
+	}
+	// PreserveMachineAnnotationKey annotation absent
+	if machine.Status.CurrentStatus.PreserveExpiryTime != nil {
+		// Machine was preserved
+		// Treat as annotation was intentionally remove from the machine to stop preservation
+		return "", true
+	}
+	// neither node nor the machine has the PreserveMachineAnnotationKey present
+	// No work to be done
+	return "", false
 }

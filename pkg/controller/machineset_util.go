@@ -83,26 +83,22 @@ func GetMachineSetHash(is *v1alpha1.MachineSet, uniquifier *int32) (string, erro
 
 // syncMachinesNodeTemplates updates all machines in the given machineList with the new nodeTemplate if required.
 func (c *controller) syncMachinesNodeTemplates(ctx context.Context, machineList []*v1alpha1.Machine, machineSet *v1alpha1.MachineSet) error {
-
-	controlClient := c.controlMachineClient
-	machineLister := c.machineLister
-
-	for _, machine := range machineList {
+	for i, machine := range machineList {
 		// Ignore inactive Machines.
 		if !machineutils.IsActive(machine) {
 			continue
 		}
 
-		nodeTemplateChanged := copyMachineSetNodeTemplatesToMachines(machineSet, machine)
 		// Only sync the machine that doesn't already have the latest nodeTemplate.
-		if nodeTemplateChanged {
-			_, err := machineutils.UpdateMachineWithRetries(ctx, controlClient.Machines(machine.Namespace), machineLister, machine.Namespace, machine.Name,
-				func(_ *v1alpha1.Machine) error {
-					return nil
-				})
+		if nodeTemplateOutOfSync(machineSet, machine) {
+			updatedMachine, err := machineutils.PatchMachine(ctx, c.controlMachineClient.Machines(machine.Namespace), machine, func(m *v1alpha1.Machine) error {
+				m.Spec.NodeTemplateSpec = machineSet.Spec.Template.Spec.NodeTemplateSpec
+				return nil
+			}, true)
 			if err != nil {
 				return fmt.Errorf("error in updating nodeTemplateSpec to machine %q: %v", machine.Name, err)
 			}
+			machineList[i] = updatedMachine
 			klog.V(2).Infof("Updated machine %s/%s of MachineSet %s/%s with latest nodeTemplate.", machine.Namespace, machine.Name, machineSet.Namespace, machineSet.Name)
 		}
 	}
@@ -111,96 +107,66 @@ func (c *controller) syncMachinesNodeTemplates(ctx context.Context, machineList 
 
 // syncMachinesClassKind updates all machines in the given machineList with the new classKind if required.
 func (c *controller) syncMachinesClassKind(ctx context.Context, machineList []*v1alpha1.Machine, machineSet *v1alpha1.MachineSet) error {
-
-	controlClient := c.controlMachineClient
-	machineLister := c.machineLister
-
-	for _, machine := range machineList {
-		classKindChanged := copyMachineSetClassKindToMachines(machineSet, machine)
+	for i, machine := range machineList {
 		// Only sync the machine that doesn't already have the matching classKind.
-		if classKindChanged {
-			_, err := machineutils.UpdateMachineWithRetries(ctx, controlClient.Machines(machine.Namespace), machineLister, machine.Namespace, machine.Name,
-				func(_ *v1alpha1.Machine) error {
-					return nil
-				})
+		if classKindOutOfSync(machineSet, machine) {
+			updatedMachine, err := machineutils.PatchMachine(ctx, c.controlMachineClient.Machines(machine.Namespace), machine, func(m *v1alpha1.Machine) error {
+				m.Spec.Class.Kind = machineSet.Spec.Template.Spec.Class.Kind
+				return nil
+			}, true)
 			if err != nil {
 				return fmt.Errorf("error in updating classKind to machine %q: %v", machine.Name, err)
 			}
+			machineList[i] = updatedMachine
 			klog.V(2).Infof("Updated Machine %s/%s of MachineSet %s/%s with latest classKind.", machine.Namespace, machine.Name, machineSet.Namespace, machineSet.Name)
 		}
 	}
 	return nil
 }
 
-// copyMachineSetNodeTemplatesToMachines copies machineset's nodeTemplate to machine's nodeTemplate,
-// and returns true if machine's nodeTemplate is changed.
-// Note that apply and revision nodeTemplates are not copied.
-func copyMachineSetNodeTemplatesToMachines(machineset *v1alpha1.MachineSet, machine *v1alpha1.Machine) bool {
-	machineSetNodeTemplateCopy := machineset.Spec.Template.Spec.NodeTemplateSpec.DeepCopy()
-	machineNodeTemplateCopy := machine.Spec.NodeTemplateSpec.DeepCopy()
+// nodeTemplateOutOfSync returns true if machine's nodeTemplate is changed.
+func nodeTemplateOutOfSync(machineset *v1alpha1.MachineSet, machine *v1alpha1.Machine) bool {
+	machineSetNodeTemplate := machineset.Spec.Template.Spec.NodeTemplateSpec
+	machineNodeTemplate := machine.Spec.NodeTemplateSpec
 
-	isNodeTemplateChanged := !(apiequality.Semantic.DeepEqual(machineSetNodeTemplateCopy, machineNodeTemplateCopy))
-
-	if isNodeTemplateChanged {
-		machine.Spec.NodeTemplateSpec = machineset.Spec.Template.Spec.NodeTemplateSpec
-	}
-	return isNodeTemplateChanged
+	return !(apiequality.Semantic.DeepEqual(machineSetNodeTemplate, machineNodeTemplate))
 }
 
 // syncMachinesConfig updates all machines in the given machineList with the new config if required.
 func (c *controller) syncMachinesConfig(ctx context.Context, machineList []*v1alpha1.Machine, machineSet *v1alpha1.MachineSet) error {
-
-	controlClient := c.controlMachineClient
-	machineLister := c.machineLister
-
-	for _, machine := range machineList {
+	for i, machine := range machineList {
 		// Ignore inactive Machines.
 		if !machineutils.IsActive(machine) {
 			continue
 		}
 
-		configChanged := copyMachineSetConfigToMachines(machineSet, machine)
 		// Only sync the machine that doesn't already have the latest config.
-		if configChanged {
-			_, err := machineutils.UpdateMachineWithRetries(ctx, controlClient.Machines(machine.Namespace), machineLister, machine.Namespace, machine.Name,
-				func(_ *v1alpha1.Machine) error {
-					return nil
-				})
+		if configOutOfSync(machineSet, machine) {
+			updatedMachine, err := machineutils.PatchMachine(ctx, c.controlMachineClient.Machines(machine.Namespace), machine, func(m *v1alpha1.Machine) error {
+				m.Spec.MachineConfiguration = machineSet.Spec.Template.Spec.MachineConfiguration
+				return nil
+			}, true)
 			if err != nil {
 				return fmt.Errorf("error in updating MachineConfig to machine %q: %v", machine.Name, err)
 			}
+			machineList[i] = updatedMachine
 			klog.V(2).Infof("Updated machine %s/%s of MachineSet %s/%s with latest config.", machine.Namespace, machine.Name, machineSet.Namespace, machineSet.Name)
 		}
 	}
 	return nil
 }
 
-// copyMachineSetConfigToMachines copies machineset's config to machine's config,
-// and returns true if machine's config is changed.
-// Note that apply and revision config are not copied.
-func copyMachineSetConfigToMachines(machineset *v1alpha1.MachineSet, machine *v1alpha1.Machine) bool {
-	isConfigChanged := false
+// configOutOfSync returns true if machine's config is changed.
+func configOutOfSync(machineset *v1alpha1.MachineSet, machine *v1alpha1.Machine) bool {
+	machineSetConfig := machineset.Spec.Template.Spec.MachineConfiguration
+	machineConfig := machine.Spec.MachineConfiguration
 
-	machineSetConfigCopy := machineset.Spec.Template.Spec.MachineConfiguration.DeepCopy()
-	machineConfigCopy := machine.Spec.MachineConfiguration.DeepCopy()
-
-	isConfigChanged = !(apiequality.Semantic.DeepEqual(machineSetConfigCopy, machineConfigCopy))
-
-	if isConfigChanged {
-		machine.Spec.MachineConfiguration = machineset.Spec.Template.Spec.MachineConfiguration
-	}
-	return isConfigChanged
+	return !(apiequality.Semantic.DeepEqual(machineSetConfig, machineConfig))
 }
 
-// copyMachineSetClassKindToMachines copies machineset's class.Kind to machine's class.Kind,
-// and returns true if machine's class.Kind is changed.
-func copyMachineSetClassKindToMachines(machineset *v1alpha1.MachineSet, machine *v1alpha1.Machine) bool {
-	if machineset.Spec.Template.Spec.Class.Kind != machine.Spec.Class.Kind {
-		machine.Spec.Class.Kind = machineset.Spec.Template.Spec.Class.Kind
-		return true
-	}
-
-	return false
+// classKindOutOfSync returns true if machine's class.Kind is changed.
+func classKindOutOfSync(machineset *v1alpha1.MachineSet, machine *v1alpha1.Machine) bool {
+	return machineset.Spec.Template.Spec.Class.Kind != machine.Spec.Class.Kind
 }
 
 func logMachinesToDelete(machines []*v1alpha1.Machine) {
@@ -213,6 +179,39 @@ func logMachinesToDelete(machines []*v1alpha1.Machine) {
 			klog.V(3).Infof("Machine %q needs to be deleted", m.Name)
 		}
 	}
+}
+
+// filterMachinesForAutoPreservation returns 3 slice of machines
+// - machines which are auto-preserved
+// - machines which are candidates for auto-preservation
+// - remaining machines
+func filterMachinesForAutoPreservation(machines []*v1alpha1.Machine) ([]*v1alpha1.Machine, []*v1alpha1.Machine, []*v1alpha1.Machine) {
+	var autoPreservedMachines, autoPreservationCandidates, remaining []*v1alpha1.Machine
+	for _, m := range machines {
+		if machineutils.IsAutoPreserved(m) {
+			autoPreservedMachines = append(autoPreservedMachines, m)
+		} else if isAutoPreservationCandidate(m) {
+			autoPreservationCandidates = append(autoPreservationCandidates, m)
+		} else {
+			remaining = append(remaining, m)
+		}
+	}
+	return autoPreservedMachines, autoPreservationCandidates, remaining
+}
+
+// isAutoPreservationCandidate returns true if
+// - machine is failed and
+// - either machine does not have any preservation annotation
+// or has auto-preserved annotation but preserve expiry time is not set.
+func isAutoPreservationCandidate(machine *v1alpha1.Machine) bool {
+	if !machineutils.IsFailed(machine) {
+		return false
+	}
+	if _, ok := machine.Annotations[machineutils.PreserveMachineAnnotationKey]; !ok {
+		return true
+	}
+
+	return machine.Annotations[machineutils.PreserveMachineAnnotationKey] == machineutils.PreserveMachineAnnotationValueAutoPreserved && machine.Status.CurrentStatus.PreserveExpiryTime == nil
 }
 
 // uniqueMachines returns the input slice with duplicates removed (by MachineKey),

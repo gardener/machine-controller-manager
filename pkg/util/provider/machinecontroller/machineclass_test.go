@@ -123,8 +123,9 @@ var _ = Describe("machineclass", func() {
 						machines: []*v1alpha1.Machine{
 							{
 								ObjectMeta: metav1.ObjectMeta{
-									Name:      TestMachineName,
-									Namespace: TestNamespace,
+									Name:            TestMachineName,
+									Namespace:       TestNamespace,
+									ResourceVersion: "1",
 								},
 								TypeMeta: metav1.TypeMeta{},
 								Spec: v1alpha1.MachineSpec{
@@ -219,8 +220,9 @@ var _ = Describe("machineclass", func() {
 						machines: []*v1alpha1.Machine{
 							{
 								ObjectMeta: metav1.ObjectMeta{
-									Name:      TestMachineName,
-									Namespace: TestNamespace,
+									Name:            TestMachineName,
+									Namespace:       TestNamespace,
+									ResourceVersion: "1",
 								},
 								TypeMeta: metav1.TypeMeta{},
 								Spec: v1alpha1.MachineSpec{
@@ -280,8 +282,9 @@ var _ = Describe("machineclass", func() {
 						machines: []*v1alpha1.Machine{
 							{
 								ObjectMeta: metav1.ObjectMeta{
-									Name:      TestMachineName,
-									Namespace: TestNamespace,
+									Name:            TestMachineName,
+									Namespace:       TestNamespace,
+									ResourceVersion: "1",
 								},
 								TypeMeta: metav1.TypeMeta{},
 								Spec: v1alpha1.MachineSpec{
@@ -344,8 +347,9 @@ var _ = Describe("machineclass", func() {
 						machines: []*v1alpha1.Machine{
 							{
 								ObjectMeta: metav1.ObjectMeta{
-									Name:      TestMachineName,
-									Namespace: TestNamespace,
+									Name:            TestMachineName,
+									Namespace:       TestNamespace,
+									ResourceVersion: "1",
 								},
 								TypeMeta: metav1.TypeMeta{},
 								Spec: v1alpha1.MachineSpec{
@@ -407,8 +411,9 @@ var _ = Describe("machineclass", func() {
 						machines: []*v1alpha1.Machine{
 							{
 								ObjectMeta: metav1.ObjectMeta{
-									Name:      TestMachineName,
-									Namespace: TestNamespace,
+									Name:            TestMachineName,
+									Namespace:       TestNamespace,
+									ResourceVersion: "1",
 								},
 								TypeMeta: metav1.TypeMeta{},
 								Spec: v1alpha1.MachineSpec{

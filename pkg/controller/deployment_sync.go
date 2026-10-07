@@ -191,7 +191,7 @@ func (dc *controller) addHashKeyToISAndMachines(ctx context.Context, is *v1alpha
 	}
 
 	// 2. Update all machines managed by the rs to have the new hash label, so they will be correctly adopted.
-	if err := LabelMachinesWithHash(ctx, machineList, dc.controlMachineClient, dc.machineLister, is.Namespace, is.Name, hash); err != nil {
+	if err := LabelMachinesWithHash(ctx, machineList, dc.controlMachineClient, is.Namespace, is.Name, hash); err != nil {
 		return nil, fmt.Errorf("error in adding template hash label %s to machines %+v: %s", hash, machineList, err)
 	}
 

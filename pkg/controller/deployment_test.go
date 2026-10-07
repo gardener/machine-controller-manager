@@ -23,6 +23,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
@@ -684,8 +685,9 @@ var _ = Describe("machineDeployment", func() {
 
 			testMachine = &machinev1.Machine{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "Machine-test",
-					Namespace: testNamespace,
+					Name:            "Machine-test",
+					Namespace:       testNamespace,
+					ResourceVersion: "1",
 					Labels: map[string]string{
 						"test-label": "test-label",
 					},
@@ -1682,8 +1684,9 @@ var _ = Describe("machineDeployment", func() {
 
 			testMachine = &machinev1.Machine{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "Machine-test",
-					Namespace: testNamespace,
+					Name:            "Machine-test",
+					Namespace:       testNamespace,
+					ResourceVersion: "1",
 					Labels: map[string]string{
 						"test-label":           "test-label",
 						machinev1.NodeLabelKey: "Node1-test",
@@ -1876,7 +1879,7 @@ var _ = Describe("machineDeployment", func() {
 							LastUpdateTime: metav1.Now(),
 						},
 					}
-					testMachine = &machinev1.Machine{}
+					testMachine = &machinev1.Machine{ObjectMeta: metav1.ObjectMeta{ResourceVersion: "1"}}
 				},
 				func(testMachineDeployment *machinev1.MachineDeployment, testMachineSets []machinev1.MachineSet, _ []machinev1.Machine, _ *corev1.Node) error {
 					if len(testMachineSets) != 2 || testMachineSets[0].Spec.Replicas != testMachineDeployment.Spec.Replicas {
@@ -2299,8 +2302,9 @@ var _ = Describe("machineDeployment", func() {
 
 			testMachine1 = &machinev1.Machine{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "Machine-test1",
-					Namespace: testNamespace,
+					Name:            "Machine-test1",
+					Namespace:       testNamespace,
+					ResourceVersion: "1",
 					Labels: map[string]string{
 						"test-label":           "test-label",
 						machinev1.NodeLabelKey: "Node1-test",
@@ -2336,8 +2340,9 @@ var _ = Describe("machineDeployment", func() {
 
 			testMachine2 = &machinev1.Machine{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "Machine-test2",
-					Namespace: testNamespace,
+					Name:            "Machine-test2",
+					Namespace:       testNamespace,
+					ResourceVersion: "1",
 					Labels: map[string]string{
 						"test-label":           "test-label",
 						machinev1.NodeLabelKey: "Node1-test",
@@ -2385,7 +2390,7 @@ var _ = Describe("machineDeployment", func() {
 
 				defer trackers.Stop()
 				waitForCacheSync(stop, c)
-				err := c.updateMachineAndMachineDeploymentDeletionAnnotations(context.TODO(), testMachineDeployment)
+				_, err := c.updateMachineAndMachineDeploymentDeletionAnnotations(context.TODO(), testMachineDeployment, map[types.UID]*machinev1.MachineList{})
 				Expect(err).To(BeNil())
 
 				waitForCacheSync(stop, c)
@@ -2491,8 +2496,9 @@ var _ = Describe("machineDeployment", func() {
 
 			testMachine1 = &machinev1.Machine{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "Machine-test1",
-					Namespace: testNamespace,
+					Name:            "Machine-test1",
+					Namespace:       testNamespace,
+					ResourceVersion: "1",
 					Labels: map[string]string{
 						"test-label":           "test-label",
 						machinev1.NodeLabelKey: "Node1-test",
@@ -2528,8 +2534,9 @@ var _ = Describe("machineDeployment", func() {
 
 			testMachine2 = &machinev1.Machine{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "Machine-test2",
-					Namespace: testNamespace,
+					Name:            "Machine-test2",
+					Namespace:       testNamespace,
+					ResourceVersion: "1",
 					Labels: map[string]string{
 						"test-label":           "test-label",
 						machinev1.NodeLabelKey: "Node1-test",
@@ -2692,8 +2699,9 @@ var _ = Describe("machineDeployment", func() {
 
 			testMachine = &machinev1.Machine{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "Machine-test",
-					Namespace: testNamespace,
+					Name:            "Machine-test",
+					Namespace:       testNamespace,
+					ResourceVersion: "1",
 					Labels: map[string]string{
 						"test-label":           "test-label",
 						machinev1.NodeLabelKey: "Node1-test",
