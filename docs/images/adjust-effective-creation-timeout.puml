@@ -1,28 +1,51 @@
 @startuml
-title checkAndAdjustMachineReplaceCycleCountAndEffectiveCreationTimeout
+title checkAndAdjustMachineEffectiveCreationTimeout
 
 start
 
-:Read annotation state from MachineDeployment\n(effectiveCreationTimeout, effectiveCreationTimeoutLastAdjustedAt,\nreplaceCycleCount, replaceCycleCountLastAdjustedAt)\n**→ oldInfo**;
+:Read annotation state from MachineDeployment\n(effectiveCreationTimeout, effectiveCreationTimeoutLastAppliedAt,\nreplaceCycleCount, replaceCycleCountLastAppliedAt)\n**→ oldInfo**;
 
-:windowStartMark = replaceCycleCountLastAdjustedAt\n(falls back to MCD creation timestamp if annotation absent);
-:joinStartMark = now − 24 h;
-:Scan all Machines → numJoinedInWindow, numFailedJoinInWindow,\nmaxJoinDuration (within 24 h lookback);
+:windowStartMark = replaceCycleCountLastAppliedAt\n(falls back to MCD creation timestamp if annotation absent);
+:Scan all Machines in window → numFailedJoinInWindow,\nnumJoinedInWindow, avgJoinDuration;
+:specCreationTimeout = MCD spec timeout (or global default);
+:maxCreationTimeout = specTimeout × growthFactor^maxGrowthCount;
+:**newInfo** = copy of oldInfo;
 
-if (numJoinedInWindow > 0\nAND now − effectiveCreationTimeoutLastAdjustedAt\n> effectiveCreationTimeout?) then (yes)
-  :effectiveCreationTimeout =\nmax(specTimeout, maxJoinDuration)\neffectiveCreationTimeoutLastAdjustedAt = now;
+if (numFailedJoinInWindow > 0\nAND replaceCycleCount window elapsed?) then (yes)
+note right
+  replaceCycleCount window elapses when
+  now − replaceCycleCountLastAppliedAt
+  > effectiveCreationTimeout
+end note
+  :newInfo.replaceCycleCount++\nnewInfo.replaceCycleCountLastAppliedAt = now;
+  if (replaceCycleCount ≥ threshold?) then (yes)
+    :newInfo.effectiveCreationTimeout =\nmin(current × growthFactor, maxCreationTimeout)\nnewInfo.effectiveCreationTimeoutLastAppliedAt = now\nnewInfo.replaceCycleCount = 0;
+  else (no)
+  endif
 else (no)
-  if (numFailedJoinInWindow > 0\nAND now − windowStartMark > effectiveCreationTimeout?) then (yes)
-    :replaceCycleCount++\nreplaceCycleCountLastAdjustedAt = now;
-    if (replaceCycleCount ≥ threshold?) then (yes)
-      :effectiveCreationTimeout = min(current × growthFactor, 90 m)\neffectiveCreationTimeoutLastAdjustedAt = now\nreplaceCycleCount = 0;
+  if (numJoinedInWindow ≥ successJoinThreshold\nAND effectiveCreationTimeout window elapsed?) then (yes)
+  note right
+    effectiveCreationTimeout window elapses when
+    now − effectiveCreationTimeoutLastAppliedAt
+    > effectiveCreationTimeout
+  end note
+    :newInfo.effectiveCreationTimeout =\nmax(specTimeout, avgJoinDuration)\nnewInfo.effectiveCreationTimeoutLastAppliedAt = now;
+  else (no)
+    if (numFailedJoinInWindow == 0\nAND numJoinedInWindow == 0\nAND max-timeout window elapsed?) then (yes)
+    note right
+      max-timeout window elapses when
+      now − effectiveCreationTimeoutLastAppliedAt
+      > maxCreationTimeout
+    end note
+      :newInfo.reset = true\n(clear all adjustment annotations);
     else (no)
     endif
-  else (no)
   endif
 endif
 
-if (any annotation value changed?) then (yes)
+:diff oldInfo vs newInfo\n→ modifiedAnnotations, deletedAnnotationKeys;
+
+if (any annotation changes?) then (yes)
   :Update MachineDeployment annotations\nvia API server;
 endif
 

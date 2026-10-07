@@ -96,70 +96,63 @@ func CreateMachinesTriggeredForDeletionAnnotValue(machineNames []string) string 
 // GetMachineEffectiveCreationTimeout gets the value of the annotation [v1alpha1.AnnotationKeyMachineEffectiveCreationTimeout]
 // as a [metav1.Duration] if present.
 func GetMachineEffectiveCreationTimeout(object runtime.Object) (creationTimeout metav1.Duration, err error) {
-	metaObject, err := meta.Accessor(object)
-	if err != nil {
-		return
-	}
-	durationStr, ok := metaObject.GetAnnotations()[v1alpha1.AnnotationKeyMachineEffectiveCreationTimeout]
-	if !ok {
+	durationStr, ok, err := getAnnotationValue(object, v1alpha1.AnnotationKeyMachineEffectiveCreationTimeout)
+	if err != nil || !ok {
 		return
 	}
 	creationTimeout.Duration, err = time.ParseDuration(durationStr)
 	return
 }
 
-// GetMachineEffectiveCreationTimeoutLastAdjustedAt gets the value of the annotation [v1alpha1.AnnotationKeyMachineEffectiveCreationTimeoutLastAdjustedAt]
+// GetMachineEffectiveCreationTimeoutLastAppliedAt gets the value of the annotation [v1alpha1.AnnotationKeyMachineEffectiveCreationTimeoutLastAppliedAt]
 // as a [metav1.Time] if present using the layout [time.RFC3339].
-func GetMachineEffectiveCreationTimeoutLastAdjustedAt(object runtime.Object) (adjustedAt metav1.Time, err error) {
-	metaObject, err := meta.Accessor(object)
-	if err != nil {
+func GetMachineEffectiveCreationTimeoutLastAppliedAt(object runtime.Object) (appliedAt metav1.Time, err error) {
+	lastAppliedAtStr, ok, err := getAnnotationValue(object, v1alpha1.AnnotationKeyMachineEffectiveCreationTimeoutLastAppliedAt)
+	if err != nil || !ok {
 		return
 	}
-	lastAdjustedAtStr, ok := metaObject.GetAnnotations()[v1alpha1.AnnotationKeyMachineEffectiveCreationTimeoutLastAdjustedAt]
-	if !ok {
-		return
-	}
-	return parseLastAdjustedAt(lastAdjustedAtStr)
+	return parseLastAppliedAt(lastAppliedAtStr)
 }
 
 // GetMachineReplaceCycleCount gets the value of the annotation [v1alpha1.AnnotationKeyMachineReplaceCycleCount]
-// as an uin32 if present.
-func GetMachineReplaceCycleCount(object runtime.Object) (cycleCount int, err error) {
-	metaObject, err := meta.Accessor(object)
-	if err != nil {
-		return
-	}
-	cycleCountStr, ok := metaObject.GetAnnotations()[v1alpha1.AnnotationKeyMachineReplaceCycleCount]
-	if !ok {
+// as an int32 if present.
+func GetMachineReplaceCycleCount(object runtime.Object) (cycleCount int32, err error) {
+	cycleCountStr, ok, err := getAnnotationValue(object, v1alpha1.AnnotationKeyMachineReplaceCycleCount)
+	if err != nil || !ok {
 		return
 	}
 	val, err := strconv.ParseInt(cycleCountStr, 10, 32)
 	if err != nil {
 		return
 	}
-	cycleCount = int(val)
+	cycleCount = int32(val)
 	return
 }
 
-// GetMachineReplaceCycleCountLastAdjustedAt gets the value of the annotation [v1alpha1.AnnotationKeyMachineReplaceCycleCountLastAdjustedAt]
-// as a [metav1.Time] if present using the layout [time.RFC3339].
-func GetMachineReplaceCycleCountLastAdjustedAt(object runtime.Object) (adjustedAt metav1.Time, err error) {
-	metaObject, err := meta.Accessor(object)
-	if err != nil {
+// GetMachineReplaceCycleCountLastAppliedAt gets the value of the annotation [v1alpha1.AnnotationKeyMachineReplaceCycleCountLastAppliedAt]
+// as a [metav1.Time] if present using the layout [time.RFC3339]. Returns nil if no annotation value is present.
+func GetMachineReplaceCycleCountLastAppliedAt(object runtime.Object) (appliedAt metav1.Time, err error) {
+	replacementLastAppliedAtStr, ok, err := getAnnotationValue(object, v1alpha1.AnnotationKeyMachineReplaceCycleCountLastAppliedAt)
+	if err != nil || !ok {
 		return
 	}
-	replacementLastAdjustedAtStr, ok := metaObject.GetAnnotations()[v1alpha1.AnnotationKeyMachineReplaceCycleCountLastAdjustedAt]
-	if !ok {
-		return
-	}
-	return parseLastAdjustedAt(replacementLastAdjustedAtStr)
+	return parseLastAppliedAt(replacementLastAppliedAtStr)
 }
 
-func parseLastAdjustedAt(strVal string) (val metav1.Time, err error) {
+func parseLastAppliedAt(strVal string) (val metav1.Time, err error) {
 	v, err := time.Parse(time.RFC3339, strVal)
 	if err != nil {
 		return
 	}
 	val = metav1.NewTime(v)
+	return
+}
+
+func getAnnotationValue(object runtime.Object, annKey string) (annValue string, ok bool, err error) {
+	metaObject, err := meta.Accessor(object)
+	if err != nil {
+		return
+	}
+	annValue, ok = metaObject.GetAnnotations()[annKey]
 	return
 }

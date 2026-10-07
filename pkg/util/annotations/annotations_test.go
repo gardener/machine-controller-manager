@@ -223,7 +223,7 @@ var _ = Describe("annotations", func() {
 		)
 	})
 
-	Describe("#GetEffectiveMachineCreationTimeout", func() {
+	Describe("#GetMachineEffectiveCreationTimeout", func() {
 		type setup struct {
 			object any
 		}

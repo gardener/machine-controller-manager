@@ -37,7 +37,7 @@ import (
 // cases this helper will run that cannot be prevented from the scaling detection,
 // for example a resync of the deployment after it was scaled up. In those cases,
 // we shouldn't try to estimate any progress.
-func (dc *controller) syncRolloutStatus(ctx context.Context, allISs []*v1alpha1.MachineSet, newIS *v1alpha1.MachineSet, d *v1alpha1.MachineDeployment) error {
+func (c *controller) syncRolloutStatus(ctx context.Context, allISs []*v1alpha1.MachineSet, newIS *v1alpha1.MachineSet, d *v1alpha1.MachineDeployment) error {
 	newStatus := calculateDeploymentStatus(allISs, newIS, d)
 
 	// If there is only one machine set that is active then that means we are not running
@@ -97,7 +97,7 @@ func (dc *controller) syncRolloutStatus(ctx context.Context, allISs []*v1alpha1.
 
 	// Move failure conditions of all machine sets in deployment conditions. For now,
 	// only one failure condition is returned from getReplicaFailures.
-	if replicaFailureCond := dc.getReplicaFailures(allISs, newIS); len(replicaFailureCond) > 0 {
+	if replicaFailureCond := c.getReplicaFailures(allISs, newIS); len(replicaFailureCond) > 0 {
 		// There will be only one ReplicaFailure condition on the machine set.
 		SetMachineDeploymentCondition(&newStatus, replicaFailureCond[0])
 	} else {
@@ -107,19 +107,19 @@ func (dc *controller) syncRolloutStatus(ctx context.Context, allISs []*v1alpha1.
 	// Do not update if there is nothing new to add.
 	if !statusUpdateRequired(d.Status, newStatus) {
 		// Requeue the deployment if required.
-		dc.requeueStuckMachineDeployment(d, newStatus)
+		c.requeueStuckMachineDeployment(d, newStatus)
 		return nil
 	}
 
 	newDeployment := d
 	newDeployment.Status = newStatus
-	_, err := dc.controlMachineClient.MachineDeployments(newDeployment.Namespace).UpdateStatus(ctx, newDeployment, metav1.UpdateOptions{})
+	_, err := c.controlMachineClient.MachineDeployments(newDeployment.Namespace).UpdateStatus(ctx, newDeployment, metav1.UpdateOptions{})
 	return err
 }
 
 // getReplicaFailures will convert replica failure conditions from machine sets
 // to deployment conditions.
-func (dc *controller) getReplicaFailures(allISs []*v1alpha1.MachineSet, newIS *v1alpha1.MachineSet) []v1alpha1.MachineDeploymentCondition {
+func (c *controller) getReplicaFailures(allISs []*v1alpha1.MachineSet, newIS *v1alpha1.MachineSet) []v1alpha1.MachineDeploymentCondition {
 	var conditions []v1alpha1.MachineDeploymentCondition
 	if newIS != nil {
 		for _, c := range newIS.Status.Conditions {
@@ -158,7 +158,7 @@ func (dc *controller) getReplicaFailures(allISs []*v1alpha1.MachineSet, newIS *v
 // check. It returns the time after the deployment will be requeued for the progress check, 0 if it
 // will be requeued now, or -1 if it does not need to be requeued.
 // This method is just to make sure that as soon as `progressDeadlineSeconds` timeout happens we update the `Progressing` Condition.
-func (dc *controller) requeueStuckMachineDeployment(d *v1alpha1.MachineDeployment, newStatus v1alpha1.MachineDeploymentStatus) time.Duration {
+func (c *controller) requeueStuckMachineDeployment(d *v1alpha1.MachineDeployment, newStatus v1alpha1.MachineDeploymentStatus) time.Duration {
 	currentCond := GetMachineDeploymentCondition(d.Status, v1alpha1.MachineDeploymentProgressing)
 	// Can't estimate progress if there is no deadline in the spec or progressing condition in the current status.
 	if d.Spec.ProgressDeadlineSeconds == nil || currentCond == nil {
@@ -189,12 +189,12 @@ func (dc *controller) requeueStuckMachineDeployment(d *v1alpha1.MachineDeploymen
 	// transition either to a Complete or to a TimedOut condition.
 	if after < time.Second {
 		klog.V(4).Infof("Queueing up machine deployment %q for a progress check now", d.Name)
-		dc.enqueueRateLimited(d)
+		c.enqueueRateLimited(d)
 		return time.Duration(0)
 	}
 	klog.V(4).Infof("Queueing up machine deployment %q for a progress check after %ds", d.Name, int(after.Seconds()))
 	// Add a second to avoid milliseconds skew in AddAfter.
 	// See https://github.com/kubernetes/kubernetes/issues/39785#issuecomment-279959133 for more info.
-	dc.enqueueMachineDeploymentAfter(d, after+time.Second)
+	c.enqueueMachineDeploymentAfter(d, after+time.Second)
 	return after
 }

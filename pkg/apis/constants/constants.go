@@ -12,14 +12,16 @@ const (
 	TargetKubeconfigDisabledValue = "none"
 	// DefaultMachineCreationTimeout is the default value for the machine creation timeout if un-specified.
 	DefaultMachineCreationTimeout = 20 * time.Minute
-	// DefaultCreationTimeoutGrowthFactor is the default value for growth of the effective-creation-timeout.
-	DefaultCreationTimeoutGrowthFactor = 2
-	// DefaultCreationTimeoutMax is the max limit upto which the effective-creation-timeout can be adjusted
-	DefaultCreationTimeoutMax = 90 * time.Minute
+	// DefaultCreationTimeoutGrowthPercent is the default percentage by which the effective-creation-timeout is grown on each
+	// growth step, i.e. an increase of 50% corresponds to a factor of 1.5.
+	DefaultCreationTimeoutGrowthPercent int32 = 50
+	// DefaultMaxCreationTimeoutGrowthCount is the maximum number of times the effective-creation-timeout may be grown
+	// by the growth factor before it is capped.
+	DefaultMaxCreationTimeoutGrowthCount = 4
 	// DefaultMachineReplaceCycleCountThreshold is the default value of the threshold for Machine replace cycles caused
 	// by failures following which the effective-creation-timeout is grown.
 	DefaultMachineReplaceCycleCountThreshold = 2
-	// DefaultMaxJoinDurationLookback is the lookback window used to compute the maximum observed machine join
-	// duration when reducing the effective-creation-timeout after machines join successfully.
-	DefaultMaxJoinDurationLookback = 24 * time.Hour
+	// DefaultSuccessJoinCountThreshold is the minimum number of machines that must have joined within the current
+	// effective-creation-timeout window before the timeout is shrunk to the average join duration of those machines.
+	DefaultSuccessJoinCountThreshold = 2
 )

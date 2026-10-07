@@ -82,10 +82,10 @@ func GetMachineSetHash(is *v1alpha1.MachineSet, uniquifier *int32) (string, erro
 }
 
 // syncMachinesNodeTemplates updates all machines in the given machineList with the new nodeTemplate if required.
-func (dc *controller) syncMachinesNodeTemplates(ctx context.Context, machineList []*v1alpha1.Machine, machineSet *v1alpha1.MachineSet) error {
+func (c *controller) syncMachinesNodeTemplates(ctx context.Context, machineList []*v1alpha1.Machine, machineSet *v1alpha1.MachineSet) error {
 
-	controlClient := dc.controlMachineClient
-	machineLister := dc.machineLister
+	controlClient := c.controlMachineClient
+	machineLister := c.machineLister
 
 	for _, machine := range machineList {
 		// Ignore inactive Machines.
@@ -110,10 +110,10 @@ func (dc *controller) syncMachinesNodeTemplates(ctx context.Context, machineList
 }
 
 // syncMachinesClassKind updates all machines in the given machineList with the new classKind if required.
-func (dc *controller) syncMachinesClassKind(ctx context.Context, machineList []*v1alpha1.Machine, machineSet *v1alpha1.MachineSet) error {
+func (c *controller) syncMachinesClassKind(ctx context.Context, machineList []*v1alpha1.Machine, machineSet *v1alpha1.MachineSet) error {
 
-	controlClient := dc.controlMachineClient
-	machineLister := dc.machineLister
+	controlClient := c.controlMachineClient
+	machineLister := c.machineLister
 
 	for _, machine := range machineList {
 		classKindChanged := copyMachineSetClassKindToMachines(machineSet, machine)
@@ -148,10 +148,10 @@ func copyMachineSetNodeTemplatesToMachines(machineset *v1alpha1.MachineSet, mach
 }
 
 // syncMachinesConfig updates all machines in the given machineList with the new config if required.
-func (dc *controller) syncMachinesConfig(ctx context.Context, machineList []*v1alpha1.Machine, machineSet *v1alpha1.MachineSet) error {
+func (c *controller) syncMachinesConfig(ctx context.Context, machineList []*v1alpha1.Machine, machineSet *v1alpha1.MachineSet) error {
 
-	controlClient := dc.controlMachineClient
-	machineLister := dc.machineLister
+	controlClient := c.controlMachineClient
+	machineLister := c.machineLister
 
 	for _, machine := range machineList {
 		// Ignore inactive Machines.

@@ -97,7 +97,7 @@ const (
 
 	// Aborted indicates the operation was aborted, typically due to a
 	// concurrency issue like sequencer check failures, transaction aborts,
-	// etc.
+	// etc
 	//
 	// See litmus test above for deciding between FailedPrecondition,
 	// Aborted, and Unavailable.

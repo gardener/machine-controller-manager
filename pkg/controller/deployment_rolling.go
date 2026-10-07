@@ -45,20 +45,20 @@ var (
 )
 
 // rolloutRolling implements the logic for rolling a new machine set.
-func (dc *controller) rolloutRolling(ctx context.Context, d *v1alpha1.MachineDeployment, isList []*v1alpha1.MachineSet, machineMap map[types.UID]*v1alpha1.MachineList) error {
+func (c *controller) rolloutRolling(ctx context.Context, d *v1alpha1.MachineDeployment, isList []*v1alpha1.MachineSet, machineMap map[types.UID]*v1alpha1.MachineList) error {
 	clusterAutoscalerScaleDownAnnotations := make(map[string]string)
 	clusterAutoscalerScaleDownAnnotations[autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationKey] = autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationValue
 
 	// We do this to avoid accidentally deleting the user provided annotations.
 	clusterAutoscalerScaleDownAnnotations[autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationByMCMKey] = autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationByMCMValue
 
-	newIS, oldISs, err := dc.getAllMachineSetsAndSyncRevision(ctx, d, isList, machineMap, true)
+	newIS, oldISs, err := c.getAllMachineSetsAndSyncRevision(ctx, d, isList, machineMap, true)
 	if err != nil {
 		return err
 	}
 	allISs := append(oldISs, newIS)
 
-	err = dc.taintNodesBackingMachineSets(
+	err = c.taintNodesBackingMachineSets(
 		ctx,
 		oldISs, &v1.Taint{
 			Key:    PreferNoScheduleKey,
@@ -67,14 +67,14 @@ func (dc *controller) rolloutRolling(ctx context.Context, d *v1alpha1.MachineDep
 		},
 	)
 
-	if dc.autoscalerScaleDownAnnotationDuringRollout {
+	if c.autoscalerScaleDownAnnotationDuringRollout {
 		// Add the annotation on the all machinesets if there are any old-machinesets and not scaled-to-zero.
 		// This also helps in annotating the node under new-machineset, incase the reconciliation is failing in next
 		// status-rollout steps.
-		if len(oldISs) > 0 && !dc.machineSetsScaledToZero(oldISs) {
+		if len(oldISs) > 0 && !c.machineSetsScaledToZero(oldISs) {
 			// Annotate all the nodes under this machine-deployment, as roll-out is on-going.
 			klog.V(3).Infof("RolloutRolling ongoing for MachineDeployment %q, annotating all nodes under it with %s", d.Name, clusterAutoscalerScaleDownAnnotations)
-			err := dc.annotateNodesBackingMachineSets(ctx, allISs, clusterAutoscalerScaleDownAnnotations)
+			err := c.annotateNodesBackingMachineSets(ctx, allISs, clusterAutoscalerScaleDownAnnotations)
 			if err != nil {
 				klog.Errorf("Failed to add %s on all nodes. Error: %s", clusterAutoscalerScaleDownAnnotations, err)
 				return err
@@ -87,30 +87,30 @@ func (dc *controller) rolloutRolling(ctx context.Context, d *v1alpha1.MachineDep
 	}
 
 	// Scale up, if we can.
-	scaledUp, err := dc.reconcileNewMachineSet(ctx, allISs, newIS, d)
+	scaledUp, err := c.reconcileNewMachineSet(ctx, allISs, newIS, d)
 	if err != nil {
 		return err
 	}
 	if scaledUp {
 		// Update DeploymentStatus
-		return dc.syncRolloutStatus(ctx, allISs, newIS, d)
+		return c.syncRolloutStatus(ctx, allISs, newIS, d)
 	}
 
 	// Scale down, if we can.
-	scaledDown, err := dc.reconcileOldMachineSets(ctx, allISs, FilterActiveMachineSets(oldISs), newIS, d)
+	scaledDown, err := c.reconcileOldMachineSets(ctx, allISs, FilterActiveMachineSets(oldISs), newIS, d)
 	if err != nil {
 		return err
 	}
 	if scaledDown {
 		// Update DeploymentStatus
-		return dc.syncRolloutStatus(ctx, allISs, newIS, d)
+		return c.syncRolloutStatus(ctx, allISs, newIS, d)
 	}
 
 	if MachineDeploymentComplete(d, &d.Status) {
-		if dc.autoscalerScaleDownAnnotationDuringRollout {
+		if c.autoscalerScaleDownAnnotationDuringRollout {
 			// Check if any of the machine under this MachineDeployment contains the by-mcm annotation, and
 			// remove the original autoscaler annotation only after.
-			err := dc.removeAutoscalerAnnotationsIfRequired(ctx, allISs, clusterAutoscalerScaleDownAnnotations)
+			err := c.removeAutoscalerAnnotationsIfRequired(ctx, allISs, clusterAutoscalerScaleDownAnnotations)
 			if err != nil {
 				return err
 			}
@@ -124,39 +124,39 @@ func (dc *controller) rolloutRolling(ctx context.Context, d *v1alpha1.MachineDep
 				Effect: "PreferNoSchedule",
 			}
 
-			if err := dc.removeTaintNodesBackingMachineSet(ctx, newIS, taint); err != nil {
+			if err := c.removeTaintNodesBackingMachineSet(ctx, newIS, taint); err != nil {
 				klog.Errorf("Failed to remove taints %s from nodes. Error: %v", PreferNoScheduleKey, err)
 				return err
 			}
 		}
-		if err := dc.cleanupMachineDeployment(ctx, oldISs, d); err != nil {
+		if err := c.cleanupMachineDeployment(ctx, oldISs, d); err != nil {
 			return err
 		}
 	}
 
 	// Sync deployment status
-	return dc.syncRolloutStatus(ctx, allISs, newIS, d)
+	return c.syncRolloutStatus(ctx, allISs, newIS, d)
 }
 
-func (dc *controller) reconcileNewMachineSet(ctx context.Context, allISs []*v1alpha1.MachineSet, newIS *v1alpha1.MachineSet, deployment *v1alpha1.MachineDeployment) (bool, error) {
+func (c *controller) reconcileNewMachineSet(ctx context.Context, allISs []*v1alpha1.MachineSet, newIS *v1alpha1.MachineSet, deployment *v1alpha1.MachineDeployment) (bool, error) {
 	if (newIS.Spec.Replicas) == (deployment.Spec.Replicas) {
 		// Scaling not required.
 		return false, nil
 	}
 	if (newIS.Spec.Replicas) > (deployment.Spec.Replicas) {
 		// Scale down.
-		scaled, _, err := dc.scaleMachineSetAndRecordEvent(ctx, newIS, (deployment.Spec.Replicas), deployment)
+		scaled, _, err := c.scaleMachineSetAndRecordEvent(ctx, newIS, (deployment.Spec.Replicas), deployment)
 		return scaled, err
 	}
 	newReplicasCount, err := NewISNewReplicas(deployment, allISs, newIS)
 	if err != nil {
 		return false, err
 	}
-	scaled, _, err := dc.scaleMachineSetAndRecordEvent(ctx, newIS, newReplicasCount, deployment)
+	scaled, _, err := c.scaleMachineSetAndRecordEvent(ctx, newIS, newReplicasCount, deployment)
 	return scaled, err
 }
 
-func (dc *controller) reconcileOldMachineSets(ctx context.Context, allISs []*v1alpha1.MachineSet, oldISs []*v1alpha1.MachineSet, newIS *v1alpha1.MachineSet, deployment *v1alpha1.MachineDeployment) (bool, error) {
+func (c *controller) reconcileOldMachineSets(ctx context.Context, allISs []*v1alpha1.MachineSet, oldISs []*v1alpha1.MachineSet, newIS *v1alpha1.MachineSet, deployment *v1alpha1.MachineDeployment) (bool, error) {
 	oldMachinesCount := GetReplicaCountForMachineSets(oldISs)
 	if oldMachinesCount == 0 {
 		// Can't scale down further
@@ -206,7 +206,7 @@ func (dc *controller) reconcileOldMachineSets(ctx context.Context, allISs []*v1a
 
 	// Clean up unhealthy replicas first, otherwise unhealthy replicas will block deployment
 	// and cause timeout. See https://github.com/kubernetes/kubernetes/issues/16737
-	oldISs, cleanupCount, err := dc.cleanupUnhealthyReplicas(ctx, oldISs, deployment, maxScaledDown)
+	oldISs, cleanupCount, err := c.cleanupUnhealthyReplicas(ctx, oldISs, deployment, maxScaledDown)
 	if err != nil {
 		return false, nil
 	}
@@ -214,7 +214,7 @@ func (dc *controller) reconcileOldMachineSets(ctx context.Context, allISs []*v1a
 
 	// Scale down old machine sets, need check maxUnavailable to ensure we can scale down
 	allISs = append(oldISs, newIS)
-	scaledDownCount, err := dc.scaleDownOldMachineSetsForRollingUpdate(ctx, allISs, oldISs, deployment)
+	scaledDownCount, err := c.scaleDownOldMachineSetsForRollingUpdate(ctx, allISs, oldISs, deployment)
 	if err != nil {
 		return false, nil
 	}
@@ -225,7 +225,7 @@ func (dc *controller) reconcileOldMachineSets(ctx context.Context, allISs []*v1a
 }
 
 // cleanupUnhealthyReplicas will scale down old machine sets with unhealthy replicas, so that all unhealthy replicas will be deleted.
-func (dc *controller) cleanupUnhealthyReplicas(ctx context.Context, oldISs []*v1alpha1.MachineSet, deployment *v1alpha1.MachineDeployment, maxCleanupCount int32) ([]*v1alpha1.MachineSet, int32, error) {
+func (c *controller) cleanupUnhealthyReplicas(ctx context.Context, oldISs []*v1alpha1.MachineSet, deployment *v1alpha1.MachineDeployment, maxCleanupCount int32) ([]*v1alpha1.MachineSet, int32, error) {
 	sort.Sort(MachineSetsByCreationTimestamp(oldISs))
 	// Safely scale down all old machine sets with unhealthy replicas. machine set will sort the machines in the order
 	// such that not-ready < ready, unscheduled < scheduled, and pending < running. This ensures that unhealthy replicas will
@@ -250,7 +250,7 @@ func (dc *controller) cleanupUnhealthyReplicas(ctx context.Context, oldISs []*v1
 		if newReplicasCount > (targetIS.Spec.Replicas) {
 			return nil, 0, fmt.Errorf("when cleaning up unhealthy replicas, got invalid request to scale down %s %d -> %d", targetIS.Name, (targetIS.Spec.Replicas), newReplicasCount)
 		}
-		_, updatedOldIS, err := dc.scaleMachineSetAndRecordEvent(ctx, targetIS, newReplicasCount, deployment)
+		_, updatedOldIS, err := c.scaleMachineSetAndRecordEvent(ctx, targetIS, newReplicasCount, deployment)
 		if err != nil {
 			return nil, totalScaledDown, err
 		}
@@ -262,7 +262,7 @@ func (dc *controller) cleanupUnhealthyReplicas(ctx context.Context, oldISs []*v1
 
 // scaleDownOldReplicaSetsForRollingUpdate scales down old machine sets when deployment strategy is "RollingUpdate".
 // Need check maxUnavailable to ensure availability
-func (dc *controller) scaleDownOldMachineSetsForRollingUpdate(ctx context.Context, allISs []*v1alpha1.MachineSet, oldISs []*v1alpha1.MachineSet, deployment *v1alpha1.MachineDeployment) (int32, error) {
+func (c *controller) scaleDownOldMachineSetsForRollingUpdate(ctx context.Context, allISs []*v1alpha1.MachineSet, oldISs []*v1alpha1.MachineSet, deployment *v1alpha1.MachineDeployment) (int32, error) {
 	maxUnavailable := MaxUnavailable(*deployment)
 
 	// Check if we can scale down.
@@ -294,7 +294,7 @@ func (dc *controller) scaleDownOldMachineSetsForRollingUpdate(ctx context.Contex
 		if newReplicasCount > (targetIS.Spec.Replicas) {
 			return 0, fmt.Errorf("when scaling down old IS, got invalid request to scale down %s %d -> %d", targetIS.Name, (targetIS.Spec.Replicas), newReplicasCount)
 		}
-		_, _, err := dc.scaleMachineSetAndRecordEvent(ctx, targetIS, newReplicasCount, deployment)
+		_, _, err := c.scaleMachineSetAndRecordEvent(ctx, targetIS, newReplicasCount, deployment)
 		if err != nil {
 			return totalScaledDown, err
 		}
@@ -306,7 +306,7 @@ func (dc *controller) scaleDownOldMachineSetsForRollingUpdate(ctx context.Contex
 }
 
 // taintNodesBackingMachineSets taints all nodes backing the machineSets
-func (dc *controller) taintNodesBackingMachineSets(ctx context.Context, MachineSets []*v1alpha1.MachineSet, taint *v1.Taint) error {
+func (c *controller) taintNodesBackingMachineSets(ctx context.Context, MachineSets []*v1alpha1.MachineSet, taint *v1.Taint) error {
 	for _, machineSet := range MachineSets {
 
 		if _, exists := machineSet.Annotations[taint.Key]; exists {
@@ -323,13 +323,13 @@ func (dc *controller) taintNodesBackingMachineSets(ctx context.Context, MachineS
 		// list all machines to include the machines that don't match the ms`s selector
 		// anymore but has the stale controller ref.
 		// TODO: Do the List and Filter in a single pass, or use an index.
-		filteredMachines, err := dc.machineLister.List(labels.Everything())
+		filteredMachines, err := c.machineLister.List(labels.Everything())
 		if err != nil {
 			return err
 		}
 		// NOTE: filteredMachines are pointing to objects from cache - if you need to
 		// modify them, you need to copy it first.
-		filteredMachines, err = dc.claimMachines(ctx, machineSet, selector, filteredMachines)
+		filteredMachines, err = c.claimMachines(ctx, machineSet, selector, filteredMachines)
 		if err != nil {
 			return err
 		}
@@ -340,7 +340,7 @@ func (dc *controller) taintNodesBackingMachineSets(ctx context.Context, MachineS
 			if machine.Labels[v1alpha1.NodeLabelKey] != "" {
 				err = nodeops.AddOrUpdateTaintOnNode(
 					ctx,
-					dc.targetCoreClient,
+					c.targetCoreClient,
 					machine.Labels[v1alpha1.NodeLabelKey],
 					taint,
 				)
@@ -352,7 +352,7 @@ func (dc *controller) taintNodesBackingMachineSets(ctx context.Context, MachineS
 
 		retryDeadline := time.Now().Add(maxRetryDeadline)
 		for {
-			machineSet, err = dc.controlMachineClient.MachineSets(machineSet.Namespace).Get(ctx, machineSet.Name, metav1.GetOptions{})
+			machineSet, err = c.controlMachineClient.MachineSets(machineSet.Namespace).Get(ctx, machineSet.Name, metav1.GetOptions{})
 			if err != nil && time.Now().Before(retryDeadline) {
 				klog.Warningf("Unable to fetch MachineSet object %s, Error: %+v", machineSet.Name, err)
 				time.Sleep(conflictRetryInterval)
@@ -369,7 +369,7 @@ func (dc *controller) taintNodesBackingMachineSets(ctx context.Context, MachineS
 			}
 			msCopy.Annotations[taint.Key] = "True"
 
-			_, err = dc.controlMachineClient.MachineSets(msCopy.Namespace).Update(ctx, msCopy, metav1.UpdateOptions{})
+			_, err = c.controlMachineClient.MachineSets(msCopy.Namespace).Update(ctx, msCopy, metav1.UpdateOptions{})
 			if err != nil && time.Now().Before(retryDeadline) {
 				klog.Warningf("Unable to update MachineSet object %s, Error: %+v", machineSet.Name, err)
 				time.Sleep(conflictRetryInterval)
@@ -390,7 +390,7 @@ func (dc *controller) taintNodesBackingMachineSets(ctx context.Context, MachineS
 }
 
 // annotateNodesBackingMachineSets annotates all nodes backing the machineSets
-func (dc *controller) annotateNodesBackingMachineSets(ctx context.Context, MachineSets []*v1alpha1.MachineSet, annotations map[string]string) error {
+func (c *controller) annotateNodesBackingMachineSets(ctx context.Context, MachineSets []*v1alpha1.MachineSet, annotations map[string]string) error {
 	for _, machineSet := range MachineSets {
 
 		if machineSet == nil {
@@ -406,13 +406,13 @@ func (dc *controller) annotateNodesBackingMachineSets(ctx context.Context, Machi
 		// list all machines to include the machines that don't match the ms`s selector
 		// anymore but has the stale controller ref.
 		// TODO: Do the List and Filter in a single pass, or use an index.
-		filteredMachines, err := dc.machineLister.List(labels.Everything())
+		filteredMachines, err := c.machineLister.List(labels.Everything())
 		if err != nil {
 			return err
 		}
 		// NOTE: filteredMachines are pointing to objects from cache - if you need to
 		// modify them, you need to copy it first.
-		filteredMachines, err = dc.claimMachines(ctx, machineSet, selector, filteredMachines)
+		filteredMachines, err = c.claimMachines(ctx, machineSet, selector, filteredMachines)
 		if err != nil {
 			return err
 		}
@@ -421,7 +421,7 @@ func (dc *controller) annotateNodesBackingMachineSets(ctx context.Context, Machi
 			if machine.Labels[v1alpha1.NodeLabelKey] != "" {
 				err = AddOrUpdateAnnotationOnNode(
 					ctx,
-					dc.targetCoreClient,
+					c.targetCoreClient,
 					machine.Labels[v1alpha1.NodeLabelKey],
 					annotations,
 				)
@@ -436,7 +436,7 @@ func (dc *controller) annotateNodesBackingMachineSets(ctx context.Context, Machi
 	return nil
 }
 
-func (dc *controller) machineSetsScaledToZero(MachineSets []*v1alpha1.MachineSet) bool {
+func (c *controller) machineSetsScaledToZero(MachineSets []*v1alpha1.MachineSet) bool {
 	for _, machineSet := range MachineSets {
 		if machineSet.Spec.Replicas != 0 && machineSet.Status.AvailableReplicas != 0 && machineSet.Status.FullyLabeledReplicas != 0 && machineSet.Status.ReadyReplicas != 0 && machineSet.Status.Replicas != 0 {
 			return false
@@ -446,7 +446,7 @@ func (dc *controller) machineSetsScaledToZero(MachineSets []*v1alpha1.MachineSet
 }
 
 // removeAutoscalerAnnotationsIfRequired removes the annotations if needed from nodes backing machinesets.
-func (dc *controller) removeAutoscalerAnnotationsIfRequired(ctx context.Context, MachineSets []*v1alpha1.MachineSet, annotations map[string]string) error {
+func (c *controller) removeAutoscalerAnnotationsIfRequired(ctx context.Context, MachineSets []*v1alpha1.MachineSet, annotations map[string]string) error {
 	for _, machineSet := range MachineSets {
 
 		selector, err := metav1.LabelSelectorAsSelector(machineSet.Spec.Selector)
@@ -457,13 +457,13 @@ func (dc *controller) removeAutoscalerAnnotationsIfRequired(ctx context.Context,
 		// list all machines to include the machines that don't match the ms`s selector
 		// anymore but has the stale controller ref.
 		// TODO: Do the List and Filter in a single pass, or use an index.
-		filteredMachines, err := dc.machineLister.List(labels.Everything())
+		filteredMachines, err := c.machineLister.List(labels.Everything())
 		if err != nil {
 			return err
 		}
 		// NOTE: filteredMachines are pointing to objects from cache - if you need to
 		// modify them, you need to copy it first.
-		filteredMachines, err = dc.claimMachines(ctx, machineSet, selector, filteredMachines)
+		filteredMachines, err = c.claimMachines(ctx, machineSet, selector, filteredMachines)
 		if err != nil {
 			return err
 		}
@@ -473,7 +473,7 @@ func (dc *controller) removeAutoscalerAnnotationsIfRequired(ctx context.Context,
 
 				nodeAnnotations, err := GetAnnotationsFromNode(
 					ctx,
-					dc.targetCoreClient,
+					c.targetCoreClient,
 					machine.Labels[v1alpha1.NodeLabelKey],
 				)
 				if err != nil {
@@ -489,7 +489,7 @@ func (dc *controller) removeAutoscalerAnnotationsIfRequired(ctx context.Context,
 					}
 					err = RemoveAnnotationsOffNode(
 						ctx,
-						dc.targetCoreClient,
+						c.targetCoreClient,
 						machine.Labels[v1alpha1.NodeLabelKey],
 						annotations,
 					)
