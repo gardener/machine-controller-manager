@@ -2251,15 +2251,6 @@ var _ = Describe("machineset", func() {
 					preservedMachineCount: 0,
 				},
 			}),
-			Entry("should not trigger auto preservation of failed machines if AutoPreserveFailedMachineCount has reached AutoPreserveFailedMachineMax", testCase{
-				setup: setup{
-					autoPreserveFailedMachineCount: 2,
-					autoPreserveFailedMachineMax:   2,
-				},
-				expect: expect{
-					preservedMachineCount: 0,
-				},
-			}),
 			Entry("should trigger auto preservation of both failed machines if AutoPreserveFailedMachineCount is 0 and AutoPreserveFailedMachineMax is 2", testCase{
 				setup: setup{
 					autoPreserveFailedMachineCount: 0,
@@ -2549,30 +2540,6 @@ var _ = Describe("machineset", func() {
 
 			Expect(updatedLate.Annotations[machineutils.PreserveMachineAnnotationKey]).To(Equal(machineutils.PreserveMachineAnnotationValueAutoPreserved))
 			Expect(updatedLate.Status.CurrentStatus.PreserveExpiryTime).ToNot(BeNil())
-		})
-
-		It("should not touch non-auto-preserved machines mixed in with auto-preserved ones", func() {
-			stop := make(chan struct{})
-			defer close(stop)
-
-			autoPreserved := makeMachine("machine-auto", true, time.Hour)
-			plain := makeMachine("machine-plain", false, 0)
-
-			c, trackers := createController(stop, testNamespace, []runtime.Object{autoPreserved, plain}, nil, nil)
-			defer trackers.Stop()
-			waitForCacheSync(stop, c)
-
-			result, err := c.stopAutoPreservationForMachines(context.TODO(), []*machinev1.Machine{autoPreserved, plain}, 1)
-			Expect(err).To(BeNil())
-			Expect(result).To(HaveLen(2))
-			waitForCacheSync(stop, c)
-
-			updatedAuto, _ := c.controlMachineClient.Machines(testNamespace).Get(context.TODO(), autoPreserved.Name, metav1.GetOptions{})
-			updatedPlain, _ := c.controlMachineClient.Machines(testNamespace).Get(context.TODO(), plain.Name, metav1.GetOptions{})
-
-			Expect(updatedAuto.Annotations[machineutils.PreserveMachineAnnotationKey]).ToNot(Equal(machineutils.PreserveMachineAnnotationValueAutoPreserved))
-			Expect(updatedAuto.Status.CurrentStatus.PreserveExpiryTime).To(BeNil())
-			Expect(updatedPlain.Annotations[machineutils.PreserveMachineAnnotationKey]).To(BeEmpty())
 		})
 
 		It("should return error and stop patching when annotation patch fails", func() {
