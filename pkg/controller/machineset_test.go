@@ -2446,6 +2446,154 @@ var _ = Describe("machineset", func() {
 		})
 	})
 
+	Describe("#stopAutoPreservationForMachines", func() {
+		makeMachine := func(name string, autoPreserved bool, expiryOffset time.Duration) *machinev1.Machine {
+			m := &machinev1.Machine{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:            name,
+					Namespace:       testNamespace,
+					ResourceVersion: "1",
+				},
+				Status: machinev1.MachineStatus{
+					CurrentStatus: machinev1.CurrentStatus{
+						Phase: MachineFailed,
+					},
+				},
+			}
+			if autoPreserved {
+				m.Annotations = map[string]string{
+					machineutils.PreserveMachineAnnotationKey: machineutils.PreserveMachineAnnotationValueAutoPreserved,
+				}
+				m.Status.CurrentStatus.PreserveExpiryTime = &metav1.Time{Time: time.Now().Add(expiryOffset)}
+			}
+			return m
+		}
+
+		It("should return machines unchanged when numToStop is 0", func() {
+			stop := make(chan struct{})
+			defer close(stop)
+
+			m := makeMachine("machine-1", true, time.Hour)
+			c, trackers := createController(stop, testNamespace, []runtime.Object{m}, nil, nil)
+			defer trackers.Stop()
+			waitForCacheSync(stop, c)
+
+			result, err := c.stopAutoPreservationForMachines(context.TODO(), []*machinev1.Machine{m}, 0)
+			Expect(err).To(BeNil())
+			Expect(result).To(HaveLen(1))
+			updated, _ := c.controlMachineClient.Machines(testNamespace).Get(context.TODO(), m.Name, metav1.GetOptions{})
+			Expect(updated.Annotations[machineutils.PreserveMachineAnnotationKey]).To(Equal(machineutils.PreserveMachineAnnotationValueAutoPreserved))
+			Expect(updated.Status.CurrentStatus.PreserveExpiryTime).ToNot(BeNil())
+		})
+
+		It("should return machines unchanged when there are no auto-preserved machines", func() {
+			stop := make(chan struct{})
+			defer close(stop)
+
+			m := makeMachine("machine-1", false, 0)
+			c, trackers := createController(stop, testNamespace, []runtime.Object{m}, nil, nil)
+			defer trackers.Stop()
+			waitForCacheSync(stop, c)
+
+			result, err := c.stopAutoPreservationForMachines(context.TODO(), []*machinev1.Machine{m}, 1)
+			Expect(err).To(BeNil())
+			Expect(result).To(HaveLen(1))
+			updated, _ := c.controlMachineClient.Machines(testNamespace).Get(context.TODO(), m.Name, metav1.GetOptions{})
+			Expect(updated.Annotations[machineutils.PreserveMachineAnnotationKey]).To(BeEmpty())
+		})
+
+		It("should remove annotation and clear PreserveExpiryTime from all auto-preserved machines when numToStop >= count", func() {
+			stop := make(chan struct{})
+			defer close(stop)
+
+			m1 := makeMachine("machine-1", true, time.Hour)
+			m2 := makeMachine("machine-2", true, 2*time.Hour)
+			c, trackers := createController(stop, testNamespace, []runtime.Object{m1, m2}, nil, nil)
+			defer trackers.Stop()
+			waitForCacheSync(stop, c)
+
+			result, err := c.stopAutoPreservationForMachines(context.TODO(), []*machinev1.Machine{m1, m2}, 2)
+			Expect(err).To(BeNil())
+			Expect(result).To(HaveLen(2))
+			waitForCacheSync(stop, c)
+			for _, name := range []string{m1.Name, m2.Name} {
+				updated, _ := c.controlMachineClient.Machines(testNamespace).Get(context.TODO(), name, metav1.GetOptions{})
+				Expect(updated.Annotations[machineutils.PreserveMachineAnnotationKey]).ToNot(Equal(machineutils.PreserveMachineAnnotationValueAutoPreserved))
+				Expect(updated.Status.CurrentStatus.PreserveExpiryTime).To(BeNil())
+			}
+		})
+
+		It("should remove annotation from the machine with the earliest PreserveExpiryTime first when numToStop < count", func() {
+			stop := make(chan struct{})
+			defer close(stop)
+
+			// machine-early expires sooner — should be de-preserved first
+			machineEarly := makeMachine("machine-early", true, 1*time.Hour)
+			// machine-late expires later — should keep the annotation
+			machineLate := makeMachine("machine-late", true, 3*time.Hour)
+
+			c, trackers := createController(stop, testNamespace, []runtime.Object{machineEarly, machineLate}, nil, nil)
+			defer trackers.Stop()
+			waitForCacheSync(stop, c)
+
+			result, err := c.stopAutoPreservationForMachines(context.TODO(), []*machinev1.Machine{machineEarly, machineLate}, 1)
+			Expect(err).To(BeNil())
+			Expect(result).To(HaveLen(2))
+			waitForCacheSync(stop, c)
+
+			updatedEarly, _ := c.controlMachineClient.Machines(testNamespace).Get(context.TODO(), machineEarly.Name, metav1.GetOptions{})
+			updatedLate, _ := c.controlMachineClient.Machines(testNamespace).Get(context.TODO(), machineLate.Name, metav1.GetOptions{})
+
+			Expect(updatedEarly.Annotations[machineutils.PreserveMachineAnnotationKey]).ToNot(Equal(machineutils.PreserveMachineAnnotationValueAutoPreserved))
+			Expect(updatedEarly.Status.CurrentStatus.PreserveExpiryTime).To(BeNil())
+
+			Expect(updatedLate.Annotations[machineutils.PreserveMachineAnnotationKey]).To(Equal(machineutils.PreserveMachineAnnotationValueAutoPreserved))
+			Expect(updatedLate.Status.CurrentStatus.PreserveExpiryTime).ToNot(BeNil())
+		})
+
+		It("should not touch non-auto-preserved machines mixed in with auto-preserved ones", func() {
+			stop := make(chan struct{})
+			defer close(stop)
+
+			autoPreserved := makeMachine("machine-auto", true, time.Hour)
+			plain := makeMachine("machine-plain", false, 0)
+
+			c, trackers := createController(stop, testNamespace, []runtime.Object{autoPreserved, plain}, nil, nil)
+			defer trackers.Stop()
+			waitForCacheSync(stop, c)
+
+			result, err := c.stopAutoPreservationForMachines(context.TODO(), []*machinev1.Machine{autoPreserved, plain}, 1)
+			Expect(err).To(BeNil())
+			Expect(result).To(HaveLen(2))
+			waitForCacheSync(stop, c)
+
+			updatedAuto, _ := c.controlMachineClient.Machines(testNamespace).Get(context.TODO(), autoPreserved.Name, metav1.GetOptions{})
+			updatedPlain, _ := c.controlMachineClient.Machines(testNamespace).Get(context.TODO(), plain.Name, metav1.GetOptions{})
+
+			Expect(updatedAuto.Annotations[machineutils.PreserveMachineAnnotationKey]).ToNot(Equal(machineutils.PreserveMachineAnnotationValueAutoPreserved))
+			Expect(updatedAuto.Status.CurrentStatus.PreserveExpiryTime).To(BeNil())
+			Expect(updatedPlain.Annotations[machineutils.PreserveMachineAnnotationKey]).To(BeEmpty())
+		})
+
+		It("should return error and stop patching when annotation patch fails", func() {
+			stop := make(chan struct{})
+			defer close(stop)
+
+			m := makeMachine("machine-1", true, time.Hour)
+			c, trackers := createController(stop, testNamespace, []runtime.Object{m}, nil, nil)
+			defer trackers.Stop()
+			waitForCacheSync(stop, c)
+
+			fakeClient := c.controlMachineClient.(*faketyped.FakeMachineV1alpha1)
+			fakeClient.PrependReactor("patch", "machines", func(action testing.Action) (bool, runtime.Object, error) {
+				return true, nil, fmt.Errorf("patch failed")
+			})
+
+			_, err := c.stopAutoPreservationForMachines(context.TODO(), []*machinev1.Machine{m}, 1)
+			Expect(err).To(HaveOccurred())
+		})
+	})
+
 	Describe("#shouldFailedMachineBeTerminated", func() {
 		type setup struct {
 			preserveExpiryTime     *metav1.Time
