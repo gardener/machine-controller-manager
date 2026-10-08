@@ -28,8 +28,8 @@ import (
 )
 
 // rolloutInPlace implements the logic for rolling a machine set without replacing its machines.
-func (dc *controller) rolloutInPlace(ctx context.Context, d *v1alpha1.MachineDeployment, machineSetList []*v1alpha1.MachineSet, machineMap map[types.UID]*v1alpha1.MachineList) error {
-	if dc.targetCoreClient == nil {
+func (c *controller) rolloutInPlace(ctx context.Context, d *v1alpha1.MachineDeployment, machineSetList []*v1alpha1.MachineSet, machineMap map[types.UID]*v1alpha1.MachineList) error {
+	if c.targetCoreClient == nil {
 		return fmt.Errorf("in-place updates are not supported if running without a target cluster")
 	}
 
@@ -39,15 +39,15 @@ func (dc *controller) rolloutInPlace(ctx context.Context, d *v1alpha1.MachineDep
 	// We do this to avoid accidentally deleting the user provided annotations.
 	clusterAutoscalerScaleDownAnnotations[autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationByMCMKey] = autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationByMCMValue
 
-	newMachineSet, oldMachineSets, err := dc.getAllMachineSetsAndSyncRevision(ctx, d, machineSetList, machineMap, true)
+	newMachineSet, oldMachineSets, err := c.getAllMachineSetsAndSyncRevision(ctx, d, machineSetList, machineMap, true)
 	if err != nil {
 		return err
 	}
 	allMachineSets := append(oldMachineSets, newMachineSet)
 
-	if len(oldMachineSets) > 0 && !dc.machineSetsScaledToZero(oldMachineSets) {
+	if len(oldMachineSets) > 0 && !c.machineSetsScaledToZero(oldMachineSets) {
 		// Label all the old machine sets to disable the scale up.
-		err := dc.labelMachineSets(ctx, oldMachineSets, map[string]string{machineutils.LabelKeyMachineSetScaleUpDisabled: "true"})
+		err := c.labelMachineSets(ctx, oldMachineSets, map[string]string{machineutils.LabelKeyMachineSetScaleUpDisabled: "true"})
 		if err != nil {
 			klog.Errorf("failed to add label %s on all machine sets. Error: %v", machineutils.LabelKeyMachineSetScaleUpDisabled, err)
 			return err
@@ -56,10 +56,10 @@ func (dc *controller) rolloutInPlace(ctx context.Context, d *v1alpha1.MachineDep
 		// Add the annotation on the all machinesets if there are any old-machinesets and not scaled-to-zero.
 		// This also helps in annotating the node under new-machineset, incase the reconciliation is failing in next
 		// status-rollout steps.
-		if dc.autoscalerScaleDownAnnotationDuringRollout {
+		if c.autoscalerScaleDownAnnotationDuringRollout {
 			// Annotate all the nodes under this machine-deployment, as roll-out is on-going.
 			klog.V(3).Infof("RolloutInPlace ongoing for MachineDeployment %q, annotating all nodes under it with %s", d.Name, clusterAutoscalerScaleDownAnnotations)
-			err := dc.annotateNodesBackingMachineSets(ctx, allMachineSets, clusterAutoscalerScaleDownAnnotations)
+			err := c.annotateNodesBackingMachineSets(ctx, allMachineSets, clusterAutoscalerScaleDownAnnotations)
 			if err != nil {
 				klog.Errorf("failed to add annotations %s on all nodes. Error: %v", clusterAutoscalerScaleDownAnnotations, err)
 				return err
@@ -67,7 +67,7 @@ func (dc *controller) rolloutInPlace(ctx context.Context, d *v1alpha1.MachineDep
 		}
 	}
 
-	err = dc.taintNodesBackingMachineSets(
+	err = c.taintNodesBackingMachineSets(
 		ctx,
 		oldMachineSets, &v1.Taint{
 			Key:    PreferNoScheduleKey,
@@ -80,11 +80,11 @@ func (dc *controller) rolloutInPlace(ctx context.Context, d *v1alpha1.MachineDep
 	}
 
 	// label all nodes backing old machine sets as candidate for update
-	if err := dc.labelNodesBackingMachineSets(ctx, oldMachineSets, v1alpha1.LabelKeyNodeCandidateForUpdate, "true"); err != nil {
+	if err := c.labelNodesBackingMachineSets(ctx, oldMachineSets, v1alpha1.LabelKeyNodeCandidateForUpdate, "true"); err != nil {
 		return fmt.Errorf("failed to label nodes backing old machine sets as candidate for update: %v", err)
 	}
 
-	if err := dc.syncMachineSets(ctx, oldMachineSets, newMachineSet, d); err != nil {
+	if err := c.syncMachineSets(ctx, oldMachineSets, newMachineSet, d); err != nil {
 		return err
 	}
 
@@ -92,47 +92,47 @@ func (dc *controller) rolloutInPlace(ctx context.Context, d *v1alpha1.MachineDep
 	// can transfer their ownership to the new machine set.
 	// It is crucial to ensure that during the ownership transfer, the machine is not deleted,
 	// and the old machine set is not scaled up to recreate the machine.
-	scaledUp, err := dc.reconcileNewMachineSetInPlace(ctx, oldMachineSets, newMachineSet, d)
+	scaledUp, err := c.reconcileNewMachineSetInPlace(ctx, oldMachineSets, newMachineSet, d)
 	if err != nil {
 		klog.Errorf("failed to reconcile new machine set in place %s", err)
 		return err
 	}
 	if scaledUp {
 		// Update DeploymentStatus
-		return dc.syncRolloutStatus(ctx, allMachineSets, newMachineSet, d)
+		return c.syncRolloutStatus(ctx, allMachineSets, newMachineSet, d)
 	}
 
 	// prepare old machineSets for update
-	workDone, err := dc.reconcileOldMachineSetsInPlace(ctx, allMachineSets, FilterActiveMachineSets(oldMachineSets), newMachineSet, d)
+	workDone, err := c.reconcileOldMachineSetsInPlace(ctx, allMachineSets, FilterActiveMachineSets(oldMachineSets), newMachineSet, d)
 	if err != nil {
 		return err
 	}
 	if workDone {
 		// Update DeploymentStatus
-		return dc.syncRolloutStatus(ctx, allMachineSets, newMachineSet, d)
+		return c.syncRolloutStatus(ctx, allMachineSets, newMachineSet, d)
 	}
 
 	if MachineDeploymentComplete(d, &d.Status) {
-		if dc.autoscalerScaleDownAnnotationDuringRollout {
+		if c.autoscalerScaleDownAnnotationDuringRollout {
 			// Check if any of the machine under this MachineDeployment contains the by-mcm annotation, and
 			// remove the original autoscaler annotation only after.
-			err := dc.removeAutoscalerAnnotationsIfRequired(ctx, allMachineSets, clusterAutoscalerScaleDownAnnotations)
+			err := c.removeAutoscalerAnnotationsIfRequired(ctx, allMachineSets, clusterAutoscalerScaleDownAnnotations)
 			if err != nil {
 				return err
 			}
 		}
-		if err := dc.cleanupMachineDeployment(ctx, oldMachineSets, d); err != nil {
+		if err := c.cleanupMachineDeployment(ctx, oldMachineSets, d); err != nil {
 			return err
 		}
 	}
 
 	// Sync deployment status
-	return dc.syncRolloutStatus(ctx, allMachineSets, newMachineSet, d)
+	return c.syncRolloutStatus(ctx, allMachineSets, newMachineSet, d)
 }
 
 // syncMachineSets syncs the machine sets by scaling up the new machine set and scaling down the old machine sets to the required replicas.
-func (dc *controller) syncMachineSets(ctx context.Context, oldMachineSets []*v1alpha1.MachineSet, newMachineSet *v1alpha1.MachineSet, deployment *v1alpha1.MachineDeployment) error {
-	newMachines, err := dc.machineLister.List(labels.SelectorFromSet(newMachineSet.Spec.Selector.MatchLabels))
+func (c *controller) syncMachineSets(ctx context.Context, oldMachineSets []*v1alpha1.MachineSet, newMachineSet *v1alpha1.MachineSet, deployment *v1alpha1.MachineDeployment) error {
+	newMachines, err := c.machineLister.List(labels.SelectorFromSet(newMachineSet.Spec.Selector.MatchLabels))
 	if err != nil {
 		return err
 	}
@@ -145,7 +145,7 @@ func (dc *controller) syncMachineSets(ctx context.Context, oldMachineSets []*v1a
 		// This is to ensure that the machines with moved to the new machine set when ownership is transferred is accounted.
 		scaleUpBy := min(len(machinesWithUpdateSuccessfulLabel), len(newMachines)-int(newMachineSet.Spec.Replicas))
 		klog.V(3).Infof("scale up the new machine set %s by %d to %d replicas", newMachineSet.Name, scaleUpBy, newMachineSet.Spec.Replicas+int32(scaleUpBy)) // #nosec G115 (CWE-190) -- value already validated
-		_, _, err := dc.scaleMachineSetAndRecordEvent(ctx, newMachineSet, newMachineSet.Spec.Replicas+int32(scaleUpBy), deployment)                          // #nosec G115 (CWE-190) -- value already validated
+		_, _, err := c.scaleMachineSetAndRecordEvent(ctx, newMachineSet, newMachineSet.Spec.Replicas+int32(scaleUpBy), deployment)                           // #nosec G115 (CWE-190) -- value already validated
 		if err != nil {
 			return err
 		}
@@ -163,7 +163,7 @@ func (dc *controller) syncMachineSets(ctx context.Context, oldMachineSets []*v1a
 		}
 
 		klog.V(3).Infof("removing label %v from machine %s", labelsToRemove, machine.Name)
-		if err := dc.machineControl.PatchMachine(ctx, machine.Namespace, machine.Name, patchBytes); err != nil {
+		if err := c.machineControl.PatchMachine(ctx, machine.Namespace, machine.Name, patchBytes); err != nil {
 			klog.Errorf("error while removing label  %v : %v", labelsToRemove, err)
 			return err
 		}
@@ -176,7 +176,7 @@ func (dc *controller) syncMachineSets(ctx context.Context, oldMachineSets []*v1a
 			return fmt.Errorf("node label not found for machine %s: %w", newMachine.Name, err)
 		}
 
-		node, err := dc.nodeLister.Get(nodeName)
+		node, err := c.nodeLister.Get(nodeName)
 		if err != nil {
 			return fmt.Errorf("failed to get node %s: %w", nodeName, err)
 		}
@@ -209,7 +209,7 @@ func (dc *controller) syncMachineSets(ctx context.Context, oldMachineSets []*v1a
 		})
 
 		klog.V(3).Infof("removing inplace labels/annotations and uncordoning node %s", node.Name)
-		_, err = dc.targetCoreClient.CoreV1().Nodes().Update(ctx, node, metav1.UpdateOptions{})
+		_, err = c.targetCoreClient.CoreV1().Nodes().Update(ctx, node, metav1.UpdateOptions{})
 		if err != nil {
 			return fmt.Errorf("failed to remove inplace labels/annotations and uncordon node %s: %w", node.Name, err)
 		}
@@ -217,13 +217,13 @@ func (dc *controller) syncMachineSets(ctx context.Context, oldMachineSets []*v1a
 
 	for _, oldMachineSet := range oldMachineSets {
 		// scale down the old machine set to the number of machines which is having the labelselector of the machine set.
-		oldMachines, err := dc.machineLister.List(labels.SelectorFromSet(oldMachineSet.Spec.Selector.MatchLabels))
+		oldMachines, err := c.machineLister.List(labels.SelectorFromSet(oldMachineSet.Spec.Selector.MatchLabels))
 		if err != nil {
 			return fmt.Errorf("failed to list machines for machine set %s: %w", oldMachineSet.Name, err)
 		}
 
 		if len(oldMachines) < int(oldMachineSet.Spec.Replicas) {
-			_, _, err := dc.scaleMachineSetAndRecordEvent(ctx, oldMachineSet, int32(len(oldMachines)), deployment) // #nosec G115 (CWE-190) -- value already validated
+			_, _, err := c.scaleMachineSetAndRecordEvent(ctx, oldMachineSet, int32(len(oldMachines)), deployment) // #nosec G115 (CWE-190) -- value already validated
 			if err != nil {
 				return fmt.Errorf("failed to scale down machine set %s: %w", oldMachineSet.Name, err)
 			}
@@ -234,7 +234,7 @@ func (dc *controller) syncMachineSets(ctx context.Context, oldMachineSets []*v1a
 	return nil
 }
 
-func (dc *controller) reconcileNewMachineSetInPlace(ctx context.Context, oldMachineSets []*v1alpha1.MachineSet, newMachineSet *v1alpha1.MachineSet, deployment *v1alpha1.MachineDeployment) (bool, error) {
+func (c *controller) reconcileNewMachineSetInPlace(ctx context.Context, oldMachineSets []*v1alpha1.MachineSet, newMachineSet *v1alpha1.MachineSet, deployment *v1alpha1.MachineDeployment) (bool, error) {
 	klog.V(3).Infof("reconcile new machine set %q having replicas %d", newMachineSet.Name, newMachineSet.Spec.Replicas)
 
 	if newMachineSet.Spec.Replicas == deployment.Spec.Replicas {
@@ -244,13 +244,13 @@ func (dc *controller) reconcileNewMachineSetInPlace(ctx context.Context, oldMach
 
 	if newMachineSet.Spec.Replicas > deployment.Spec.Replicas {
 		// Scale down.
-		scaled, _, err := dc.scaleMachineSetAndRecordEvent(ctx, newMachineSet, deployment.Spec.Replicas, deployment)
+		scaled, _, err := c.scaleMachineSetAndRecordEvent(ctx, newMachineSet, deployment.Spec.Replicas, deployment)
 		return scaled, err
 	}
 
 	oldMachinesCount := GetReplicaCountForMachineSets(oldMachineSets)
 	if oldMachinesCount == 0 {
-		scaled, _, err := dc.scaleMachineSetAndRecordEvent(ctx, newMachineSet, deployment.Spec.Replicas, deployment)
+		scaled, _, err := c.scaleMachineSetAndRecordEvent(ctx, newMachineSet, deployment.Spec.Replicas, deployment)
 		if err != nil {
 			return false, fmt.Errorf("failed to scale up machine set %s: %w", newMachineSet.Name, err)
 		}
@@ -262,11 +262,11 @@ func (dc *controller) reconcileNewMachineSetInPlace(ctx context.Context, oldMach
 	if totalReplicas < deployment.Spec.Replicas {
 		// Scale up the new machine set to reach the desired replica count, considering old machines.
 		klog.V(3).Infof("scale up the new machine set %s from %d to %d replicas (delta: %d)", newMachineSet.Name, newMachineSet.Spec.Replicas, deployment.Spec.Replicas-oldMachinesCount, deployment.Spec.Replicas-totalReplicas)
-		scaled, _, err := dc.scaleMachineSetAndRecordEvent(ctx, newMachineSet, deployment.Spec.Replicas-oldMachinesCount, deployment)
+		scaled, _, err := c.scaleMachineSetAndRecordEvent(ctx, newMachineSet, deployment.Spec.Replicas-oldMachinesCount, deployment)
 		return scaled, err
 	}
 
-	addedNewReplicasCount, err := dc.transferMachinesFromOldToNewMachineSet(ctx, oldMachineSets, newMachineSet, deployment)
+	addedNewReplicasCount, err := c.transferMachinesFromOldToNewMachineSet(ctx, oldMachineSets, newMachineSet, deployment)
 	if err != nil {
 		return false, fmt.Errorf("error while transferring machines from old to new machine set: %w", err)
 	}
@@ -277,11 +277,11 @@ func (dc *controller) reconcileNewMachineSetInPlace(ctx context.Context, oldMach
 	}
 
 	klog.V(3).Infof("scale up the new machine set %s by %d to %d replicas", newMachineSet.Name, addedNewReplicasCount, newMachineSet.Spec.Replicas+addedNewReplicasCount)
-	scaled, _, err := dc.scaleMachineSetAndRecordEvent(ctx, newMachineSet, newMachineSet.Spec.Replicas+addedNewReplicasCount, deployment)
+	scaled, _, err := c.scaleMachineSetAndRecordEvent(ctx, newMachineSet, newMachineSet.Spec.Replicas+addedNewReplicasCount, deployment)
 	return scaled, err
 }
 
-func (dc *controller) reconcileOldMachineSetsInPlace(ctx context.Context, allMachineSets []*v1alpha1.MachineSet, oldMachineSets []*v1alpha1.MachineSet, newMachineSet *v1alpha1.MachineSet, deployment *v1alpha1.MachineDeployment) (workDone bool, err error) {
+func (c *controller) reconcileOldMachineSetsInPlace(ctx context.Context, allMachineSets []*v1alpha1.MachineSet, oldMachineSets []*v1alpha1.MachineSet, newMachineSet *v1alpha1.MachineSet, deployment *v1alpha1.MachineDeployment) (workDone bool, err error) {
 	oldMachinesCount := GetReplicaCountForMachineSets(oldMachineSets)
 	if oldMachinesCount == 0 {
 		// Can't scale down further
@@ -294,7 +294,7 @@ func (dc *controller) reconcileOldMachineSetsInPlace(ctx context.Context, allMac
 	if newMachineSet.Spec.Replicas == deployment.Spec.Replicas {
 		// Scale down old machine sets to zero.
 		for _, machineSet := range oldMachineSets {
-			_, _, err := dc.scaleMachineSetAndRecordEvent(ctx, machineSet, 0, deployment)
+			_, _, err := c.scaleMachineSetAndRecordEvent(ctx, machineSet, 0, deployment)
 			if err != nil {
 				return false, err
 			}
@@ -313,7 +313,7 @@ func (dc *controller) reconcileOldMachineSetsInPlace(ctx context.Context, allMac
 
 	minAvailable := deployment.Spec.Replicas - maxUnavailable
 	newMachineSetUnavailableMachineCount := max(0, newMachineSet.Spec.Replicas-newMachineSet.Status.AvailableReplicas)
-	oldMachineSetsMachinesUndergoingUpdate, err := dc.getMachinesUndergoingUpdate(oldMachineSets)
+	oldMachineSetsMachinesUndergoingUpdate, err := c.getMachinesUndergoingUpdate(oldMachineSets)
 	if err != nil {
 		return false, err
 	}
@@ -340,7 +340,7 @@ func (dc *controller) reconcileOldMachineSetsInPlace(ctx context.Context, allMac
 	}
 
 	// prepare machines from old machine sets for update, need to check maxUnavailable to ensure we can select machines for update.
-	numOfMachinesSelectedForUpdate, err := dc.selectNumOfMachineForUpdate(ctx, allMachineSets, oldMachineSets, newMachineSet, deployment, oldMachineSetsMachinesUndergoingUpdate)
+	numOfMachinesSelectedForUpdate, err := c.selectNumOfMachineForUpdate(ctx, allMachineSets, oldMachineSets, newMachineSet, deployment, oldMachineSetsMachinesUndergoingUpdate)
 	if err != nil {
 		return false, err
 	}
@@ -348,13 +348,13 @@ func (dc *controller) reconcileOldMachineSetsInPlace(ctx context.Context, allMac
 	return numOfMachinesSelectedForUpdate > 0, nil
 }
 
-func (dc *controller) transferMachinesFromOldToNewMachineSet(ctx context.Context, oldMachineSets []*v1alpha1.MachineSet, newMachineSet *v1alpha1.MachineSet, deployment *v1alpha1.MachineDeployment) (int32, error) {
+func (c *controller) transferMachinesFromOldToNewMachineSet(ctx context.Context, oldMachineSets []*v1alpha1.MachineSet, newMachineSet *v1alpha1.MachineSet, deployment *v1alpha1.MachineDeployment) (int32, error) {
 	var addedNewReplicasCount int32
 
 	for _, oldMachineSet := range oldMachineSets {
 		transferredMachineCount := int32(0)
 		// get the machines for the machine set
-		oldMachines, err := dc.machineLister.List(labels.SelectorFromSet(oldMachineSet.Spec.Selector.MatchLabels))
+		oldMachines, err := c.machineLister.List(labels.SelectorFromSet(oldMachineSet.Spec.Selector.MatchLabels))
 		if err != nil {
 			return addedNewReplicasCount, err
 		}
@@ -368,7 +368,7 @@ func (dc *controller) transferMachinesFromOldToNewMachineSet(ctx context.Context
 				continue
 			}
 
-			node, err := dc.nodeLister.Get(nodeName)
+			node, err := c.nodeLister.Get(nodeName)
 			if err != nil {
 				if apierrors.IsNotFound(err) {
 					klog.Warningf("Node %s not found for machine %s", nodeName, oldMachine.Name)
@@ -397,7 +397,7 @@ func (dc *controller) transferMachinesFromOldToNewMachineSet(ctx context.Context
 				`{"metadata":{"ownerReferences":[{"apiVersion":"machine.sapcloud.io/v1alpha1","kind":"%s","name":"%s","uid":"%s","controller":true,"blockOwnerDeletion":true}],"labels":%s,"uid":"%s"},"spec":{"class":{"name":"%s"}}}`,
 				v1alpha1.SchemeGroupVersion.WithKind("MachineSet").Kind,
 				newMachineSet.GetName(), newMachineSet.GetUID(), string(labelsJSONBytes), oldMachine.UID, newMachineSet.Spec.Template.Spec.Class.Name)
-			err = dc.machineControl.PatchMachine(ctx, oldMachine.Namespace, oldMachine.Name, []byte(addControllerPatch))
+			err = c.machineControl.PatchMachine(ctx, oldMachine.Namespace, oldMachine.Name, []byte(addControllerPatch))
 			if err != nil {
 				klog.Errorf("failed to transfer the ownership of machine %s to new machine set. Err: %v", oldMachine.Name, err)
 				return addedNewReplicasCount, err
@@ -405,7 +405,7 @@ func (dc *controller) transferMachinesFromOldToNewMachineSet(ctx context.Context
 
 			// uncordon the node since the ownership of the machine has been transferred to the new machine set.
 			node.Spec.Unschedulable = false
-			_, err = dc.targetCoreClient.CoreV1().Nodes().Update(ctx, node, metav1.UpdateOptions{})
+			_, err = c.targetCoreClient.CoreV1().Nodes().Update(ctx, node, metav1.UpdateOptions{})
 			if err != nil {
 				return addedNewReplicasCount, fmt.Errorf("failed to uncordon the node %s: %w", node.Name, err)
 			}
@@ -420,7 +420,7 @@ func (dc *controller) transferMachinesFromOldToNewMachineSet(ctx context.Context
 		}
 
 		klog.V(3).Infof("%d machine(s) transferred to new machine set. scaling down machine set %s to %d replicas", transferredMachineCount, oldMachineSet.Name, oldMachineSet.Spec.Replicas-transferredMachineCount)
-		_, _, err = dc.scaleMachineSetAndRecordEvent(ctx, oldMachineSet, oldMachineSet.Spec.Replicas-transferredMachineCount, deployment)
+		_, _, err = c.scaleMachineSetAndRecordEvent(ctx, oldMachineSet, oldMachineSet.Spec.Replicas-transferredMachineCount, deployment)
 		if err != nil {
 			klog.Errorf("scale down failed %s", err)
 			return addedNewReplicasCount, err
@@ -430,7 +430,7 @@ func (dc *controller) transferMachinesFromOldToNewMachineSet(ctx context.Context
 	return addedNewReplicasCount, nil
 }
 
-func (dc *controller) selectNumOfMachineForUpdate(ctx context.Context, allMachineSets []*v1alpha1.MachineSet, oldMachineSets []*v1alpha1.MachineSet, newMachineSet *v1alpha1.MachineSet, deployment *v1alpha1.MachineDeployment, oldMachineSetsMachinesUndergoingUpdate int32) (int32, error) {
+func (c *controller) selectNumOfMachineForUpdate(ctx context.Context, allMachineSets []*v1alpha1.MachineSet, oldMachineSets []*v1alpha1.MachineSet, newMachineSet *v1alpha1.MachineSet, deployment *v1alpha1.MachineDeployment, oldMachineSetsMachinesUndergoingUpdate int32) (int32, error) {
 	maxUnavailable := MaxUnavailable(*deployment)
 
 	// Check if we can pick machines from old ISes for updating to new IS.
@@ -463,7 +463,7 @@ func (dc *controller) selectNumOfMachineForUpdate(ctx context.Context, allMachin
 		if newReplicasCount > targetMachineSet.Spec.Replicas {
 			return 0, fmt.Errorf("when selecting machine from old IS for update, got invalid request %s %d -> %d", targetMachineSet.Name, targetMachineSet.Spec.Replicas, newReplicasCount)
 		}
-		selectedFromCurrentMachineSet, err := dc.labelMachinesToSelectedForUpdate(ctx, targetMachineSet, readyForUpdateCount)
+		selectedFromCurrentMachineSet, err := c.labelMachinesToSelectedForUpdate(ctx, targetMachineSet, readyForUpdateCount)
 		if err != nil {
 			return totalSelectedForUpdate + selectedFromCurrentMachineSet, err
 		}
@@ -475,7 +475,7 @@ func (dc *controller) selectNumOfMachineForUpdate(ctx context.Context, allMachin
 }
 
 // labelNodesBackingMachineSets labels all nodes belonging to the machineSets
-func (dc *controller) labelNodesBackingMachineSets(ctx context.Context, machineSets []*v1alpha1.MachineSet, labelKey, labelValue string) error {
+func (c *controller) labelNodesBackingMachineSets(ctx context.Context, machineSets []*v1alpha1.MachineSet, labelKey, labelValue string) error {
 	for _, machineSet := range machineSets {
 
 		if machineSet == nil {
@@ -483,13 +483,13 @@ func (dc *controller) labelNodesBackingMachineSets(ctx context.Context, machineS
 		}
 
 		klog.V(4).Infof("Attempting to label nodes belonging to MachineSet object %q with %v", machineSet.Name, labelKey)
-		filteredMachines, err := dc.machineLister.List(labels.SelectorFromSet(machineSet.Spec.Selector.MatchLabels))
+		filteredMachines, err := c.machineLister.List(labels.SelectorFromSet(machineSet.Spec.Selector.MatchLabels))
 		if err != nil {
 			return err
 		}
 
 		for _, machine := range filteredMachines {
-			if err := dc.labelNodeForMachine(ctx, machine, labelKey, labelValue); err != nil {
+			if err := c.labelNodeForMachine(ctx, machine, labelKey, labelValue); err != nil {
 				return err
 			}
 		}
@@ -500,13 +500,13 @@ func (dc *controller) labelNodesBackingMachineSets(ctx context.Context, machineS
 	return nil
 }
 
-func (dc *controller) labelNodeForMachine(ctx context.Context, machine *v1alpha1.Machine, labelKey, labelValue string) error {
+func (c *controller) labelNodeForMachine(ctx context.Context, machine *v1alpha1.Machine, labelKey, labelValue string) error {
 	if machine.Labels[v1alpha1.NodeLabelKey] == "" {
 		klog.V(3).Infof("Node label not found for machine %s", machine.Name)
 		return nil
 	}
 
-	node, err := dc.nodeLister.Get(machine.Labels[v1alpha1.NodeLabelKey])
+	node, err := c.nodeLister.Get(machine.Labels[v1alpha1.NodeLabelKey])
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			return nil // Node is not found, continue to the next machine
@@ -520,17 +520,17 @@ func (dc *controller) labelNodeForMachine(ctx context.Context, machine *v1alpha1
 
 	nodeCopy := node.DeepCopy()
 	nodeCopy.Labels = labelsutil.AddLabel(nodeCopy.Labels, labelKey, labelValue)
-	if _, err := dc.targetCoreClient.CoreV1().Nodes().Update(ctx, nodeCopy, metav1.UpdateOptions{}); err != nil {
+	if _, err := c.targetCoreClient.CoreV1().Nodes().Update(ctx, nodeCopy, metav1.UpdateOptions{}); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func (dc *controller) labelMachinesToSelectedForUpdate(ctx context.Context, machineSet *v1alpha1.MachineSet, drainCount int32) (int32, error) {
+func (c *controller) labelMachinesToSelectedForUpdate(ctx context.Context, machineSet *v1alpha1.MachineSet, drainCount int32) (int32, error) {
 	numOfMachinesSelectedForUpdate := int32(0)
 
-	machines, err := dc.getMachinesForDrain(machineSet, drainCount)
+	machines, err := c.getMachinesForDrain(machineSet, drainCount)
 	if err != nil {
 		return numOfMachinesSelectedForUpdate, err
 	}
@@ -544,7 +544,7 @@ func (dc *controller) labelMachinesToSelectedForUpdate(ctx context.Context, mach
 
 	for _, machine := range machines {
 		// labels on the node are added cumulatively and we can find both candidate-for-update and selected-for-update labels on the node.
-		if err := dc.labelNodeForMachine(ctx, machine, v1alpha1.LabelKeyNodeSelectedForUpdate, "true"); err != nil {
+		if err := c.labelNodeForMachine(ctx, machine, v1alpha1.LabelKeyNodeSelectedForUpdate, "true"); err != nil {
 			return numOfMachinesSelectedForUpdate, err
 		}
 		numOfMachinesSelectedForUpdate++
@@ -553,10 +553,10 @@ func (dc *controller) labelMachinesToSelectedForUpdate(ctx context.Context, mach
 	return numOfMachinesSelectedForUpdate, nil
 }
 
-func (dc *controller) getMachinesUndergoingUpdate(oldMachineSets []*v1alpha1.MachineSet) (int32, error) {
+func (c *controller) getMachinesUndergoingUpdate(oldMachineSets []*v1alpha1.MachineSet) (int32, error) {
 	machineInUpdateProcess := int32(0)
 	for _, machineSet := range oldMachineSets {
-		machines, err := dc.machineLister.List(labels.SelectorFromSet(machineSet.Spec.Selector.MatchLabels))
+		machines, err := c.machineLister.List(labels.SelectorFromSet(machineSet.Spec.Selector.MatchLabels))
 		if err != nil {
 			return 0, err
 		}
@@ -566,7 +566,7 @@ func (dc *controller) getMachinesUndergoingUpdate(oldMachineSets []*v1alpha1.Mac
 				continue
 			}
 
-			node, err := dc.nodeLister.Get(machine.Labels[v1alpha1.NodeLabelKey])
+			node, err := c.nodeLister.Get(machine.Labels[v1alpha1.NodeLabelKey])
 			if err != nil {
 				return machineInUpdateProcess, err
 			}
@@ -580,8 +580,8 @@ func (dc *controller) getMachinesUndergoingUpdate(oldMachineSets []*v1alpha1.Mac
 	return machineInUpdateProcess, nil
 }
 
-func (dc *controller) getMachinesForDrain(machineSet *v1alpha1.MachineSet, readyForDrain int32) ([]*v1alpha1.Machine, error) {
-	machines, err := dc.machineLister.List(labels.SelectorFromSet(machineSet.Spec.Selector.MatchLabels))
+func (c *controller) getMachinesForDrain(machineSet *v1alpha1.MachineSet, readyForDrain int32) ([]*v1alpha1.Machine, error) {
+	machines, err := c.machineLister.List(labels.SelectorFromSet(machineSet.Spec.Selector.MatchLabels))
 	if err != nil {
 		return nil, err
 	}
@@ -592,7 +592,7 @@ func (dc *controller) getMachinesForDrain(machineSet *v1alpha1.MachineSet, ready
 			continue
 		}
 
-		node, err := dc.nodeLister.Get(machine.Labels[v1alpha1.NodeLabelKey])
+		node, err := c.nodeLister.Get(machine.Labels[v1alpha1.NodeLabelKey])
 		if err != nil {
 			return candidateForUpdateMachines, err
 		}
@@ -611,7 +611,7 @@ func (dc *controller) getMachinesForDrain(machineSet *v1alpha1.MachineSet, ready
 }
 
 // labelMachineSets label all the machineSets with the given label
-func (dc *controller) labelMachineSets(ctx context.Context, MachineSets []*v1alpha1.MachineSet, labels map[string]string) error {
+func (c *controller) labelMachineSets(ctx context.Context, MachineSets []*v1alpha1.MachineSet, labels map[string]string) error {
 	for _, machineSet := range MachineSets {
 
 		if machineSet == nil {
@@ -626,7 +626,7 @@ func (dc *controller) labelMachineSets(ctx context.Context, MachineSets []*v1alp
 
 		addLabelPatch := fmt.Sprintf(`{"metadata":{"labels":%s}}`, string(formattedLabels))
 
-		if err := dc.machineSetControl.PatchMachineSet(ctx, machineSet.Namespace, machineSet.Name, []byte(addLabelPatch)); err != nil {
+		if err := c.machineSetControl.PatchMachineSet(ctx, machineSet.Namespace, machineSet.Name, []byte(addLabelPatch)); err != nil {
 			return fmt.Errorf("failed to label MachineSet %s: %w", machineSet.Name, err)
 		}
 	}

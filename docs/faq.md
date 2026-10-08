@@ -31,6 +31,7 @@ this document. Few of the answers assume that the MCM being used is in conjuncti
     - [How to avoid garbage collection of your node?](#how-to-avoid-garbage-collection-of-your-node)
     - [How to trigger rolling update of a machinedeployment?](#how-to-trigger-rolling-update-of-a-machinedeployment)
     - [How to override a MachineDeployment's MachineCreationTimeout ?](#how-to-override-a-machinedeployments-machinecreationtimeout)
+    - [How does MCM automatically adjust the effective-creation-timeout when machines repeatedly fail to join?](#how-does-mcm-automatically-adjust-the-effective-creation-timeout-when-machines-repeatedly-fail-to-join)
 - [Internals](#internals)
     - [What is the high level design of MCM?](#what-is-the-high-level-design-of-mcm)
     - [What are the different configuration options in MCM?](#what-are-the-different-configuration-options-in-mcm)
@@ -196,6 +197,25 @@ without touching the orchestrating controller logic or configuration.
 This can be done by setting the annotation `node.machine.sapcloud.io/effective-creation-timeout` on the `MachineDeployment`.
 This will take effect for any newly launched Machine(s) belonging to this `MachineDeployment`.
 
+### How does MCM automatically adjust the effective-creation-timeout when machines repeatedly fail to join?
+
+MCM tracks _replace cycles_ per `MachineDeployment`, where each cycle is where at least one machine failed to join within the effective creation timeout. Once the number of such cycles within a window reaches the threshold set by `--machine-replace-cycle-count-threshold` (default: `2`), MCM grows the effective creation timeout by the percentage set by `--machine-creation-timeout-growth-percent` (default: `50`, i.e. a 1.5× factor). The timeout ceiling is at `specTimeout × (1 + growthPercent/100)^4` and the cycle counter resets to 0, so breaching the threshold again is required before the next growth step.
+
+The timeout shrinks back towards the spec timeout once at least 2 machines join successfully within the current timeout window, setting the effective timeout to `max(specTimeout, maxJoinDurationInWindow)`. Using the maximum join duration (rather than average) keeps the annotation stable and minimises etcd writes. If no machines join or fail for a full max-timeout window (i.e. the MachineDeployment is idle), all adjustment annotations are cleared and the timeout resets to the spec value.
+
+The state is persisted as annotations on the `MachineDeployment`. Both thresholds can be overridden per `MachineDeployment` via `.spec.template.spec.machineConfiguration`:
+
+```yaml
+apiVersion: machine.sapcloud.io/v1alpha1
+kind: MachineDeployment
+spec:
+  template:
+    spec:
+      machineConfiguration:
+        creationTimeoutGrowthPercent: 50    # percentage growth per step; 50 means 1.5× factor. Must be > 0.
+        replaceCycleCountThreshold: 2       # consecutive failure cycles before growing. Must be >= 2.
+```
+
 # Internals
 
 ### What is the high level design of MCM?
@@ -213,7 +233,7 @@ A machine's lifecycle is governed by mainly following timeouts, which can be con
 
 - `MachineDrainTimeout`: Amount of time after which drain times out and the machine is force deleted. Default ~2 hours.
 - `MachineHealthTimeout`: Amount of time after which an unhealthy machine is declared `Failed` and the machine is replaced by `MachineSet` controller.
-- `MachineCreationTimeout`: Amount of time after which a machine creation is declared `Failed` and the machine is replaced by the `MachineSet` controller.
+- `MachineCreationTimeout`: Amount of time after which a machine creation is declared `Failed` and the machine is replaced by the `MachineSet` controller. MCM can automatically grow this timeout when machines repeatedly fail to join — see [How does MCM automatically adjust the effective-creation-timeout](#how-does-mcm-automatically-adjust-the-effective-creation-timeout-when-machines-repeatedly-fail-to-join). The global growth behaviour is tunable via `--machine-replace-cycle-count-threshold` and `--machine-creation-timeout-growth-percent`.
 - `NodeConditions`: List of node conditions which if set to true for `MachineHealthTimeout` period, the machine is declared `Failed` and replaced by `MachineSet` controller.
 - `MaxEvictRetries`: An integer number depicting the number of times a failed _eviction_ should be retried on a pod during drain process. A pod is _deleted_ after `max-retries`.
 

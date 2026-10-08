@@ -719,6 +719,7 @@ func (c *controller) prepareMachineForDeletion(ctx context.Context, targetMachin
 		}
 	}
 
+	klog.V(2).Infof("Inside MachineSetController. LastOp.ErrorCode=%q, LastOp.Description=%q", targetMachine.Status.LastOperation.ErrorCode, targetMachine.Status.LastOperation.Description)
 	// Force trigger deletion to reflect in machine status
 	lastOperation := v1alpha1.LastOperation{
 		Description:    "Deleting machine from cloud provider",
@@ -931,7 +932,7 @@ func (c *controller) shouldFailedMachineBeTerminated(machine *v1alpha1.Machine) 
 
 // manageAutoPreservationOfFailedMachines annotates failed machines with preserve=auto-preserved annotation
 // to trigger preservation of the machines, by the machine controller, up to the limit defined in the
-// MachineSet's AutoPreserveFailedMachineMax field. If the AutoPreserveFailedMachineMax limit is breached, it removes the preserve=auto-preserved annotation from the machines which are nearest to preserve expiry.
+// MachineSet's AutoPreserveFailedMachineMax field. If the AutoPreserveFailedMachineMax limit is breached, it removes the preserve=auto-preserved annotation from the oldest annotated machines.
 func (c *controller) manageAutoPreservationOfFailedMachines(ctx context.Context, machines []*v1alpha1.Machine, machineSet *v1alpha1.MachineSet) []*v1alpha1.Machine {
 	// TODO@thiyyakat: if preservation is to be honoured across updates, capacity remaining should consider machines in all machinesets
 	autoPreservationCapacityRemaining := machineSet.Spec.AutoPreserveFailedMachineMax - machineSet.Status.AutoPreserveFailedMachineCount

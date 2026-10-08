@@ -722,6 +722,20 @@ func schema_pkg_apis_machine_v1alpha1_MachineConfiguration(ref common.ReferenceC
 							Format:      "",
 						},
 					},
+					"creationTimeoutGrowthPercent": {
+						SchemaProps: spec.SchemaProps{
+							Description: "MachineCreationTimeoutGrowthPercent is the percentage by which the effective-creation-timeout is grown when machines repeatedly fail to join the cluster (e.g. 50 means grow by 50%, equivalent to a 1.5× factor). Must be > 0. Overrides the global --machine-creation-timeout-growth-percent flag.",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+					"replaceCycleCountThreshold": {
+						SchemaProps: spec.SchemaProps{
+							Description: "MachineReplaceCycleCountThreshold is the number of consecutive replace cycles with failed machine joins after which the effective-creation-timeout is grown. Overrides the global --machine-replace-cycle-count-threshold flag.",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
 				},
 			},
 		},
@@ -1540,6 +1554,20 @@ func schema_pkg_apis_machine_v1alpha1_MachineSpec(ref common.ReferenceCallback) 
 							Description: "NodeConditions are the set of conditions if set to true for MachineHealthTimeOut, machine will be declared failed.",
 							Type:        []string{"string"},
 							Format:      "",
+						},
+					},
+					"creationTimeoutGrowthPercent": {
+						SchemaProps: spec.SchemaProps{
+							Description: "MachineCreationTimeoutGrowthPercent is the percentage by which the effective-creation-timeout is grown when machines repeatedly fail to join the cluster (e.g. 50 means grow by 50%, equivalent to a 1.5× factor). Must be > 0. Overrides the global --machine-creation-timeout-growth-percent flag.",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+					"replaceCycleCountThreshold": {
+						SchemaProps: spec.SchemaProps{
+							Description: "MachineReplaceCycleCountThreshold is the number of consecutive replace cycles with failed machine joins after which the effective-creation-timeout is grown. Overrides the global --machine-replace-cycle-count-threshold flag.",
+							Type:        []string{"integer"},
+							Format:      "int32",
 						},
 					},
 				},

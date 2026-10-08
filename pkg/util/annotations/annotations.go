@@ -7,6 +7,7 @@ package annotations
 
 import (
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -92,20 +93,66 @@ func CreateMachinesTriggeredForDeletionAnnotValue(machineNames []string) string 
 	return strings.Join(machineNames, ",")
 }
 
-// GetEffectiveMachineCreationTimeout gets the value of the annotation [v1alpha1.AnnotationKeyMachineEffectiveCreationTimeout]
+// GetMachineEffectiveCreationTimeout gets the value of the annotation [v1alpha1.AnnotationKeyMachineEffectiveCreationTimeout]
 // as a [metav1.Duration] if present.
-func GetEffectiveMachineCreationTimeout(object runtime.Object) (*metav1.Duration, error) {
+func GetMachineEffectiveCreationTimeout(object runtime.Object) (creationTimeout metav1.Duration, err error) {
+	durationStr, ok, err := getAnnotationValue(object, v1alpha1.AnnotationKeyMachineEffectiveCreationTimeout)
+	if err != nil || !ok {
+		return
+	}
+	creationTimeout.Duration, err = time.ParseDuration(durationStr)
+	return
+}
+
+// GetMachineEffectiveCreationTimeoutLastAppliedAt gets the value of the annotation [v1alpha1.AnnotationKeyMachineEffectiveCreationTimeoutLastAppliedAt]
+// as a [metav1.Time] if present using the layout [time.RFC3339].
+func GetMachineEffectiveCreationTimeoutLastAppliedAt(object runtime.Object) (appliedAt metav1.Time, err error) {
+	lastAppliedAtStr, ok, err := getAnnotationValue(object, v1alpha1.AnnotationKeyMachineEffectiveCreationTimeoutLastAppliedAt)
+	if err != nil || !ok {
+		return
+	}
+	return parseLastAppliedAt(lastAppliedAtStr)
+}
+
+// GetMachineReplaceCycleCount gets the value of the annotation [v1alpha1.AnnotationKeyMachineReplaceCycleCount]
+// as an int32 if present.
+func GetMachineReplaceCycleCount(object runtime.Object) (cycleCount int32, err error) {
+	cycleCountStr, ok, err := getAnnotationValue(object, v1alpha1.AnnotationKeyMachineReplaceCycleCount)
+	if err != nil || !ok {
+		return
+	}
+	val, err := strconv.ParseInt(cycleCountStr, 10, 32)
+	if err != nil {
+		return
+	}
+	cycleCount = int32(val)
+	return
+}
+
+// GetMachineReplaceCycleCountLastAppliedAt gets the value of the annotation [v1alpha1.AnnotationKeyMachineReplaceCycleCountLastAppliedAt]
+// as a [metav1.Time] if present using the layout [time.RFC3339]. Returns nil if no annotation value is present.
+func GetMachineReplaceCycleCountLastAppliedAt(object runtime.Object) (appliedAt metav1.Time, err error) {
+	replacementLastAppliedAtStr, ok, err := getAnnotationValue(object, v1alpha1.AnnotationKeyMachineReplaceCycleCountLastAppliedAt)
+	if err != nil || !ok {
+		return
+	}
+	return parseLastAppliedAt(replacementLastAppliedAtStr)
+}
+
+func parseLastAppliedAt(strVal string) (val metav1.Time, err error) {
+	v, err := time.Parse(time.RFC3339, strVal)
+	if err != nil {
+		return
+	}
+	val = metav1.NewTime(v)
+	return
+}
+
+func getAnnotationValue(object runtime.Object, annKey string) (annValue string, ok bool, err error) {
 	metaObject, err := meta.Accessor(object)
 	if err != nil {
-		return nil, err
+		return
 	}
-	effectiveMachineCreationTimeoutStr, ok := metaObject.GetAnnotations()[v1alpha1.AnnotationKeyMachineEffectiveCreationTimeout]
-	if !ok {
-		return nil, nil
-	}
-	effectiveMachineCreationTimeout, err := time.ParseDuration(effectiveMachineCreationTimeoutStr)
-	if err != nil {
-		return nil, err
-	}
-	return &metav1.Duration{Duration: effectiveMachineCreationTimeout}, nil
+	annValue, ok = metaObject.GetAnnotations()[annKey]
+	return
 }

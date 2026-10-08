@@ -32,6 +32,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gardener/machine-controller-manager/pkg/apis/constants"
+	"github.com/gardener/machine-controller-manager/pkg/util/annotations"
 	"github.com/gardener/machine-controller-manager/pkg/util/nodeops"
 
 	v1 "k8s.io/api/core/v1"
@@ -43,6 +45,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/errors"
 	intstrutil "k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/klog/v2"
 	"k8s.io/utils/integer"
@@ -342,6 +345,16 @@ func SetNewMachineSetAnnotations(deployment *v1alpha1.MachineDeployment, newIS *
 	if !exists && SetReplicasAnnotations(newIS, (deployment.Spec.Replicas), (deployment.Spec.Replicas)+MaxSurge(*deployment)) {
 		annotationChanged = true
 	}
+	if _, ok := newIS.Annotations[v1alpha1.AnnotationKeyMachineEffectiveCreationTimeout]; ok && exists {
+		if _, ok := deployment.Annotations[v1alpha1.AnnotationKeyMachineEffectiveCreationTimeout]; !ok {
+			// when effective-creation-timeout annotation(s) are cleared from MCD, clear them from existing MS too.
+			delete(newIS.Annotations, v1alpha1.AnnotationKeyMachineEffectiveCreationTimeout)
+			delete(newIS.Annotations, v1alpha1.AnnotationKeyMachineEffectiveCreationTimeoutLastAppliedAt)
+			klog.V(3).Infof("Parent MachineDeployment %q has no %q annotation, thus also clearing from MachineSet %q",
+				deployment.Name, v1alpha1.AnnotationKeyMachineEffectiveCreationTimeout, newIS.Name)
+			annotationChanged = true
+		}
+	}
 	return annotationChanged
 }
 
@@ -452,23 +465,25 @@ func UpdateMachineSetClassKind(deployment *v1alpha1.MachineDeployment, newIS *v1
 	return classKindChanged
 }
 
-var annotationsToSkip = map[string]bool{
-	v1.LastAppliedConfigAnnotation:    true,
-	RevisionAnnotation:                true,
-	RevisionHistoryAnnotation:         true,
-	DesiredReplicasAnnotation:         true,
-	MaxReplicasAnnotation:             true,
-	PreferNoScheduleKey:               true,
-	UnfreezeAnnotation:                true,
-	machineutils.TriggerDeletionByMCM: true,
-}
+var annotationsToSkip = sets.New(
+	v1.LastAppliedConfigAnnotation,
+	RevisionAnnotation,
+	RevisionHistoryAnnotation,
+	DesiredReplicasAnnotation,
+	MaxReplicasAnnotation,
+	PreferNoScheduleKey,
+	UnfreezeAnnotation,
+	machineutils.TriggerDeletionByMCM,
+	v1alpha1.AnnotationKeyMachineReplaceCycleCount,
+	v1alpha1.AnnotationKeyMachineReplaceCycleCountLastAppliedAt,
+)
 
 // skipCopyAnnotation returns true if we should skip copying the annotation with the given annotation key
 // TODO: How to decide which annotations should / should not be copied?
 //
 //	See https://github.com/kubernetes/kubernetes/pull/20035#issuecomment-179558615
 func skipCopyAnnotation(key string) bool {
-	return annotationsToSkip[key]
+	return annotationsToSkip.Has(key)
 }
 
 // copyDeploymentAnnotationsToMachineSet copies deployment's annotations to machine set's annotations,
@@ -1217,7 +1232,7 @@ func IsSaturated(deployment *v1alpha1.MachineDeployment, is *v1alpha1.MachineSet
 }
 
 // removeTaintNodesBackingMachineSet removes taints from all nodes backing the machineSets
-func (dc *controller) removeTaintNodesBackingMachineSet(ctx context.Context, machineSet *v1alpha1.MachineSet, taint *v1.Taint) error {
+func (c *controller) removeTaintNodesBackingMachineSet(ctx context.Context, machineSet *v1alpha1.MachineSet, taint *v1.Taint) error {
 
 	if _, exists := machineSet.Annotations[taint.Key]; !exists {
 		// No taint exists
@@ -1234,13 +1249,13 @@ func (dc *controller) removeTaintNodesBackingMachineSet(ctx context.Context, mac
 	// list all machines to include the machines that don't match the ms`s selector
 	// anymore but has the stale controller ref.
 	// TODO: Do the List and Filter in a single pass, or use an index.
-	filteredMachines, err := dc.machineLister.List(labels.Everything())
+	filteredMachines, err := c.machineLister.List(labels.Everything())
 	if err != nil {
 		return err
 	}
 	// NOTE: filteredMachines are pointing to objects from cache - if you need to
 	// modify them, you need to copy it first.
-	filteredMachines, err = dc.claimMachines(ctx, machineSet, selector, filteredMachines)
+	filteredMachines, err = c.claimMachines(ctx, machineSet, selector, filteredMachines)
 	if err != nil {
 		return err
 	}
@@ -1249,14 +1264,14 @@ func (dc *controller) removeTaintNodesBackingMachineSet(ctx context.Context, mac
 	// to avoid scheduling on older machines
 	for _, machine := range filteredMachines {
 		if machine.Labels[v1alpha1.NodeLabelKey] != "" {
-			node, err := dc.targetCoreClient.CoreV1().Nodes().Get(ctx, machine.Labels[v1alpha1.NodeLabelKey], metav1.GetOptions{})
+			node, err := c.targetCoreClient.CoreV1().Nodes().Get(ctx, machine.Labels[v1alpha1.NodeLabelKey], metav1.GetOptions{})
 			if err != nil {
 				klog.Warningf("Node taint removal failed for node: %s, Error: %s", machine.Labels[v1alpha1.NodeLabelKey], err)
 				continue
 			}
 			if err := nodeops.RemoveTaintOffNode(
 				ctx,
-				dc.targetCoreClient,
+				c.targetCoreClient,
 				machine.Labels[v1alpha1.NodeLabelKey],
 				node,
 				taint,
@@ -1268,7 +1283,7 @@ func (dc *controller) removeTaintNodesBackingMachineSet(ctx context.Context, mac
 
 	retryDeadline := time.Now().Add(maxRetryDeadline)
 	for {
-		machineSet, err = dc.controlMachineClient.MachineSets(machineSet.Namespace).Get(ctx, machineSet.Name, metav1.GetOptions{})
+		machineSet, err = c.controlMachineClient.MachineSets(machineSet.Namespace).Get(ctx, machineSet.Name, metav1.GetOptions{})
 		if err != nil {
 			if time.Now().Before(retryDeadline) {
 				klog.Warningf("Unable to fetch MachineSet object %s, Error: %+v", machineSet.Name, err)
@@ -1284,7 +1299,7 @@ func (dc *controller) removeTaintNodesBackingMachineSet(ctx context.Context, mac
 		msCopy := machineSet.DeepCopy()
 		delete(msCopy.Annotations, taint.Key)
 
-		machineSet, err = dc.controlMachineClient.MachineSets(msCopy.Namespace).Update(ctx, msCopy, metav1.UpdateOptions{})
+		machineSet, err = c.controlMachineClient.MachineSets(msCopy.Namespace).Update(ctx, msCopy, metav1.UpdateOptions{})
 
 		if err != nil {
 			if time.Now().Before(retryDeadline) {
@@ -1417,4 +1432,42 @@ func MergeStringMaps[T any](oldMap map[string]T, newMaps ...map[string]T) map[st
 	}
 
 	return out
+}
+
+// GetEffectiveCreationTimeoutOnMachineDeployment gets the effective creation timeout as a [metav1.Duration] for this MachineDeployment object, first checking
+// the [v1alpha1.AnnotationKeyMachineEffectiveCreationTimeout], then falling back to machine deployment spec template and then falling back
+// to [v1alpha1.DefaultCreationTimeout]
+func GetEffectiveCreationTimeoutOnMachineDeployment(mcd *v1alpha1.MachineDeployment) (duration metav1.Duration, err error) {
+	duration, err = annotations.GetMachineEffectiveCreationTimeout(mcd)
+	if err != nil || duration.Duration != 0 {
+		return
+	}
+	return GetSpecCreationTimeoutOnMachineDeploymentOrDefault(mcd, constants.DefaultMachineCreationTimeout), nil
+}
+
+// GetSpecCreationTimeoutOnMachineDeploymentOrDefault gets the creation timeout from the MachineDeployment's spec template
+// if set, otherwise returns defVal.
+func GetSpecCreationTimeoutOnMachineDeploymentOrDefault(mcd *v1alpha1.MachineDeployment, defVal time.Duration) metav1.Duration {
+	if mcd.Spec.Template.Spec.MachineConfiguration != nil && mcd.Spec.Template.Spec.MachineCreationTimeout != nil {
+		return metav1.Duration{Duration: mcd.Spec.Template.Spec.MachineCreationTimeout.Duration}
+	}
+	return metav1.Duration{Duration: defVal}
+}
+
+// GetReplaceCycleCountThresholdOnMachineDeploymentOrDefault returns the MachineReplaceCycleCountThreshold from the MachineDeployment's
+// MachineConfiguration if set, otherwise returns defVal.
+func GetReplaceCycleCountThresholdOnMachineDeploymentOrDefault(mcd *v1alpha1.MachineDeployment, defVal int32) int32 {
+	if mcd.Spec.Template.Spec.MachineConfiguration != nil && mcd.Spec.Template.Spec.MachineConfiguration.MachineReplaceCycleCountThreshold != nil {
+		return *mcd.Spec.Template.Spec.MachineConfiguration.MachineReplaceCycleCountThreshold
+	}
+	return defVal
+}
+
+// GetCreationTimeoutGrowthPercentOnMachineDeploymentOrDefault returns the MachineCreationTimeoutGrowthPercent from the MachineDeployment's
+// MachineConfiguration if set, otherwise returns defVal.
+func GetCreationTimeoutGrowthPercentOnMachineDeploymentOrDefault(mcd *v1alpha1.MachineDeployment, defVal int32) int32 {
+	if mcd.Spec.Template.Spec.MachineConfiguration != nil && mcd.Spec.Template.Spec.MachineConfiguration.MachineCreationTimeoutGrowthPercent != nil {
+		return *mcd.Spec.Template.Spec.MachineConfiguration.MachineCreationTimeoutGrowthPercent
+	}
+	return defVal
 }

@@ -248,6 +248,10 @@ const (
 	// NodePreserved is a node condition type for preservation of machines to allow end-user to know that a node is preserved
 	NodePreserved corev1.NodeConditionType = "Preserved"
 
+	// ConditionMachineJoined is a node condition type set specifically on the Machine status conditions to indicate that
+	// machine has first joined the cluster. Status True means the machine joined successfully; Status False means it failed to join.
+	ConditionMachineJoined corev1.NodeConditionType = "MachineJoined"
+
 	// PreservedByMCM is a node condition reason for preservation of machines to indicate that the node is auto-preserved by MCM
 	PreservedByMCM string = "Preserved by MCM."
 

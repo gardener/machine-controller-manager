@@ -12,9 +12,12 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gardener/machine-controller-manager/pkg/apis/constants"
 	"github.com/gardener/machine-controller-manager/pkg/util/annotations"
 	labelsutil "github.com/gardener/machine-controller-manager/pkg/util/labels"
+	"github.com/gardener/machine-controller-manager/pkg/util/provider/machinecodes/codes"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/machineutils"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
 
 	machinev1 "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
@@ -2763,4 +2766,476 @@ var _ = Describe("machineDeployment", func() {
 			),
 		)
 	})
+
+	Describe("#getNumFailedJoinedAndMaxJoinDurationSince", func() {
+		var (
+			now             time.Time
+			windowStartMark time.Time
+		)
+
+		BeforeEach(func() {
+			now = time.Now()
+			windowStartMark = now.Add(-10 * time.Minute)
+		})
+
+		newMachine := func(name string, createdBefore time.Duration, conditions ...corev1.NodeCondition) machinev1.Machine {
+			return machinev1.Machine{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:              name,
+					Namespace:         testNamespace,
+					CreationTimestamp: metav1.Time{Time: now.Add(-createdBefore)},
+				},
+				Status: machinev1.MachineStatus{Conditions: conditions},
+			}
+		}
+
+		DescribeTable("should compute numFailedInWindow, numJoinedInWindow, maxJoinDurationInWindow for machines correctly",
+			func(
+				buildMachines func() []machinev1.Machine,
+				expectedFailed, expectedJoined int,
+				checkMaxJoinDuration func(metav1.Duration),
+			) {
+				numFailed, numJoined, maxJoinDurationInWindow := getNumFailedJoinedAndMaxJoinDurationSince(buildMachines(), windowStartMark)
+				Expect(numFailed).To(Equal(expectedFailed))
+				Expect(numJoined).To(Equal(expectedJoined))
+				checkMaxJoinDuration(maxJoinDurationInWindow)
+			},
+			Entry("empty slice yields all zeros",
+				func() []machinev1.Machine { return nil },
+				0, 0,
+				func(d metav1.Duration) { Expect(d.Duration).To(BeZero()) },
+			),
+			Entry("machine with no conditions is ignored",
+				func() []machinev1.Machine {
+					return []machinev1.Machine{newMachine("m1", 15*time.Minute)}
+				},
+				0, 0,
+				func(d metav1.Duration) { Expect(d.Duration).To(BeZero()) },
+			),
+			Entry("machine that joined within window is counted and contributes to maxJoinDurationInWindow",
+				func() []machinev1.Machine {
+					// created 15m ago, joined 5m ago (after mark) -> join duration = 10m
+					return []machinev1.Machine{newMachine("m1", 15*time.Minute, machineJoinedCond(now.Add(-5*time.Minute)))}
+				},
+				0, 1,
+				func(d metav1.Duration) { Expect(d.Duration).To(Equal(10 * time.Minute)) },
+			),
+			Entry("machine that joined before windowStartMark is not counted",
+				func() []machinev1.Machine {
+					// created 30m ago, joined 25m ago (before windowStartMark)
+					return []machinev1.Machine{newMachine("m1", 30*time.Minute, machineJoinedCond(now.Add(-25*time.Minute)))}
+				},
+				0, 0,
+				func(d metav1.Duration) { Expect(d.Duration).To(BeZero()) },
+			),
+			Entry("machine that failed to join within window is counted",
+				func() []machinev1.Machine {
+					return []machinev1.Machine{newMachine("m1", 25*time.Minute, machineFailedJoinCond(now.Add(-5*time.Minute)))}
+				},
+				1, 0,
+				func(d metav1.Duration) { Expect(d.Duration).To(BeZero()) },
+			),
+			Entry("machine that failed to join before windowStartMark is not counted",
+				func() []machinev1.Machine {
+					return []machinev1.Machine{newMachine("m1", 25*time.Minute, machineFailedJoinCond(now.Add(-15*time.Minute)))}
+				},
+				0, 0,
+				func(d metav1.Duration) { Expect(d.Duration).To(BeZero()) },
+			),
+			Entry("mix of joined and failed: maxJoinDurationInWindow is max across in-window joiners",
+				func() []machinev1.Machine {
+					return []machinev1.Machine{
+						// joined 5m ago, created 20m ago -> join duration = 15m
+						newMachine("m1", 20*time.Minute, machineJoinedCond(now.Add(-5*time.Minute))),
+						// joined 2m ago, created 12m ago -> join duration = 10m
+						newMachine("m2", 12*time.Minute, machineJoinedCond(now.Add(-2*time.Minute))),
+						newMachine("m3", 25*time.Minute, machineFailedJoinCond(now.Add(-3*time.Minute))),
+					}
+				},
+				1, 2,
+				// max(15m, 10m) = 15m
+				func(d metav1.Duration) { Expect(d.Duration).To(Equal(15 * time.Minute)) },
+			),
+		)
+	})
+
+	Describe("#increaseEffectiveCreationTimeout", func() {
+		const specTimeout = 20 * time.Minute
+		const factor = 1.5
+		maxTimeout := computeMaxCreationTimeout(metav1.Duration{Duration: specTimeout}, factor, constants.DefaultMaxCreationTimeoutGrowthCount).Duration
+
+		DescribeTable("should grow or clamp the timeout",
+			func(curr time.Duration, growthFactor float64, maxDur time.Duration, expected time.Duration) {
+				result := increaseEffectiveCreationTimeout(
+					metav1.Duration{Duration: curr},
+					growthFactor,
+					metav1.Duration{Duration: maxDur},
+				)
+				Expect(result.Duration).To(Equal(expected))
+			},
+			Entry("grows 20m by factor 1.5 to 30m",
+				specTimeout, factor, maxTimeout,
+				30*time.Minute,
+			),
+			Entry("clamps to max when growth would exceed it",
+				maxTimeout, factor, maxTimeout,
+				maxTimeout,
+			),
+			Entry("returns current when factor <= 1.0",
+				specTimeout, 1.0, maxTimeout,
+				specTimeout,
+			),
+			Entry("returns current when current duration is zero",
+				time.Duration(0), factor, maxTimeout,
+				time.Duration(0),
+			),
+		)
+	})
+
+	Describe("#checkAndAdjustMachineEffectiveCreationTimeout", func() {
+		var (
+			mcd *machinev1.MachineDeployment
+			now time.Time
+		)
+
+		// defaultGrowthFactor converts the default growth percent constant to the float64 factor used internally.
+		defaultGrowthFactor := func() float64 {
+			return 1.0 + float64(constants.DefaultCreationTimeoutGrowthPercent)/100.0
+		}
+
+		// getMaxCreationTimeout computes the default max creation timeout ceiling for a given spec timeout.
+		getMaxCreationTimeout := func(specTimeout time.Duration) time.Duration {
+			return computeMaxCreationTimeout(metav1.Duration{Duration: specTimeout}, defaultGrowthFactor(), constants.DefaultMaxCreationTimeoutGrowthCount).Duration
+		}
+
+		BeforeEach(func() {
+			now = time.Now()
+			mcd = &machinev1.MachineDeployment{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:              "MachineDeployment-adjust-test",
+					Namespace:         testNamespace,
+					UID:               "mcd-uid-adjust",
+					Annotations:       map[string]string{},
+					CreationTimestamp: metav1.Time{Time: now.Add(-30 * time.Minute)},
+				},
+				TypeMeta: metav1.TypeMeta{
+					Kind:       "MachineDeployment",
+					APIVersion: "machine.sapcloud.io/v1alpha1",
+				},
+				Spec: machinev1.MachineDeploymentSpec{
+					Replicas: 1,
+					Template: machinev1.MachineTemplateSpec{
+						ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{"test-label": "test-label"}},
+						Spec:       machinev1.MachineSpec{Class: machinev1.ClassSpec{Name: "MachineClass-test", Kind: "MachineClass"}},
+					},
+					Selector: &metav1.LabelSelector{MatchLabels: map[string]string{"test-label": "test-label"}},
+				},
+			}
+		})
+
+		newMachineInSet := func(name string, msUID types.UID, createdBefore time.Duration, conditions ...corev1.NodeCondition) machinev1.Machine {
+			return machinev1.Machine{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:              name,
+					Namespace:         testNamespace,
+					CreationTimestamp: metav1.Time{Time: now.Add(-createdBefore)},
+					OwnerReferences: []metav1.OwnerReference{
+						{Kind: "MachineSet", UID: msUID, Controller: new(true)},
+					},
+				},
+				Status: machinev1.MachineStatus{Conditions: conditions},
+			}
+		}
+
+		runCheckAndAdjustEffectiveCreationTimeout := func(mcdIn *machinev1.MachineDeployment, machineMap map[types.UID]*machinev1.MachineList) *machinev1.MachineDeployment {
+			stop := make(chan struct{})
+			defer close(stop)
+			objects := []runtime.Object{mcdIn}
+			c, trackers := createController(stop, testNamespace, objects, nil, nil)
+			c.safetyOptions.MachineReplaceCycleCountThreshold = constants.DefaultMachineReplaceCycleCountThreshold
+			c.safetyOptions.MachineCreationTimeoutGrowthPercent = constants.DefaultCreationTimeoutGrowthPercent
+			defer trackers.Stop()
+			waitForCacheSync(stop, c)
+			_, adjustErr := c.checkAndAdjustMachineEffectiveCreationTimeout(context.Background(), mcdIn, machineMap)
+			Expect(adjustErr).NotTo(HaveOccurred())
+			waitForCacheSync(stop, c)
+			result, err := c.controlMachineClient.MachineDeployments(testNamespace).Get(context.Background(), mcdIn.Name, metav1.GetOptions{})
+			Expect(err).NotTo(HaveOccurred())
+			return result
+		}
+
+		DescribeTable("should adjust effective-creation-timeout and replace-cycle-count",
+			func(
+				preset func(*machinev1.MachineDeployment),
+				buildMachineMap func() map[types.UID]*machinev1.MachineList,
+				postCheck func(*machinev1.MachineDeployment),
+			) {
+				preset(mcd)
+				result := runCheckAndAdjustEffectiveCreationTimeout(mcd, buildMachineMap())
+				postCheck(result)
+			},
+
+			Entry("no machines: no annotation changes",
+				func(_ *machinev1.MachineDeployment) {},
+				func() map[types.UID]*machinev1.MachineList {
+					return map[types.UID]*machinev1.MachineList{}
+				},
+				func(result *machinev1.MachineDeployment) {
+					Expect(result.Annotations).NotTo(HaveKey(machinev1.AnnotationKeyMachineEffectiveCreationTimeout))
+					Expect(result.Annotations).NotTo(HaveKey(machinev1.AnnotationKeyMachineReplaceCycleCount))
+				},
+			),
+
+			Entry("machines joined slowly: effective-creation-timeout set to observed max join duration when it exceeds spec default",
+				func(d *machinev1.MachineDeployment) {
+					// effectiveCreationTimeout was previously set
+					d.Annotations[machinev1.AnnotationKeyMachineEffectiveCreationTimeout] = "30m"
+					d.Annotations[machinev1.AnnotationKeyMachineEffectiveCreationTimeoutLastAppliedAt] = now.Add(-35 * time.Minute).Format(time.RFC3339)
+				},
+				func() map[types.UID]*machinev1.MachineList {
+					// m1: created 25m ago, joined 3m ago -> join duration = 22m
+					// m2: created 28m ago, joined 3m ago -> join duration = 25m
+					// max = 25m > specDefault (20m); avg would have been 23m30s
+					return map[types.UID]*machinev1.MachineList{
+						"ms1": {Items: []machinev1.Machine{
+							newMachineInSet("m1", "ms1", 25*time.Minute, machineJoinedCond(now.Add(-3*time.Minute))),
+							newMachineInSet("m2", "ms1", 28*time.Minute, machineJoinedCond(now.Add(-3*time.Minute))),
+						}},
+					}
+				},
+				func(result *machinev1.MachineDeployment) {
+					effectiveTimeout, err := annotations.GetMachineEffectiveCreationTimeout(result)
+					Expect(err).NotTo(HaveOccurred())
+					Expect(effectiveTimeout.Duration).To(Equal(25 * time.Minute))
+				},
+			),
+
+			Entry("machines joined quickly: effective-creation-timeout unchanged when max join duration is below spec default",
+				func(d *machinev1.MachineDeployment) {
+					// effectiveCreationTimeout was previously set
+					d.Annotations[machinev1.AnnotationKeyMachineEffectiveCreationTimeout] = "30m"
+					d.Annotations[machinev1.AnnotationKeyMachineEffectiveCreationTimeoutLastAppliedAt] = now.Add(-35 * time.Minute).Format(time.RFC3339)
+				},
+				func() map[types.UID]*machinev1.MachineList {
+					// m1: created 5m ago, joined 1m ago -> join duration = 4m
+					// m2: created 7m ago, joined 1m ago -> join duration = 6m
+					// max = 6m < specDefault (20m)
+					return map[types.UID]*machinev1.MachineList{
+						"ms1": {Items: []machinev1.Machine{
+							newMachineInSet("m1", "ms1", 5*time.Minute, machineJoinedCond(now.Add(-1*time.Minute))),
+							newMachineInSet("m2", "ms1", 7*time.Minute, machineJoinedCond(now.Add(-1*time.Minute))),
+						}},
+					}
+				},
+				func(result *machinev1.MachineDeployment) {
+					// max(6m, 20m specDefault) = 20m = specDefault, so timeout shrinks to 20m
+					effectiveTimeout, err := annotations.GetMachineEffectiveCreationTimeout(result)
+					Expect(err).NotTo(HaveOccurred())
+					Expect(effectiveTimeout.Duration).To(Equal(20 * time.Minute))
+				},
+			),
+
+			Entry("machines joined after previous timeout increase: effective-creation-timeout reduces to actual max join duration",
+				func(d *machinev1.MachineDeployment) {
+					// MCD previously had timeout grown to 40m; last adjusted 50m ago (cooldown satisfied)
+					d.Annotations[machinev1.AnnotationKeyMachineEffectiveCreationTimeout] = "40m"
+					d.Annotations[machinev1.AnnotationKeyMachineEffectiveCreationTimeoutLastAppliedAt] = now.Add(-50 * time.Minute).Format(time.RFC3339)
+				},
+				func() map[types.UID]*machinev1.MachineList {
+					// m1: created 25m ago, joined 3m ago -> join duration = 22m
+					// m2: created 28m ago, joined 3m ago -> join duration = 25m
+					// max = 25m; avg would have been 23m30s
+					return map[types.UID]*machinev1.MachineList{
+						"ms1": {Items: []machinev1.Machine{
+							newMachineInSet("m1", "ms1", 25*time.Minute, machineJoinedCond(now.Add(-3*time.Minute))),
+							newMachineInSet("m2", "ms1", 28*time.Minute, machineJoinedCond(now.Add(-3*time.Minute))),
+						}},
+					}
+				},
+				func(result *machinev1.MachineDeployment) {
+					effectiveTimeout, err := annotations.GetMachineEffectiveCreationTimeout(result)
+					Expect(err).NotTo(HaveOccurred())
+					// max(25m, 20m specDefault) = 25m — reduced down from 40m
+					Expect(effectiveTimeout.Duration).To(Equal(25 * time.Minute))
+				},
+			),
+
+			Entry("failed join below default replace-cycle-count-threshold threshold: replace-cycle-count increments but timeout unchanged",
+				func(d *machinev1.MachineDeployment) {
+					// window started 25m ago (> default 20m timeout), cycle count starts at 0
+					d.Annotations[machinev1.AnnotationKeyMachineReplaceCycleCountLastAppliedAt] = now.Add(-25 * time.Minute).Format(time.RFC3339)
+				},
+				func() map[types.UID]*machinev1.MachineList {
+					return map[types.UID]*machinev1.MachineList{
+						"ms1": {Items: []machinev1.Machine{
+							newMachineInSet("m1", "ms1", 25*time.Minute,
+								machineFailedJoinCond(now.Add(-2*time.Minute)),
+							),
+						}},
+					}
+				},
+				func(result *machinev1.MachineDeployment) {
+					// replace-cycle-count increased to 1 (below threshold of 2), timeout not written
+					cycleCount, err := annotations.GetMachineReplaceCycleCount(result)
+					Expect(err).NotTo(HaveOccurred())
+					Expect(cycleCount).To(Equal(int32(1)))
+					Expect(result.Annotations).NotTo(HaveKey(machinev1.AnnotationKeyMachineEffectiveCreationTimeout))
+				},
+			),
+
+			Entry("failed joins with per-MachineDeployment replace-cycle-count-threshold override: timeout grows when custom threshold is breached",
+				func(d *machinev1.MachineDeployment) {
+					// Override threshold to 3; cycle count already at 2 — would trigger growth with default threshold (2) but not with 3
+					threshold := int32(3)
+					d.Spec.Template.Spec.MachineConfiguration = &machinev1.MachineConfiguration{
+						MachineReplaceCycleCountThreshold: &threshold,
+					}
+					d.Annotations[machinev1.AnnotationKeyMachineReplaceCycleCount] = "2"
+					d.Annotations[machinev1.AnnotationKeyMachineReplaceCycleCountLastAppliedAt] = now.Add(-25 * time.Minute).Format(time.RFC3339)
+					d.Annotations[machinev1.AnnotationKeyMachineEffectiveCreationTimeoutLastAppliedAt] = now.Add(-50 * time.Minute).Format(time.RFC3339)
+				},
+				func() map[types.UID]*machinev1.MachineList {
+					return map[types.UID]*machinev1.MachineList{
+						"ms1": {Items: []machinev1.Machine{
+							newMachineInSet("m1", "ms1", 25*time.Minute,
+								machineFailedJoinCond(now.Add(-2*time.Minute)),
+							),
+						}},
+					}
+				},
+				func(result *machinev1.MachineDeployment) {
+					// cycle count increments to 3 which equals the overridden threshold, so timeout IS grown: 20m × 1.5 = 30m
+					effectiveTimeout, err := annotations.GetMachineEffectiveCreationTimeout(result)
+					Expect(err).NotTo(HaveOccurred())
+					Expect(effectiveTimeout.Duration).To(Equal(30 * time.Minute))
+					cycleCount, err := annotations.GetMachineReplaceCycleCount(result)
+					Expect(err).NotTo(HaveOccurred())
+					Expect(cycleCount).To(Equal(int32(0)))
+				},
+			),
+
+			Entry("failed joins reach threshold: effective-creation-timeout grows by factor and cycle count resets",
+				func(d *machinev1.MachineDeployment) {
+					// Already at cycle count 1 (threshold=2 means next failure triggers growth)
+					// window started 25m ago which is > current effectiveTimeout (20m default)
+					d.Annotations[machinev1.AnnotationKeyMachineReplaceCycleCount] = "1"
+					d.Annotations[machinev1.AnnotationKeyMachineReplaceCycleCountLastAppliedAt] = now.Add(-25 * time.Minute).Format(time.RFC3339)
+					d.Annotations[machinev1.AnnotationKeyMachineEffectiveCreationTimeoutLastAppliedAt] = now.Add(-50 * time.Minute).Format(time.RFC3339)
+				},
+				func() map[types.UID]*machinev1.MachineList {
+					return map[types.UID]*machinev1.MachineList{
+						"ms1": {Items: []machinev1.Machine{
+							newMachineInSet("m1", "ms1", 25*time.Minute,
+								machineFailedJoinCond(now.Add(-2*time.Minute)),
+							),
+						}},
+					}
+				},
+				func(result *machinev1.MachineDeployment) {
+					// 20m (default) × 1.5 = 30m; cycle count reset to 0
+					effectiveTimeout, err := annotations.GetMachineEffectiveCreationTimeout(result)
+					Expect(err).NotTo(HaveOccurred())
+					Expect(effectiveTimeout.Duration).To(Equal(30 * time.Minute))
+					cycleCount, err := annotations.GetMachineReplaceCycleCount(result)
+					Expect(err).NotTo(HaveOccurred())
+					Expect(cycleCount).To(Equal(int32(0)))
+				},
+			),
+
+			Entry("failed joins reach threshold with per-MachineDeployment growth-percent override: effective-creation-timeout grows by overridden percent",
+				func(d *machinev1.MachineDeployment) {
+					// Override growth percent to 100 (2x) via MachineConfiguration instead of DefaultCreationTimeoutGrowthPercent
+					d.Spec.Template.Spec.MachineConfiguration = &machinev1.MachineConfiguration{
+						MachineCreationTimeoutGrowthPercent: new(int32(100)),
+					}
+					d.Annotations[machinev1.AnnotationKeyMachineReplaceCycleCount] = "1"
+					d.Annotations[machinev1.AnnotationKeyMachineReplaceCycleCountLastAppliedAt] = now.Add(-25 * time.Minute).Format(time.RFC3339)
+					d.Annotations[machinev1.AnnotationKeyMachineEffectiveCreationTimeoutLastAppliedAt] = now.Add(-50 * time.Minute).Format(time.RFC3339)
+				},
+				func() map[types.UID]*machinev1.MachineList {
+					return map[types.UID]*machinev1.MachineList{
+						"ms1": {Items: []machinev1.Machine{
+							newMachineInSet("m1", "ms1", 25*time.Minute,
+								machineFailedJoinCond(now.Add(-2*time.Minute)),
+							),
+						}},
+					}
+				},
+				func(result *machinev1.MachineDeployment) {
+					// 20m (default) × 2.0 (100% growth) = 40m; cycle count reset to 0
+					effectiveTimeout, err := annotations.GetMachineEffectiveCreationTimeout(result)
+					Expect(err).NotTo(HaveOccurred())
+					Expect(effectiveTimeout.Duration).To(Equal(40 * time.Minute))
+					cycleCount, err := annotations.GetMachineReplaceCycleCount(result)
+					Expect(err).NotTo(HaveOccurred())
+					Expect(cycleCount).To(Equal(int32(0)))
+				},
+			),
+
+			Entry("effective-creation-timeout ceiling is at maxCreationTimeout even when growth would exceed it",
+				func(d *machinev1.MachineDeployment) {
+					// Timeout already at the max; cycle count 1 and window elapsed
+					maxTimeout := getMaxCreationTimeout(constants.DefaultMachineCreationTimeout)
+					d.Annotations[machinev1.AnnotationKeyMachineEffectiveCreationTimeout] = maxTimeout.String()
+					d.Annotations[machinev1.AnnotationKeyMachineEffectiveCreationTimeoutLastAppliedAt] = now.Add(-maxTimeout - time.Minute).Format(time.RFC3339)
+					d.Annotations[machinev1.AnnotationKeyMachineReplaceCycleCount] = "1"
+					d.Annotations[machinev1.AnnotationKeyMachineReplaceCycleCountLastAppliedAt] = now.Add(-maxTimeout - time.Minute).Format(time.RFC3339)
+				},
+				func() map[types.UID]*machinev1.MachineList {
+					maxTimeout := getMaxCreationTimeout(constants.DefaultMachineCreationTimeout)
+					return map[types.UID]*machinev1.MachineList{
+						"ms1": {Items: []machinev1.Machine{
+							newMachineInSet("m1", "ms1", maxTimeout+time.Minute,
+								machineFailedJoinCond(now.Add(-2*time.Minute)),
+							),
+						}},
+					}
+				},
+				func(result *machinev1.MachineDeployment) {
+					maxTimeout := getMaxCreationTimeout(constants.DefaultMachineCreationTimeout)
+					effectiveTimeout, err := annotations.GetMachineEffectiveCreationTimeout(result)
+					Expect(err).NotTo(HaveOccurred())
+					// already at cap — growth factor would exceed it, so stays at cap
+					Expect(effectiveTimeout.Duration).To(Equal(maxTimeout))
+				},
+			),
+
+			Entry("no machine activity for max-timeout window: all adjust annotations are cleared",
+				func(d *machinev1.MachineDeployment) {
+					// Timeout was previously grown; last applied more than maxCreationTimeout ago
+					maxTimeout := getMaxCreationTimeout(constants.DefaultMachineCreationTimeout)
+					d.Annotations[machinev1.AnnotationKeyMachineEffectiveCreationTimeout] = "30m"
+					d.Annotations[machinev1.AnnotationKeyMachineEffectiveCreationTimeoutLastAppliedAt] = now.Add(-maxTimeout - time.Minute).Format(time.RFC3339)
+					d.Annotations[machinev1.AnnotationKeyMachineReplaceCycleCount] = "1"
+					d.Annotations[machinev1.AnnotationKeyMachineReplaceCycleCountLastAppliedAt] = now.Add(-maxTimeout - time.Minute).Format(time.RFC3339)
+				},
+				func() map[types.UID]*machinev1.MachineList {
+					return map[types.UID]*machinev1.MachineList{}
+				},
+				func(result *machinev1.MachineDeployment) {
+					Expect(result.Annotations).NotTo(HaveKey(machinev1.AnnotationKeyMachineEffectiveCreationTimeout))
+					Expect(result.Annotations).NotTo(HaveKey(machinev1.AnnotationKeyMachineEffectiveCreationTimeoutLastAppliedAt))
+					Expect(result.Annotations).NotTo(HaveKey(machinev1.AnnotationKeyMachineReplaceCycleCount))
+					Expect(result.Annotations).NotTo(HaveKey(machinev1.AnnotationKeyMachineReplaceCycleCountLastAppliedAt))
+				},
+			),
+		)
+	})
 })
+
+func machineJoinedCond(lastTransition time.Time) corev1.NodeCondition {
+	return corev1.NodeCondition{
+		Type:               machinev1.ConditionMachineJoined,
+		Status:             corev1.ConditionTrue,
+		LastTransitionTime: metav1.Time{Time: lastTransition},
+	}
+}
+
+func machineFailedJoinCond(lastTransition time.Time) corev1.NodeCondition {
+	return corev1.NodeCondition{
+		Type:               machinev1.ConditionMachineJoined,
+		Status:             corev1.ConditionFalse,
+		Reason:             codes.FailedJoin.String(),
+		LastTransitionTime: metav1.Time{Time: lastTransition},
+	}
+}

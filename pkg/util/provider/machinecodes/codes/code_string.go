@@ -64,6 +64,8 @@ func (c Code) String() string {
 		return "Unauthenticated"
 	case Uninitialized:
 		return "Uninitialized"
+	case FailedJoin:
+		return "FailedJoin"
 	default:
 		return "Code(" + strconv.FormatInt(int64(c), 10) + ")"
 	}

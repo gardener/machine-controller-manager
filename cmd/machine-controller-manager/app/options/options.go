@@ -67,9 +67,11 @@ func NewMCMServer() *MCMServer {
 			ControllerStartInterval: metav1.Duration{Duration: 0 * time.Second},
 			AutoscalerScaleDownAnnotationDuringRollout: true,
 			SafetyOptions: machineconfig.SafetyOptions{
-				SafetyUp:                        2,
-				SafetyDown:                      1,
-				MachineSafetyOvershootingPeriod: metav1.Duration{Duration: 1 * time.Minute},
+				SafetyUp:                            2,
+				SafetyDown:                          1,
+				MachineSafetyOvershootingPeriod:     metav1.Duration{Duration: 1 * time.Minute},
+				MachineReplaceCycleCountThreshold:   constants.DefaultMachineReplaceCycleCountThreshold,
+				MachineCreationTimeoutGrowthPercent: constants.DefaultCreationTimeoutGrowthPercent,
 			},
 		},
 	}
@@ -98,6 +100,8 @@ func (s *MCMServer) AddFlags(fs *pflag.FlagSet) {
 	fs.Int32Var(&s.SafetyOptions.SafetyDown, "safety-down", s.SafetyOptions.SafetyDown, "Upper-limit minus safety-down value gives the lower-limit. This is the limits below which any temporarily frozen machineSet/machineDeployment object is unfrozen. lower-limit = desired + maxSurge (if applicable) + safetyUp - safetyDown.")
 
 	fs.DurationVar(&s.SafetyOptions.MachineSafetyOvershootingPeriod.Duration, "machine-safety-overshooting-period", s.SafetyOptions.MachineSafetyOvershootingPeriod.Duration, "Time period (in duration) used to poll for overshooting of machine objects backing a machineSet by safety controller.")
+	fs.Int32Var(&s.SafetyOptions.MachineReplaceCycleCountThreshold, "machine-replace-cycle-count-threshold", s.SafetyOptions.MachineReplaceCycleCountThreshold, "Number of consecutive Machine replace cycles with join failures required before the effective-creation-timeout is grown for a MachineDeployment. Must be >= 2.")
+	fs.Int32Var(&s.SafetyOptions.MachineCreationTimeoutGrowthPercent, "machine-creation-timeout-growth-percent", s.SafetyOptions.MachineCreationTimeoutGrowthPercent, "Percentage by which the effective-creation-timeout is grown when the replace-cycle-count threshold is breached within a MachineDeployment (e.g. 50 means grow by 50%). Must be > 0.")
 
 	fs.BoolVar(&s.AutoscalerScaleDownAnnotationDuringRollout, "autoscaler-scaledown-annotation-during-rollout", true, "Add cluster autoscaler scale-down disabled annotation during roll-out.")
 
@@ -146,6 +150,12 @@ func (s *MCMServer) Validate() error {
 	}
 	if s.SafetyOptions.MachineSafetyOvershootingPeriod.Duration < 0 {
 		errs = append(errs, fmt.Errorf("machine safety overshooting period should be a non negative number: got: %v", s.SafetyOptions.MachineSafetyOvershootingPeriod.Duration))
+	}
+	if s.SafetyOptions.MachineReplaceCycleCountThreshold < 2 {
+		errs = append(errs, fmt.Errorf("machine-replace-cycle-count-threshold must be >= 2: got: %d", s.SafetyOptions.MachineReplaceCycleCountThreshold))
+	}
+	if s.SafetyOptions.MachineCreationTimeoutGrowthPercent <= 0 {
+		errs = append(errs, fmt.Errorf("machine-creation-timeout-growth-percent must be > 0 (a value <= 0 would never grow the effective-creation-timeout): got: %d", s.SafetyOptions.MachineCreationTimeoutGrowthPercent))
 	}
 	if s.ControlKubeconfig == "" && s.TargetKubeconfig == constants.TargetKubeconfigDisabledValue {
 		errs = append(errs, fmt.Errorf("--control-kubeconfig cannot be empty if --target-kubeconfig=%s is specified", constants.TargetKubeconfigDisabledValue))

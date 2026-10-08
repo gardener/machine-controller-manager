@@ -78,6 +78,14 @@ type SafetyOptions struct {
 	// Period (in durartion) used to poll for overshooting
 	// of machine objects backing a machineSet by safety controller
 	MachineSafetyOvershootingPeriod metav1.Duration
+
+	// MachineReplaceCycleCountThreshold represents the threshold value for the Machine replace cycles belonging to a
+	// MachineDeployment following which the effective-creation-timeout is grown.
+	MachineReplaceCycleCountThreshold int32
+
+	// MachineCreationTimeoutGrowthPercent is the percentage by which the effective-creation-timeout is grown when
+	// the MachineReplaceCycleCountThreshold is breached (e.g. 50 means grow by 50%, equivalent to a 1.5× factor).
+	MachineCreationTimeoutGrowthPercent int32
 }
 
 // LeaderElectionConfiguration defines the configuration of leader election
