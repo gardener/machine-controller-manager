@@ -48,24 +48,32 @@ This would be achieved by having 'defined' injection points in the `Driver` meth
 
 One can enable the required modifications/injections via the simulator configuration. Any parameters (if required) for the modification can also be specified in the configuration.
 
-```json
-{
-  "create": {
-    "minDelay": "10s",
-    "maxDelay": "30s",
-    "percentageOfMachines": "10%"
-  },
-  "delete": {
-    "rateLimitError": {
-      "errorDuration": "2m"
-    }
-    "percentageOfMachines": "40%"
-  },
-  "instanceQuota": {
-    "m5.xlarge": 20
-  }
-}
+```yaml
+instanceQuota:
+  m5.xlarge: 20
+  c5.large: 6
+join:
+  - targets:
+      mcd-a: 1
+      mcd-b: 4
+    delay:
+    - "1m"
+  - targets:
+      mcd-c: 2
+    delay:
+    - "30s"
+create:
+  - targets:
+      mcd-a: 3
+    delay:
+    - "1m"
+    - "3m"
+    error:
+      error: "ResourceExhausted"
+      duration: "2m"
 ```
+
+If the corresponding cluster has the `sim-config.yaml` file present in its tree, its used by the `clustersim start` command to run the driver calls with the specified hook operations.
 
 ### Integration with MCM
 
@@ -78,18 +86,9 @@ pkg/simulatedprovider:
   - main.go 
   provider/
   - driver.go # Driver Interface Implementation
+  - hooks.go # Simulation hooks and configuration
   cluster/
   - cluster.go # Utility to setup and destroy clusters
-  provider/simulation/
-  - simulation.go
-  - config.go
-  provider/simulation/injections/
-  - create.go
-  - node_join.go
-  - initialize.go
-  - delete.go
-  - list.go
-  - machine_status.go
   test/integration/controller/
   - controller_suite_test.go
   - controller_test.go
@@ -123,7 +122,7 @@ While the `provider-simulation` and the virtual cluster setup is enough for IT s
      + mcc.yaml
      + mcd.yaml
      ```
-   - Additionally the `setup` would also build the required binaries for `mcm` and `mc-provider-simulation` (in `gen/bin` directories, using their corresponding `make build` targets) which can later be used when running the testing environment.
+   - Additionally the `setup` would also build the required binaries for `mcm` and `mcm-provider-simulator` (in `gen/bin` directories, using their corresponding `make build` targets) which can later be used when running the testing environment.
      
 2. Alternatively, to make the developer experience easier, in future the `clustersim` command could have a subcommand to accept cluster info; which can be used to automatically fetch the required MCC and MCD and then setup the cluster directory with the files as explained above. Usage for gardener clusters could look like: `clustersim copyshoot <demo-cluster> --landscape --project --shoot`.
 
