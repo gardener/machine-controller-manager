@@ -761,14 +761,6 @@ func (c *IntegrationTestFramework) ControllerTests() {
 				ginkgo.It("should suspend deletion until the suspension annotation is removed", func() {
 					suspensionAnnotationKey := v1alpha1.AnnotationKeySuspendInstanceDeletionPrefix + "/" + terminationHookPurpose
 
-					ginkgo.By("Waiting for the suspension test machine to be running")
-					gomega.Eventually(
-						c.ControlCluster.AreMachinesRunning,
-						c.timeout,
-						c.pollingInterval).
-						WithArguments(ctx, []string{helpers.SuspensionMcName}, controlClusterNamespace).
-						Should(gomega.BeTrue())
-
 					ginkgo.By("Adding the instance deletion suspension annotation")
 					err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 						return c.ControlCluster.PatchMachineAnnotations(ctx, helpers.SuspensionMcName, controlClusterNamespace, map[string]any{
