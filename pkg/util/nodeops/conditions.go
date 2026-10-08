@@ -150,6 +150,9 @@ func NodeConditionsHaveChanged(oldConditions []v1.NodeCondition, newConditions [
 
 	// checking for any deleted condition
 	for _, c := range oldConditions {
+		if IsPureMachineCondition(c.Type) {
+			continue
+		}
 		if _, exists := newConditionsByType[c.Type]; !exists {
 			removedConditions = append(removedConditions, c)
 		}
