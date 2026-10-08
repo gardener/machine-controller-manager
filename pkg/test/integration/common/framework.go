@@ -660,7 +660,7 @@ func (c *IntegrationTestFramework) SetupBeforeSuite() {
 	log.Println("orphan resource tracker initialized")
 }
 
-// BeforeEachCheck checks if all the nodes are ready and the controllers are runnings
+// BeforeEachCheck checks if the controllers are running
 func (c *IntegrationTestFramework) BeforeEachCheck() {
 	ginkgo.BeforeEach(func() {
 		ginkgo.By("Checking machineController process is running")
