@@ -343,10 +343,15 @@ func (c *controller) reconcileClusterMachineTermination(key string) error {
 	defer klog.V(2).Infof("reconcileClusterMachineTermination: Stop for %q", machine.Name)
 
 	machineClass, secretData, retry, err := c.ValidateMachineClass(ctx, &machine.Spec.Class)
-	if err != nil {
+	if err != nil && !apierrors.IsNotFound(err) {
 		klog.Errorf("cannot reconcile machine %q: %s", machine.Name, err)
 		c.enqueueMachineTerminationAfter(machine, time.Duration(retry), err.Error())
 		return nil
+	}
+	if apierrors.IsNotFound(err) {
+		// Credentials lived on the MachineClass. Retrying cannot recreate them, so finish
+		// Kubernetes cleanup and leave the provider VM in place.
+		klog.Warningf("MachineClass %s/%s for machine %q with providerID %q not found. Continuing Kubernetes cleanup and leaving the provider VM in place", c.namespace, machine.Spec.Class.Name, machine.Name, machine.Spec.ProviderID)
 	}
 
 	// Process a delete event
