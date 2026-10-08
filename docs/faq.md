@@ -201,7 +201,7 @@ This will take effect for any newly launched Machine(s) belonging to this `Machi
 
 MCM tracks _replace cycles_ per `MachineDeployment`, where each cycle is where at least one machine failed to join within the effective creation timeout. Once the number of such cycles within a window reaches the threshold set by `--machine-replace-cycle-count-threshold` (default: `2`), MCM grows the effective creation timeout by the percentage set by `--machine-creation-timeout-growth-percent` (default: `50`, i.e. a 1.5× factor). The timeout ceiling is at `specTimeout × (1 + growthPercent/100)^4` and the cycle counter resets to 0, so breaching the threshold again is required before the next growth step.
 
-The timeout shrinks back towards the spec timeout once at least 2 machines join successfully within the current timeout window. If no machines join or fail for a full max-timeout window (i.e. the MachineDeployment is idle), all adjustment annotations are cleared and the timeout resets to the spec value.
+The timeout shrinks back towards the spec timeout once at least 2 machines join successfully within the current timeout window, setting the effective timeout to `max(specTimeout, maxJoinDurationInWindow)`. Using the maximum join duration (rather than average) keeps the annotation stable and minimises etcd writes. If no machines join or fail for a full max-timeout window (i.e. the MachineDeployment is idle), all adjustment annotations are cleared and the timeout resets to the spec value.
 
 The state is persisted as annotations on the `MachineDeployment`. Both thresholds can be overridden per `MachineDeployment` via `.spec.template.spec.machineConfiguration`:
 
