@@ -244,24 +244,16 @@ const (
 	UpdateFailed string = "UpdateFailed"
 )
 
+// The following are constants used in the NodePreserved node condition
 const (
-	// NodePreserved is a node condition type for preservation of machines to allow end-user to know that a node is preserved
+	// NodePreserved is a node condition type for node preservation.
 	NodePreserved corev1.NodeConditionType = "Preserved"
 
-	// PreservedByMCM is a node condition reason for preservation of machines to indicate that the node is auto-preserved by MCM
-	PreservedByMCM string = "Preserved by MCM."
+	// AutoPreserved is a constant for Reason in the node condition of type NodePreserved, to indicate that the node has been auto-preserved by MCM.
+	AutoPreserved string = "AutoPreserved"
 
-	// PreservedByUser is a node condition reason to indicate that a machine/node has been preserved due to explicit annotation by user
-	PreservedByUser string = "Preserved by user."
-
-	// PreservationStopped is a node condition reason to indicate that a machine/node preservation has been stopped due to annotation update or timeout
-	PreservationStopped string = "Preservation stopped."
-
-	// PreservedNodeDrainSuccessful is a constant for the message in condition that indicates that the preserved node's drain is successful
-	PreservedNodeDrainSuccessful string = "Preserved node drained successfully."
-
-	// PreservedNodeDrainUnsuccessful is a constant for the message in condition that indicates that the preserved node's drain was not successful
-	PreservedNodeDrainUnsuccessful string = "Preserved node could not be drained."
+	// PreservedByUser is a constant for Reason in the node condition of type NodePreserved, to indicate that the node has been preserved due to explicit annotation by user.
+	PreservedByUser string = "PreservedByUser"
 )
 
 // CurrentStatus contains information about the current status of Machine.

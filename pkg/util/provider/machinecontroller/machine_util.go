@@ -2582,7 +2582,7 @@ func computeNewNodePreservedCondition(currentStatus v1alpha1.CurrentStatus, pres
 		needsUpdate = true
 	}
 	if preserveValue == machineutils.PreserveMachineAnnotationValueAutoPreserved {
-		newNodePreservedCondition.Reason = v1alpha1.PreservedByMCM
+		newNodePreservedCondition.Reason = v1alpha1.AutoPreserved
 	} else {
 		newNodePreservedCondition.Reason = v1alpha1.PreservedByUser
 	}
