@@ -1,0 +1,34 @@
+apiVersion: machine.sapcloud.io/v1alpha1
+kind: MachineDeployment
+metadata:
+  finalizers:
+  - machine.sapcloud.io/machine-controller-manager
+  name: {{.ClusterName}}-mcd-{{.Instance}}-{{.Zone}}
+  namespace: default
+spec:
+  minReadySeconds: 500
+  replicas: 1
+  revisionHistoryLimit: 0
+  selector:
+    matchLabels:
+      name: {{.ClusterName}}-mcd-{{.Instance}}-{{.Zone}}
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        name: {{.ClusterName}}-mcd-{{.Instance}}-{{.Zone}}
+    spec:
+      class:
+        kind: MachineClass
+        name: {{.ClusterName}}-mcc-{{.Instance}}-{{.Zone}}
+      nodeTemplate:
+        metadata:
+          labels:
+            kubernetes.io/arch: {{.Arch}}
+            node.kubernetes.io/role: node
+            topology.ebs.csi.aws.com/zone: {{.Zone}}
+            topology.kubernetes.io/zone: {{.Zone}}

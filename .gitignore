@@ -6,7 +6,6 @@
 /test
 /logs
 /hack/tools/bin
-/pkg/simulatedprovider/bin
 
 *.html
 .vscode
