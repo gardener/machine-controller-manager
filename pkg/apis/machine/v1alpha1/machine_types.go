@@ -256,6 +256,21 @@ const (
 	PreservedByUser string = "PreservedByUser"
 )
 
+// The following are constants used in the NodeDrained node condition
+const (
+	// NodeDrained is a node condition type for node drain.
+	NodeDrained corev1.NodeConditionType = "Drained" // TODO: this condition should be removed once k8s dependency is upgraded to 1.37. The NodeDrained condition type is already present in k8s 1.37 and above.
+
+	// DrainStarted is a constant for Reason in the node condition of type NodeDrained, to indicate that the node drain has started.
+	DrainStarted string = "DrainStarted"
+
+	// DrainFailed is a constant for Reason in the node condition of type NodeDrained, to indicate that the node drain has failed.
+	DrainFailed string = "DrainFailed"
+
+	// DrainCompleted is a constant for Reason in the node condition of type NodeDrained, to indicate that the node drain has completed successfully.
+	DrainCompleted string = "DrainCompleted"
+)
+
 // CurrentStatus contains information about the current status of Machine.
 type CurrentStatus struct {
 	Phase MachinePhase `json:"phase,omitempty"`
