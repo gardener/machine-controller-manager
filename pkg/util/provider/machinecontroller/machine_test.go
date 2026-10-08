@@ -3606,6 +3606,226 @@ var _ = Describe("machine", func() {
 		)
 	})
 
+	Describe("terminating machine whose MachineClass is missing", func() {
+		const (
+			driverFailure = "injected-driver-failure"
+			absentClass   = "absent-class"
+			presentClass  = "machine-0"
+			nodeName      = "fakeID-0"
+		)
+
+		objMeta := &metav1.ObjectMeta{
+			GenerateName: "machine",
+			Namespace:    testNamespace,
+		}
+
+		newTerminatingMachine := func(className, description, labeledNode string) *v1alpha1.Machine {
+			labels := map[string]string{}
+			if labeledNode != "" {
+				labels[v1alpha1.NodeLabelKey] = labeledNode
+			}
+			return newMachines(
+				1,
+				&v1alpha1.MachineTemplateSpec{
+					ObjectMeta: *newObjectMeta(objMeta, 0),
+					Spec: v1alpha1.MachineSpec{
+						Class: v1alpha1.ClassSpec{
+							Kind: "MachineClass",
+							Name: className,
+						},
+						ProviderID: "fakeID",
+					},
+				},
+				&v1alpha1.MachineStatus{
+					CurrentStatus: v1alpha1.CurrentStatus{
+						Phase:          v1alpha1.MachineTerminating,
+						LastUpdateTime: metav1.Now(),
+					},
+					LastOperation: v1alpha1.LastOperation{
+						Description:    description,
+						State:          v1alpha1.MachineStateProcessing,
+						Type:           v1alpha1.MachineOperationDelete,
+						LastUpdateTime: metav1.Now(),
+					},
+				},
+				nil,
+				nil,
+				labels,
+				true,
+				metav1.Now(),
+			)[0]
+		}
+
+		matchingNode := func() *corev1.Node {
+			return &corev1.Node{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: nodeName,
+					Finalizers: []string{
+						NodeFinalizerName,
+					},
+				},
+			}
+		}
+
+		start := func(machine *v1alpha1.Machine, classes []runtime.Object, nodes []runtime.Object, fakeDriver *driver.FakeDriver) (*controller, func()) {
+			stop := make(chan struct{})
+			machineObjects := append([]runtime.Object{machine}, classes...)
+			c, trackers := createController(stop, testNamespace, machineObjects, nil, nodes, fakeDriver, false)
+			waitForCacheSync(stop, c)
+			return c, func() {
+				trackers.Stop()
+				close(stop)
+			}
+		}
+
+		reconcileTermination := func(c *controller, machine *v1alpha1.Machine) *v1alpha1.Machine {
+			key, err := cache.MetaNamespaceKeyFunc(machine)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(c.reconcileClusterMachineTermination(key)).NotTo(HaveOccurred())
+
+			updated, err := c.controlMachineClient.Machines(testNamespace).Get(context.TODO(), machine.Name, metav1.GetOptions{})
+			Expect(err).NotTo(HaveOccurred())
+			return updated
+		}
+
+		It("skips provider VM deletion and moves on to node deletion", func() {
+			machine := newTerminatingMachine(absentClass, fmt.Sprintf("Drain successful. %s", machineutils.InitiateVMDeletion), nodeName)
+			fakeDriver := &driver.FakeDriver{
+				VMExists: true,
+				Err:      errors.New(driverFailure),
+			}
+
+			c, stop := start(machine, nil, []runtime.Object{matchingNode()}, fakeDriver)
+			defer stop()
+
+			updated := reconcileTermination(c, machine)
+			Expect(updated.Status.CurrentStatus.Phase).To(Equal(v1alpha1.MachineTerminating))
+			Expect(updated.Status.LastOperation.State).To(Equal(v1alpha1.MachineStateProcessing))
+			Expect(updated.Status.LastOperation.Description).To(ContainSubstring(machineutils.InitiateNodeDeletion))
+			Expect(updated.Status.LastOperation.Description).NotTo(ContainSubstring(machineutils.GetVMStatus))
+			Expect(updated.Status.LastOperation.Description).NotTo(ContainSubstring(machineutils.InitiateDrain))
+			Expect(updated.Status.LastOperation.Description).NotTo(ContainSubstring(machineutils.DelVolumesAttachments))
+			Expect(updated.Status.LastOperation.Description).NotTo(ContainSubstring(machineutils.InitiateVMDeletion))
+			Expect(updated.Status.LastOperation.Description).To(ContainSubstring(absentClass))
+			Expect(updated.Status.LastOperation.Description).To(ContainSubstring(machine.Spec.ProviderID))
+			Expect(fakeDriver.VMExists).To(BeTrue())
+
+			_, nodeErr := c.targetCoreClient.CoreV1().Nodes().Get(context.TODO(), nodeName, metav1.GetOptions{})
+			Expect(nodeErr).NotTo(HaveOccurred())
+		})
+
+		It("deletes the Node once VM deletion has been skipped", func() {
+			machine := newTerminatingMachine(absentClass, fmt.Sprintf("VM deletion was successful. %s", machineutils.InitiateNodeDeletion), nodeName)
+			fakeDriver := &driver.FakeDriver{VMExists: true, Err: errors.New(driverFailure)}
+
+			c, stop := start(machine, nil, []runtime.Object{matchingNode()}, fakeDriver)
+			defer stop()
+
+			updated := reconcileTermination(c, machine)
+			Expect(updated.Status.LastOperation.Description).To(ContainSubstring(machineutils.InitiateFinalizerRemoval))
+
+			_, nodeErr := c.targetCoreClient.CoreV1().Nodes().Get(context.TODO(), nodeName, metav1.GetOptions{})
+			Expect(apierrors.IsNotFound(nodeErr)).To(BeTrue())
+		})
+
+		It("removes the MCM finalizer once the Node is gone", func() {
+			description := fmt.Sprintf("Deletion of Node Object %q is successful. %s", nodeName, machineutils.InitiateFinalizerRemoval)
+			machine := newTerminatingMachine(absentClass, description, nodeName)
+			fakeDriver := &driver.FakeDriver{VMExists: true, Err: errors.New(driverFailure)}
+
+			c, stop := start(machine, nil, nil, fakeDriver)
+			defer stop()
+
+			updated := reconcileTermination(c, machine)
+			Expect(updated.Finalizers).NotTo(ContainElement(MCMFinalizerName))
+		})
+
+		It("does not call GetMachineStatus when the node label is empty", func() {
+			machine := newTerminatingMachine(absentClass, machineutils.GetVMStatus, "")
+			fakeDriver := &driver.FakeDriver{
+				VMExists: true,
+				Err:      errors.New(driverFailure),
+			}
+
+			c, stop := start(machine, nil, nil, fakeDriver)
+			defer stop()
+
+			updated := reconcileTermination(c, machine)
+			Expect(updated.Status.LastOperation.Description).To(ContainSubstring(machineutils.InitiateDrain))
+			Expect(updated.Status.LastOperation.Description).NotTo(ContainSubstring(driverFailure))
+			Expect(updated.Status.LastOperation.Description).NotTo(ContainSubstring(machineutils.GetVMStatus))
+			Expect(updated.Status.LastOperation.State).To(Equal(v1alpha1.MachineStateProcessing))
+			Expect(fakeDriver.VMExists).To(BeTrue())
+		})
+
+		It("keeps retrying when the MachineClass exists without the MCM finalizer", func() {
+			description := fmt.Sprintf("Drain successful. %s", machineutils.InitiateVMDeletion)
+			machine := newTerminatingMachine(presentClass, description, nodeName)
+			class := &v1alpha1.MachineClass{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      presentClass,
+					Namespace: testNamespace,
+				},
+			}
+			fakeDriver := &driver.FakeDriver{VMExists: true}
+
+			c, stop := start(machine, []runtime.Object{class}, []runtime.Object{matchingNode()}, fakeDriver)
+			defer stop()
+
+			updated := reconcileTermination(c, machine)
+			Expect(updated.Status.LastOperation.Description).To(Equal(description))
+			Expect(updated.Finalizers).To(ContainElement(MCMFinalizerName))
+			Expect(fakeDriver.VMExists).To(BeTrue())
+		})
+
+		It("keeps creation reconcile fail-closed when the MachineClass is missing", func() {
+			machine := newMachines(
+				1,
+				&v1alpha1.MachineTemplateSpec{
+					ObjectMeta: *newObjectMeta(objMeta, 0),
+					Spec: v1alpha1.MachineSpec{
+						Class: v1alpha1.ClassSpec{
+							Kind: "MachineClass",
+							Name: absentClass,
+						},
+						ProviderID: "fakeID",
+					},
+				},
+				&v1alpha1.MachineStatus{
+					CurrentStatus: v1alpha1.CurrentStatus{
+						Phase:          v1alpha1.MachineRunning,
+						LastUpdateTime: metav1.Now(),
+					},
+				},
+				nil,
+				nil,
+				map[string]string{
+					v1alpha1.NodeLabelKey: nodeName,
+				},
+				true,
+				metav1.Now(),
+			)[0]
+			machine.DeletionTimestamp = nil
+
+			fakeDriver := &driver.FakeDriver{VMExists: true, Err: errors.New(driverFailure)}
+			c, stop := start(machine, nil, nil, fakeDriver)
+			defer stop()
+
+			stored, err := c.controlMachineClient.Machines(testNamespace).Get(context.TODO(), machine.Name, metav1.GetOptions{})
+			Expect(err).NotTo(HaveOccurred())
+			Expect(stored.DeletionTimestamp).To(BeNil())
+
+			_, err = c.reconcileClusterMachine(context.TODO(), stored)
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("not found"))
+
+			updated, err := c.controlMachineClient.Machines(testNamespace).Get(context.TODO(), machine.Name, metav1.GetOptions{})
+			Expect(err).NotTo(HaveOccurred())
+			Expect(updated.Status.CurrentStatus.Phase).NotTo(Equal(v1alpha1.MachineTerminating))
+			Expect(updated.Status.CurrentStatus.Phase).To(Equal(v1alpha1.MachineRunning))
+		})
+	})
+
 	Describe("#pendingMachineCreationMap tests", func() {
 		type setup struct {
 			secrets             []*corev1.Secret

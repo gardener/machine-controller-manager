@@ -1334,6 +1334,12 @@ func (c *controller) updateMachineStatusAndNodeLabel(ctx context.Context, getMac
 		retry = machineutils.ShortRetry
 	} else if nodeName != "" {
 		isNodeLabelUpdated = true
+	} else if getMachineStatusRequest.MachineClass == nil {
+		// Credentials lived on the MachineClass, so the driver cannot be called.
+		description = fmt.Sprintf("MachineClass %q for machine %q is missing. Skipping provider lookup for providerID %q. %s", getMachineStatusRequest.Machine.Spec.Class.Name, getMachineStatusRequest.Machine.Name, getProviderID(getMachineStatusRequest.Machine), machineutils.InitiateDrain)
+		state = v1alpha1.MachineStateProcessing
+		retry = machineutils.ShortRetry
+		err = fmt.Errorf("machine deletion in process. %s", description)
 	} else {
 		// Figure out node label either by checking all nodes for label matching machine name or retrieving it using GetMachineStatus
 		nodeName, err = c.getNodeName(ctx, getMachineStatusRequest)
@@ -1848,55 +1854,72 @@ func (c *controller) deleteNodeVolAttachments(ctx context.Context, deleteMachine
 // deleteVM attempts to delete the VM backed by the machine object
 func (c *controller) deleteVM(ctx context.Context, deleteMachineRequest *driver.DeleteMachineRequest) (machineutils.RetryPeriod, error) {
 	var (
-		machine        = deleteMachineRequest.Machine
-		retryRequired  machineutils.RetryPeriod
-		description    string
-		state          v1alpha1.MachineState
-		lastKnownState string
-		deleteDuration time.Duration
+		machine               = deleteMachineRequest.Machine
+		retryRequired         machineutils.RetryPeriod
+		description           string
+		state                 v1alpha1.MachineState
+		lastKnownState        string
+		deleteDuration        time.Duration
+		deleteMachineResponse *driver.DeleteMachineResponse
+		err                   error
 	)
 
-	deleteMachineResponse, err := c.driver.DeleteMachine(ctx, deleteMachineRequest)
-	if err != nil {
+	// Credentials lived on the MachineClass. With the class gone the provider VM cannot be deleted.
+	if deleteMachineRequest.MachineClass == nil {
+		retryRequired = machineutils.ShortRetry
+		description = fmt.Sprintf("MachineClass %q for machine %q no longer exists. Leaving provider VM with providerID %q in place. %s", machine.Spec.Class.Name, machine.Name, getProviderID(machine), machineutils.InitiateNodeDeletion)
+		state = v1alpha1.MachineStateProcessing
+		lastKnownState = machine.Status.LastKnownState
+		err = fmt.Errorf("Machine deletion in process. %s", description)
+		klog.Warning(description)
+	} else {
+		deleteMachineResponse, err = c.driver.DeleteMachine(ctx, deleteMachineRequest)
+		if err != nil {
 
-		klog.Errorf("Error while deleting machine %s: %s", machine.Name, err)
+			klog.Errorf("Error while deleting machine %s: %s", machine.Name, err)
 
-		if machineErr, ok := status.FromError(err); ok {
-			switch machineErr.Code() {
-			case codes.Unknown, codes.DeadlineExceeded, codes.Aborted, codes.Unavailable:
-				retryRequired = machineutils.ShortRetry
-				description = fmt.Sprintf("VM deletion failed due to - %s. However, will re-try in the next resync. %s", err.Error(), machineutils.InitiateVMDeletion)
-				state = v1alpha1.MachineStateFailed
-			case codes.NotFound:
-				retryRequired = machineutils.ShortRetry
-				description = fmt.Sprintf("VM not found. Continuing deletion flow. %s", machineutils.InitiateNodeDeletion)
-				state = v1alpha1.MachineStateProcessing
-			default:
+			if machineErr, ok := status.FromError(err); ok {
+				switch machineErr.Code() {
+				case codes.Unknown, codes.DeadlineExceeded, codes.Aborted, codes.Unavailable:
+					retryRequired = machineutils.ShortRetry
+					description = fmt.Sprintf("VM deletion failed due to - %s. However, will re-try in the next resync. %s", err.Error(), machineutils.InitiateVMDeletion)
+					state = v1alpha1.MachineStateFailed
+				case codes.NotFound:
+					retryRequired = machineutils.ShortRetry
+					description = fmt.Sprintf("VM not found. Continuing deletion flow. %s", machineutils.InitiateNodeDeletion)
+					state = v1alpha1.MachineStateProcessing
+				default:
+					retryRequired = machineutils.LongRetry
+					description = fmt.Sprintf("VM deletion failed due to - %s. Aborting operation. %s", err.Error(), machineutils.InitiateVMDeletion)
+					state = v1alpha1.MachineStateFailed
+				}
+			} else {
 				retryRequired = machineutils.LongRetry
-				description = fmt.Sprintf("VM deletion failed due to - %s. Aborting operation. %s", err.Error(), machineutils.InitiateVMDeletion)
+				description = fmt.Sprintf("Error occurred while decoding machine error: %s. %s", err.Error(), machineutils.InitiateVMDeletion)
 				state = v1alpha1.MachineStateFailed
 			}
+
 		} else {
-			retryRequired = machineutils.LongRetry
-			description = fmt.Sprintf("Error occurred while decoding machine error: %s. %s", err.Error(), machineutils.InitiateVMDeletion)
-			state = v1alpha1.MachineStateFailed
+			retryRequired = machineutils.ShortRetry
+			description = fmt.Sprintf("VM deletion was successful. %s", machineutils.InitiateNodeDeletion)
+			state = v1alpha1.MachineStateProcessing
+
+			if machine.DeletionTimestamp != nil {
+				deleteDuration = time.Since(machine.DeletionTimestamp.Time)
+				metrics.UpdateMetricsForMachineDurations(machine, deleteMachineRequest.MachineClass, metrics.MachineDurations{Delete: deleteDuration})
+			}
+
+			err = fmt.Errorf("Machine deletion in process. %s", description)
 		}
 
-	} else {
-		retryRequired = machineutils.ShortRetry
-		description = fmt.Sprintf("VM deletion was successful. %s", machineutils.InitiateNodeDeletion)
-		state = v1alpha1.MachineStateProcessing
-
-		if machine.DeletionTimestamp != nil {
-			deleteDuration = time.Since(machine.DeletionTimestamp.Time)
-			metrics.UpdateMetricsForMachineDurations(machine, deleteMachineRequest.MachineClass, metrics.MachineDurations{Delete: deleteDuration})
+		if deleteMachineResponse != nil && deleteMachineResponse.LastKnownState != "" {
+			lastKnownState = deleteMachineResponse.LastKnownState
 		}
-
-		err = fmt.Errorf("Machine deletion in process. %s", description)
 	}
 
-	if deleteMachineResponse != nil && deleteMachineResponse.LastKnownState != "" {
-		lastKnownState = deleteMachineResponse.LastKnownState
+	currentStatus := machine.Status.CurrentStatus
+	if deleteMachineRequest.MachineClass == nil {
+		currentStatus.Phase = v1alpha1.MachineTerminating
 	}
 
 	updateRetryPeriod, updateErr := c.machineStatusUpdate(
@@ -1911,7 +1934,7 @@ func (c *controller) deleteVM(ctx context.Context, deleteMachineRequest *driver.
 		// Let the clone.Status.CurrentStatus (LastUpdateTime) be as it was before.
 		// This helps while computing when the drain timeout to determine if force deletion is to be triggered.
 		// Ref - https://github.com/gardener/machine-controller-manager/blob/rel-v0.34.0/pkg/util/provider/machinecontroller/machine_util.go#L872
-		machine.Status.CurrentStatus,
+		currentStatus,
 		lastKnownState,
 	)
 
