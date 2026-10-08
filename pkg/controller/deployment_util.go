@@ -345,6 +345,16 @@ func SetNewMachineSetAnnotations(deployment *v1alpha1.MachineDeployment, newIS *
 	if !exists && SetReplicasAnnotations(newIS, (deployment.Spec.Replicas), (deployment.Spec.Replicas)+MaxSurge(*deployment)) {
 		annotationChanged = true
 	}
+	if _, ok := newIS.Annotations[v1alpha1.AnnotationKeyMachineEffectiveCreationTimeout]; ok && exists {
+		if _, ok := deployment.Annotations[v1alpha1.AnnotationKeyMachineEffectiveCreationTimeout]; !ok {
+			// when effective-creation-timeout annotation(s) are cleared from MCD, clear them from existing MS too.
+			delete(newIS.Annotations, v1alpha1.AnnotationKeyMachineEffectiveCreationTimeout)
+			delete(newIS.Annotations, v1alpha1.AnnotationKeyMachineEffectiveCreationTimeoutLastAppliedAt)
+			klog.V(3).Infof("Parent MachineDeployment %q has no %q annotation, thus also clearing from MachineSet %q",
+				deployment.Name, v1alpha1.AnnotationKeyMachineEffectiveCreationTimeout, newIS.Name)
+			annotationChanged = true
+		}
+	}
 	return annotationChanged
 }
 

@@ -6,38 +6,38 @@ start
 :Read annotation state from MachineDeployment\n(effectiveCreationTimeout, effectiveCreationTimeoutLastAppliedAt,\nreplaceCycleCount, replaceCycleCountLastAppliedAt)\n**→ oldInfo**;
 
 :windowStartMark = replaceCycleCountLastAppliedAt\n(falls back to MCD creation timestamp if annotation absent);
-:Scan all Machines in window → numFailedJoinInWindow,\nnumJoinedInWindow, avgJoinDuration;
+:Scan all Machines in window → numFailedJoinInWindow,\nnumJoinedInWindow, maxJoinDurationInWindow;
 :specCreationTimeout = MCD spec timeout (or global default);
 :maxCreationTimeout = specTimeout × growthFactor^maxGrowthCount;
 :**newInfo** = copy of oldInfo;
 
-if (numFailedJoinInWindow > 0\nAND replaceCycleCount window elapsed?) then (yes)
+if (numFailedJoinInWindow == 0\nAND max-timeout window elapsed?) then (yes)
 note right
-  replaceCycleCount window elapses when
-  now − replaceCycleCountLastAppliedAt
-  > effectiveCreationTimeout
+  max-timeout window elapses when
+  now − effectiveCreationTimeoutLastAppliedAt
+  > maxCreationTimeout
 end note
-  :newInfo.replaceCycleCount++\nnewInfo.replaceCycleCountLastAppliedAt = now;
-  if (replaceCycleCount ≥ threshold?) then (yes)
-    :newInfo.effectiveCreationTimeout =\nmin(current × growthFactor, maxCreationTimeout)\nnewInfo.effectiveCreationTimeoutLastAppliedAt = now\nnewInfo.replaceCycleCount = 0;
-  else (no)
-  endif
+  :newInfo.reset = true\n(clear all adjustment annotations);
 else (no)
-  if (numJoinedInWindow ≥ successJoinThreshold\nAND effectiveCreationTimeout window elapsed?) then (yes)
+  if (numFailedJoinInWindow > 0\nAND replaceCycleCount window elapsed?) then (yes)
   note right
-    effectiveCreationTimeout window elapses when
-    now − effectiveCreationTimeoutLastAppliedAt
+    replaceCycleCount window elapses when
+    now − replaceCycleCountLastAppliedAt
     > effectiveCreationTimeout
   end note
-    :newInfo.effectiveCreationTimeout =\nmax(specTimeout, avgJoinDuration)\nnewInfo.effectiveCreationTimeoutLastAppliedAt = now;
+    :newInfo.replaceCycleCount++\nnewInfo.replaceCycleCountLastAppliedAt = now;
+    if (replaceCycleCount ≥ threshold?) then (yes)
+      :newInfo.effectiveCreationTimeout =\nmin(current × growthFactor, maxCreationTimeout)\nnewInfo.effectiveCreationTimeoutLastAppliedAt = now\nnewInfo.replaceCycleCount = 0;
+    else (no)
+    endif
   else (no)
-    if (numFailedJoinInWindow == 0\nAND numJoinedInWindow == 0\nAND max-timeout window elapsed?) then (yes)
+    if (numJoinedInWindow ≥ successJoinThreshold\nAND effectiveCreationTimeout window elapsed?) then (yes)
     note right
-      max-timeout window elapses when
+      effectiveCreationTimeout window elapses when
       now − effectiveCreationTimeoutLastAppliedAt
-      > maxCreationTimeout
+      > effectiveCreationTimeout
     end note
-      :newInfo.reset = true\n(clear all adjustment annotations);
+      :newInfo.effectiveCreationTimeout =\nmax(specTimeout, maxJoinDurationInWindow)\nnewInfo.effectiveCreationTimeoutLastAppliedAt = now;
     else (no)
     endif
   endif

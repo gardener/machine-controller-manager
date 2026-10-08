@@ -827,9 +827,9 @@ func (c *controller) checkAndAdjustMachineEffectiveCreationTimeout(ctx context.C
 	creationTimeoutGrowthFactor := 1.0 + float64(creationTimeoutGrowthPercent)/100.0
 	windowStartMark := oldInfo.replaceCycleCountLastAppliedAt.Time
 	now := metav1.Now()
-	numFailedJoinInWindow, numJoinedInWindow, avgJoinDuration := getNumFailedJoinedAndAvgJoinDurationSince(flattenMachineMap(machineMap), windowStartMark)
-	klog.V(4).Infof("For MachineDeployment %q, numFailedJoinInWindow=%d,numJoinedInWindow=%d,avgJoinDuration=%s, replaceCount=%d, replaceCycleCountLastAppliedAt: %s",
-		mcd.Name, numFailedJoinInWindow, numJoinedInWindow, avgJoinDuration, oldInfo.replaceCycleCount, oldInfo.replaceCycleCountLastAppliedAt.Time.Format(time.RFC3339))
+	numFailedJoinInWindow, numJoinedInWindow, maxJoinDurationInWindow := getNumFailedJoinedAndMaxJoinDurationSince(flattenMachineMap(machineMap), windowStartMark)
+	klog.V(4).Infof("For MachineDeployment %q, numFailedJoinInWindow=%d,numJoinedInWindow=%d,maxJoinDurationInWindow=%s, replaceCount=%d, replaceCycleCountLastAppliedAt: %s",
+		mcd.Name, numFailedJoinInWindow, numJoinedInWindow, maxJoinDurationInWindow, oldInfo.replaceCycleCount, oldInfo.replaceCycleCountLastAppliedAt.Time.Format(time.RFC3339))
 	specCreationTimeout := GetSpecCreationTimeoutOnMachineDeploymentOrDefault(mcd, constants.DefaultMachineCreationTimeout)
 	maxCreationTimeout := computeMaxCreationTimeout(specCreationTimeout, creationTimeoutGrowthFactor, constants.DefaultMaxCreationTimeoutGrowthCount)
 	newInfo := oldInfo
@@ -853,7 +853,7 @@ func (c *controller) checkAndAdjustMachineEffectiveCreationTimeout(ctx context.C
 		}
 	} else if numJoinedInWindow >= constants.DefaultSuccessJoinCountThreshold && oldInfo.isEffectiveCreationTimeoutWindowElapsed(now) {
 		// Machines are joining healthily; thus shrink the timeout back towards the observed average, floored at the spec timeout.
-		newInfo.effectiveCreationTimeout.Duration = max(specCreationTimeout.Duration, avgJoinDuration.Duration.Round(time.Second))
+		newInfo.effectiveCreationTimeout.Duration = max(specCreationTimeout.Duration, maxJoinDurationInWindow.Duration)
 		newInfo.effectiveCreationTimeoutLastAppliedAt = now
 	}
 	klog.V(5).Infof("For MachineDeployment %q, old CreationTimeoutAdjustInfo=%s, new CreationTimeoutAdjustInfo=%s", mcd.Name, oldInfo, newInfo)
@@ -944,10 +944,9 @@ func flattenMachineMap(machineMap map[types.UID]*v1alpha1.MachineList) []v1alpha
 	return machines
 }
 
-// getNumFailedJoinedAndAvgJoinDurationSince returns the number of machines that failed to join and the number
-// that successfully joined since windowStartMark, along with the average join duration of the successful ones.
-func getNumFailedJoinedAndAvgJoinDurationSince(machines []v1alpha1.Machine, windowStartMark time.Time) (numFailedInWindow int, numJoinedInWindow int, avgJoinDuration metav1.Duration) {
-	var totalJoinDuration time.Duration
+// getNumFailedJoinedAndMaxJoinDurationSince returns the number of machines that failed to join and the number
+// that successfully joined since windowStartMark, along with the maximum join duration of the successful ones.
+func getNumFailedJoinedAndMaxJoinDurationSince(machines []v1alpha1.Machine, windowStartMark time.Time) (numFailedInWindow int, numJoinedInWindow int, maxJoinDurationInWindow metav1.Duration) {
 	for _, m := range machines {
 		machineJoinedCond := nodeops.FilterNodeConditionOfType(m.Status.Conditions, v1alpha1.ConditionMachineJoined)
 		if machineJoinedCond == nil {
@@ -956,16 +955,16 @@ func getNumFailedJoinedAndAvgJoinDurationSince(machines []v1alpha1.Machine, wind
 		if machineJoinedCond.Status == v1.ConditionTrue {
 			if machineJoinedCond.LastTransitionTime.After(windowStartMark) {
 				numJoinedInWindow++
-				totalJoinDuration += machineJoinedCond.LastTransitionTime.Sub(m.CreationTimestamp.Time)
+				joinDuration := machineJoinedCond.LastTransitionTime.Sub(m.CreationTimestamp.Time).Round(time.Second)
+				if joinDuration > maxJoinDurationInWindow.Duration {
+					maxJoinDurationInWindow.Duration = joinDuration
+				}
 			}
 		} else if machineJoinedCond.Status == v1.ConditionFalse &&
 			machineJoinedCond.LastTransitionTime.After(windowStartMark) &&
 			machineJoinedCond.Reason == codes.FailedJoin.String() {
 			numFailedInWindow++
 		}
-	}
-	if numJoinedInWindow > 0 {
-		avgJoinDuration.Duration = totalJoinDuration / time.Duration(numJoinedInWindow)
 	}
 	return
 }

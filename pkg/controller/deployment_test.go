@@ -2767,7 +2767,7 @@ var _ = Describe("machineDeployment", func() {
 		)
 	})
 
-	Describe("#getNumFailedJoinedAndAvgJoinDurationSince", func() {
+	Describe("#getNumFailedJoinedAndMaxJoinDurationSince", func() {
 		var (
 			now             time.Time
 			windowStartMark time.Time
@@ -2789,16 +2789,16 @@ var _ = Describe("machineDeployment", func() {
 			}
 		}
 
-		DescribeTable("should count machines and compute avgJoinDuration correctly",
+		DescribeTable("should compute numFailedInWindow, numJoinedInWindow, maxJoinDurationInWindow for machines correctly",
 			func(
 				buildMachines func() []machinev1.Machine,
 				expectedFailed, expectedJoined int,
-				checkAvgJoinDuration func(metav1.Duration),
+				checkMaxJoinDuration func(metav1.Duration),
 			) {
-				numFailed, numJoined, avgJoinDuration := getNumFailedJoinedAndAvgJoinDurationSince(buildMachines(), windowStartMark)
+				numFailed, numJoined, maxJoinDurationInWindow := getNumFailedJoinedAndMaxJoinDurationSince(buildMachines(), windowStartMark)
 				Expect(numFailed).To(Equal(expectedFailed))
 				Expect(numJoined).To(Equal(expectedJoined))
-				checkAvgJoinDuration(avgJoinDuration)
+				checkMaxJoinDuration(maxJoinDurationInWindow)
 			},
 			Entry("empty slice yields all zeros",
 				func() []machinev1.Machine { return nil },
@@ -2812,7 +2812,7 @@ var _ = Describe("machineDeployment", func() {
 				0, 0,
 				func(d metav1.Duration) { Expect(d.Duration).To(BeZero()) },
 			),
-			Entry("machine that joined within window is counted and contributes to avgJoinDuration",
+			Entry("machine that joined within window is counted and contributes to maxJoinDurationInWindow",
 				func() []machinev1.Machine {
 					// created 15m ago, joined 5m ago (after mark) -> join duration = 10m
 					return []machinev1.Machine{newMachine("m1", 15*time.Minute, machineJoinedCond(now.Add(-5*time.Minute)))}
@@ -2842,7 +2842,7 @@ var _ = Describe("machineDeployment", func() {
 				0, 0,
 				func(d metav1.Duration) { Expect(d.Duration).To(BeZero()) },
 			),
-			Entry("mix of joined and failed: avgJoinDuration is average across in-window joiners",
+			Entry("mix of joined and failed: maxJoinDurationInWindow is max across in-window joiners",
 				func() []machinev1.Machine {
 					return []machinev1.Machine{
 						// joined 5m ago, created 20m ago -> join duration = 15m
@@ -2853,8 +2853,8 @@ var _ = Describe("machineDeployment", func() {
 					}
 				},
 				1, 2,
-				// avg = (15m + 10m) / 2 = 12m30s
-				func(d metav1.Duration) { Expect(d.Duration).To(Equal(12*time.Minute + 30*time.Second)) },
+				// max(15m, 10m) = 15m
+				func(d metav1.Duration) { Expect(d.Duration).To(Equal(15 * time.Minute)) },
 			),
 		)
 	})
@@ -2986,71 +2986,77 @@ var _ = Describe("machineDeployment", func() {
 				},
 			),
 
-			Entry("machines joined slowly: effective-creation-timeout set to observed avg join duration when it exceeds spec default",
+			Entry("machines joined slowly: effective-creation-timeout set to observed max join duration when it exceeds spec default",
 				func(d *machinev1.MachineDeployment) {
 					// effectiveCreationTimeout was previously set
 					d.Annotations[machinev1.AnnotationKeyMachineEffectiveCreationTimeout] = "30m"
 					d.Annotations[machinev1.AnnotationKeyMachineEffectiveCreationTimeoutLastAppliedAt] = now.Add(-35 * time.Minute).Format(time.RFC3339)
 				},
 				func() map[types.UID]*machinev1.MachineList {
-					// Two machines, each created 25m ago and joined 3m ago -> avg join duration = 22m > specDefault (20m)
+					// m1: created 25m ago, joined 3m ago -> join duration = 22m
+					// m2: created 28m ago, joined 3m ago -> join duration = 25m
+					// max = 25m > specDefault (20m); avg would have been 23m30s
 					return map[types.UID]*machinev1.MachineList{
 						"ms1": {Items: []machinev1.Machine{
 							newMachineInSet("m1", "ms1", 25*time.Minute, machineJoinedCond(now.Add(-3*time.Minute))),
-							newMachineInSet("m2", "ms1", 25*time.Minute, machineJoinedCond(now.Add(-3*time.Minute))),
+							newMachineInSet("m2", "ms1", 28*time.Minute, machineJoinedCond(now.Add(-3*time.Minute))),
 						}},
 					}
 				},
 				func(result *machinev1.MachineDeployment) {
 					effectiveTimeout, err := annotations.GetMachineEffectiveCreationTimeout(result)
 					Expect(err).NotTo(HaveOccurred())
-					Expect(effectiveTimeout.Duration).To(Equal(22 * time.Minute))
+					Expect(effectiveTimeout.Duration).To(Equal(25 * time.Minute))
 				},
 			),
 
-			Entry("machines joined quickly: effective-creation-timeout unchanged when avg join duration is below spec default",
+			Entry("machines joined quickly: effective-creation-timeout unchanged when max join duration is below spec default",
 				func(d *machinev1.MachineDeployment) {
 					// effectiveCreationTimeout was previously set
 					d.Annotations[machinev1.AnnotationKeyMachineEffectiveCreationTimeout] = "30m"
 					d.Annotations[machinev1.AnnotationKeyMachineEffectiveCreationTimeoutLastAppliedAt] = now.Add(-35 * time.Minute).Format(time.RFC3339)
 				},
 				func() map[types.UID]*machinev1.MachineList {
-					// Two machines created 5m ago, joined 1m ago -> avg join duration = 4m < specDefault (20m)
+					// m1: created 5m ago, joined 1m ago -> join duration = 4m
+					// m2: created 7m ago, joined 1m ago -> join duration = 6m
+					// max = 6m < specDefault (20m)
 					return map[types.UID]*machinev1.MachineList{
 						"ms1": {Items: []machinev1.Machine{
 							newMachineInSet("m1", "ms1", 5*time.Minute, machineJoinedCond(now.Add(-1*time.Minute))),
-							newMachineInSet("m2", "ms1", 5*time.Minute, machineJoinedCond(now.Add(-1*time.Minute))),
+							newMachineInSet("m2", "ms1", 7*time.Minute, machineJoinedCond(now.Add(-1*time.Minute))),
 						}},
 					}
 				},
 				func(result *machinev1.MachineDeployment) {
-					// max(4m, 20m specDefault) = 20m = specDefault, so timeout shrinks to 20m
+					// max(6m, 20m specDefault) = 20m = specDefault, so timeout shrinks to 20m
 					effectiveTimeout, err := annotations.GetMachineEffectiveCreationTimeout(result)
 					Expect(err).NotTo(HaveOccurred())
 					Expect(effectiveTimeout.Duration).To(Equal(20 * time.Minute))
 				},
 			),
 
-			Entry("machines joined after previous timeout increase: effective-creation-timeout reduces to actual avg join duration",
+			Entry("machines joined after previous timeout increase: effective-creation-timeout reduces to actual max join duration",
 				func(d *machinev1.MachineDeployment) {
 					// MCD previously had timeout grown to 40m; last adjusted 50m ago (cooldown satisfied)
 					d.Annotations[machinev1.AnnotationKeyMachineEffectiveCreationTimeout] = "40m"
 					d.Annotations[machinev1.AnnotationKeyMachineEffectiveCreationTimeoutLastAppliedAt] = now.Add(-50 * time.Minute).Format(time.RFC3339)
 				},
 				func() map[types.UID]*machinev1.MachineList {
-					// Two machines created 25m ago, joined 3m ago -> avg join duration = 22m
+					// m1: created 25m ago, joined 3m ago -> join duration = 22m
+					// m2: created 28m ago, joined 3m ago -> join duration = 25m
+					// max = 25m; avg would have been 23m30s
 					return map[types.UID]*machinev1.MachineList{
 						"ms1": {Items: []machinev1.Machine{
 							newMachineInSet("m1", "ms1", 25*time.Minute, machineJoinedCond(now.Add(-3*time.Minute))),
-							newMachineInSet("m2", "ms1", 25*time.Minute, machineJoinedCond(now.Add(-3*time.Minute))),
+							newMachineInSet("m2", "ms1", 28*time.Minute, machineJoinedCond(now.Add(-3*time.Minute))),
 						}},
 					}
 				},
 				func(result *machinev1.MachineDeployment) {
 					effectiveTimeout, err := annotations.GetMachineEffectiveCreationTimeout(result)
 					Expect(err).NotTo(HaveOccurred())
-					// max(22m, 20m specDefault) = 22m — reduced down from 40m
-					Expect(effectiveTimeout.Duration).To(Equal(22 * time.Minute))
+					// max(25m, 20m specDefault) = 25m — reduced down from 40m
+					Expect(effectiveTimeout.Duration).To(Equal(25 * time.Minute))
 				},
 			),
 
