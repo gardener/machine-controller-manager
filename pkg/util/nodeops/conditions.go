@@ -15,7 +15,7 @@ import (
 	clientretry "k8s.io/client-go/util/retry"
 )
 
-// CloneAndAddCondition adds condition to the conditions slice if
+// CloneAndAddCondition returns a slice of conditions with the new condition added. If a condition with the same type already exists, it will be replaced. If the new condition has an empty Type or Status, it will be ignored.
 func CloneAndAddCondition(conditions []v1.NodeCondition, condition v1.NodeCondition) []v1.NodeCondition {
 	if condition.Type == "" || condition.Status == "" {
 		return conditions
@@ -35,6 +35,25 @@ func CloneAndAddCondition(conditions []v1.NodeCondition, condition v1.NodeCondit
 	}
 
 	newConditions = append(newConditions, condition)
+	return newConditions
+}
+
+// CloneAndRemoveConditions returns a slice of conditions with the conditions in conditionsToRemove removed.
+// If a condition in conditionsToRemove has an empty Type or Status, it will be ignored.
+func CloneAndRemoveConditions(conditions []v1.NodeCondition, conditionTypesToRemove []v1.NodeConditionType) []v1.NodeCondition {
+	var newConditions []v1.NodeCondition
+	for _, existingCondition := range conditions {
+		remove := false
+		for _, conditionTypeToRemove := range conditionTypesToRemove {
+			if existingCondition.Type == conditionTypeToRemove {
+				remove = true
+				break
+			}
+		}
+		if !remove {
+			newConditions = append(newConditions, existingCondition)
+		}
+	}
 	return newConditions
 }
 
