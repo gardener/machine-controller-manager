@@ -684,7 +684,7 @@ func (c *IntegrationTestFramework) ControllerTests() {
 	ginkgo.Describe("machine resource", func() {
 		var initialNodes int16
 		ginkgo.Context("creation", func() {
-			ginkgo.It("should not lead to any errors and add 3 more node in target cluster", func() {
+			ginkgo.It("should not lead to any errors and add 3 more nodes in target cluster", func() {
 				// In case of existing deployments creating nodes when starting simulated
 				// provider, the change in node count can be >1, this delay prevents
 				// checking node count immediately to allow for a correct initial count
