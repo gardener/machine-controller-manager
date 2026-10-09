@@ -755,7 +755,7 @@ func filterMachinesWithUpdateSuccessfulLabel(machines []*v1alpha1.Machine) []*v1
 	machinesWithUpdateSuccessfulLabel := make([]*v1alpha1.Machine, 0, len(machines))
 	for _, machine := range machines {
 		if labelValue, ok := machine.Labels[v1alpha1.LabelKeyNodeUpdateResult]; ok && labelValue == v1alpha1.LabelValueNodeUpdateSuccessful {
-			cond := getMachineCondition(machine, v1alpha1.NodeInPlaceUpdate)
+			cond := machineutils.GetMachineCondition(machine, v1alpha1.NodeInPlaceUpdate)
 			// only consider machines with the update successful condition
 			if cond != nil && cond.Reason == v1alpha1.UpdateSuccessful {
 				machinesWithUpdateSuccessfulLabel = append(machinesWithUpdateSuccessfulLabel, machine)
@@ -764,16 +764,6 @@ func filterMachinesWithUpdateSuccessfulLabel(machines []*v1alpha1.Machine) []*v1
 	}
 
 	return machinesWithUpdateSuccessfulLabel
-}
-
-// getMachineCondition returns a condition matching the type from the machines's status
-func getMachineCondition(machine *v1alpha1.Machine, conditionType v1.NodeConditionType) *v1.NodeCondition {
-	for _, cond := range machine.Status.Conditions {
-		if cond.Type == conditionType {
-			return &cond
-		}
-	}
-	return nil
 }
 
 // IsListFromClient returns an rsListFunc that wraps the given client.

@@ -245,8 +245,8 @@ func (dc *controller) updateMachineToMachineDeployment(old, cur any) {
 		return
 	}
 
-	oldMachineCondition := getMachineCondition(oldMachine, v1alpha1.NodeInPlaceUpdate)
-	currMachineCondition := getMachineCondition(curMachine, v1alpha1.NodeInPlaceUpdate)
+	oldMachineCondition := machineutils.GetMachineCondition(oldMachine, v1alpha1.NodeInPlaceUpdate)
+	currMachineCondition := machineutils.GetMachineCondition(curMachine, v1alpha1.NodeInPlaceUpdate)
 
 	oldMachineConditionReasonUpdateSuccessful := oldMachineCondition != nil && oldMachineCondition.Reason == v1alpha1.UpdateSuccessful
 	currMachineConditionReasonUpdateSuccessful := currMachineCondition != nil && currMachineCondition.Reason == v1alpha1.UpdateSuccessful

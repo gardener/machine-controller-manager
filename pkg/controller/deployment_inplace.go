@@ -377,7 +377,7 @@ func (dc *controller) transferMachinesFromOldToNewMachineSet(ctx context.Context
 				return addedNewReplicasCount, fmt.Errorf("failed to get node %s for machine %s: %w", nodeName, oldMachine.Name, err)
 			}
 
-			cond := getMachineCondition(oldMachine, v1alpha1.NodeInPlaceUpdate)
+			cond := machineutils.GetMachineCondition(oldMachine, v1alpha1.NodeInPlaceUpdate)
 			if isUpdateNotSuccessful(cond, node.Labels) || oldMachine.Status.CurrentStatus.Phase == v1alpha1.MachineInPlaceUpdating {
 				continue
 			}
