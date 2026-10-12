@@ -107,6 +107,7 @@ start:
 			--kube-api-qps=$(KUBE_API_QPS) \
 			--kube-api-burst=$(KUBE_API_BURST) \
 			--leader-elect=$(LEADER_ELECT) \
+			$(if $(MCM_PORT),--port=$(MCM_PORT)) \
 			--v=3
 
 #################################################################
