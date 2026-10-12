@@ -46,9 +46,8 @@ The guidelines below cover contribution expectations specific to this repository
 - If you start a review, see it through. Leaving a PR in "changes requested" and then going silent blocks the author and stalls the PR.
 - Once a comment has been addressed, resolve it.
 - Once all requested changes have been addressed and you're satisfied with the PR, make sure to add an `/lgtm`. This on its own will not cause the PR to be merged unless there is already a `/approved` present.
-- If the PR introduces tests, run them locally to verify they pass, check for flakiness, and verify they aren't doing unnecessary logging or too little. This validates that the tests actually work and catches environment/provider-specific issues the author may not have encountered.
-- Repeat any manual testing performed by the author to independently verify the results. If manual testing was documented, validate that the described outcome matches what you observe.
-- Run any automated tests (unit, integration) that the PR adds to confirm they pass reliably.
+- Test all changes, not just the ones that introduce new tests. Run the relevant automated tests (unit, integration) to confirm they pass reliably. Repeat any manual testing performed by the author to independently verify the results; if manual testing was documented, validate that the described outcome matches what you observe.
+- If the PR introduces new tests, also check them for flakiness — a single passing run is not sufficient. Use a stress tool such as [`golang.org/x/tools/cmd/stress`](https://pkg.go.dev/golang.org/x/tools/cmd/stress) to run them repeatedly. Verify the tests are not doing unnecessary logging and provide meaningful coverage. This validates that the tests actually work and catches environment/provider-specific issues the author may not have encountered.
 - See also:
   - [go.dev/wiki/CodeReviewComments](https://go.dev/wiki/CodeReviewComments)
   - [google.github.io/eng-practices — What to look for in a code review](https://google.github.io/eng-practices/review/reviewer/looking-for.html)
