@@ -107,8 +107,8 @@ var (
 	// Path to the target cluster's kubeconfig
 	targetKubeConfigPath string
 
-	mcmPort = freePort()
-	mcPort  = freePort()
+	// Ports MCM and MC bind to when run locally.
+	mcmPort, mcPort string
 )
 
 // ProviderSpecPatch struct holds tags for provider, which we want to patch the  machineclass with
@@ -207,8 +207,11 @@ func setGlobalsFromEnvVars() {
 	}
 }
 
-// freePort fetches an available TCP port on the loopback interface.
-func freePort() string {
+// freePort returns configured if set, else an available loopback TCP port.
+func freePort(configured string) string {
+	if configured != "" {
+		return configured
+	}
 	l, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		panic(fmt.Sprintf("freePort: %v", err))
@@ -564,11 +567,12 @@ func (c *IntegrationTestFramework) buildMCMStartArgs() []string {
 	}
 	return strings.Fields(
 		fmt.Sprintf(
-			"make --directory=%s start CONTROL_KUBECONFIG=%s TARGET_KUBECONFIG=%s CONTROL_NAMESPACE=%s LEADER_ELECT=false MACHINE_SAFETY_OVERSHOOTING_PERIOD=300ms"+mcmQPSArgs,
+			"make --directory=%s start CONTROL_KUBECONFIG=%s TARGET_KUBECONFIG=%s CONTROL_NAMESPACE=%s LEADER_ELECT=false MACHINE_SAFETY_OVERSHOOTING_PERIOD=300ms MCM_PORT=%s"+mcmQPSArgs,
 			mcmRepoPath,
 			c.ControlCluster.KubeConfigFilePath,
 			c.TargetCluster.KubeConfigFilePath,
-			controlClusterNamespace),
+			controlClusterNamespace,
+			freePort(mcmPort)),
 	)
 }
 
@@ -582,7 +586,7 @@ func (c *IntegrationTestFramework) runControllersLocally() {
 			c.ControlCluster.KubeConfigFilePath,
 			c.TargetCluster.KubeConfigFilePath,
 			controlClusterNamespace,
-			mcPort),
+			freePort(mcPort)),
 	)
 	outputFile, err := rotateOrAppendLogFile(mcLogFile, true)
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
@@ -2314,10 +2318,13 @@ func (c *IntegrationTestFramework) Cleanup() {
 					c.ControlCluster.KubeConfigFilePath,
 					c.TargetCluster.KubeConfigFilePath,
 					controlClusterNamespace,
-					mcPort),
+					freePort(mcPort)),
 			)
 			mcsession, err = gexec.Start(exec.Command(args[0], args[1:]...), outputFile, outputFile) // #nosec G204 -- Test only
 			gomega.Expect(err).NotTo(gomega.HaveOccurred())
+			// Verify the restarted MC stays alive.
+			gomega.Consistently(mcsession.ExitCode, 5*time.Second, time.Second).
+				Should(gomega.Equal(-1), "restarted MC exited unexpectedly; see "+mcLogFile)
 			break
 		}
 		time.Sleep(2 * time.Second)
@@ -2332,6 +2339,9 @@ func (c *IntegrationTestFramework) Cleanup() {
 			args := c.buildMCMStartArgs()
 			mcmsession, err = gexec.Start(exec.Command(args[0], args[1:]...), outputFile, outputFile) // #nosec G204 -- Test only
 			gomega.Expect(err).NotTo(gomega.HaveOccurred())
+			// Verify the restarted MCM stays alive.
+			gomega.Consistently(mcmsession.ExitCode, 5*time.Second, time.Second).
+				Should(gomega.Equal(-1), "restarted MCM exited unexpectedly; see "+mcmLogFile)
 			break
 		}
 		time.Sleep(2 * time.Second)
