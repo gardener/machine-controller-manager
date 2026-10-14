@@ -1856,6 +1856,27 @@ func (c *controller) deleteVM(ctx context.Context, deleteMachineRequest *driver.
 		deleteDuration time.Duration
 	)
 
+	suspensionMessage, suspended := annotationsutils.IsInstanceDeletionSuspended(machine)
+	if suspended {
+		retryPeriod, err := c.updateInstanceDeletionSuspensionCondition(ctx, machine, v1.ConditionTrue, suspensionMessage, v1alpha1.InstanceDeletionSuspended)
+		if err != nil {
+			return retryPeriod, err
+		}
+
+		return machineutils.LongRetry, nil
+	}
+
+	if condition := machineutils.GetMachineCondition(machine, v1alpha1.ConditionInstanceDeletionSuspended); condition != nil && condition.Status == v1.ConditionTrue {
+		// Persist the cleared condition before starting provider deletion.
+		retryPeriod, err := c.updateInstanceDeletionSuspensionCondition(ctx, machine, v1.ConditionFalse, "Instance Deletion is no longer suspended.", v1alpha1.InstanceDeletionResumed)
+		if err != nil {
+			return retryPeriod, err
+		}
+
+		// Return an error to requeue before starting provider deletion.
+		return machineutils.ShortRetry, fmt.Errorf("instance deletion suspension cleared; retrying VM deletion")
+	}
+
 	deleteMachineResponse, err := c.driver.DeleteMachine(ctx, deleteMachineRequest)
 	if err != nil {
 
@@ -1920,6 +1941,39 @@ func (c *controller) deleteVM(ctx context.Context, deleteMachineRequest *driver.
 	}
 
 	return retryRequired, err
+}
+
+func (c *controller) updateInstanceDeletionSuspensionCondition(ctx context.Context, machine *v1alpha1.Machine, status v1.ConditionStatus, message, reason string) (machineutils.RetryPeriod, error) {
+	clone := machine.DeepCopy()
+
+	existingCondition := machineutils.GetMachineCondition(clone, v1alpha1.ConditionInstanceDeletionSuspended)
+	if existingCondition == nil && status != v1.ConditionTrue {
+		return 0, nil
+	}
+
+	now := metav1.Now()
+	condition := v1.NodeCondition{
+		Type:               v1alpha1.ConditionInstanceDeletionSuspended,
+		Status:             status,
+		LastHeartbeatTime:  now,
+		LastTransitionTime: now,
+		Message:            message,
+		Reason:             reason,
+	}
+	conditions, updated := nodeops.CloneAndAddCondition(clone.Status.Conditions, condition)
+	if !updated {
+		return 0, nil
+	}
+	clone.Status.Conditions = conditions
+
+	_, err := c.controlMachineClient.Machines(clone.Namespace).UpdateStatus(ctx, clone, metav1.UpdateOptions{})
+	if err != nil {
+		klog.Warningf("Machine/status UPDATE for instance deletion suspension failed for machine %q. Retrying, error: %s", machine.Name, err)
+	}
+	if apierrors.IsConflict(err) {
+		return machineutils.ConflictRetry, err
+	}
+	return machineutils.ShortRetry, err
 }
 
 // deleteNodeObject attempts to remove finalizers from and delete the node object backed by the machine object

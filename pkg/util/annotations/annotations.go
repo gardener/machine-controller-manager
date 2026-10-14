@@ -6,6 +6,7 @@
 package annotations
 
 import (
+	"fmt"
 	"slices"
 	"strings"
 	"time"
@@ -16,7 +17,10 @@ import (
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/klog/v2"
 )
+
+const maxInstanceDeletionSuspensionDetailsLength = 256
 
 // AddOrUpdateAnnotation tries to add an annotation. Returns a new copy of updated Node and true if something was updated
 // false otherwise.
@@ -108,4 +112,69 @@ func GetEffectiveMachineCreationTimeout(object runtime.Object) (*metav1.Duration
 		return nil, err
 	}
 	return &metav1.Duration{Duration: effectiveMachineCreationTimeout}, nil
+}
+
+// IsInstanceDeletionSuspended returns a deterministic, bounded human-readable message for
+// instance-deletion suspension annotations on the machine and whether any are set.
+func IsInstanceDeletionSuspended(machine *v1alpha1.Machine) (string, bool) {
+	suspensions := getInstanceDeletionSuspensions(machine)
+	if len(suspensions) == 0 {
+		return "", false
+	}
+
+	const prefix = "Instance Deletion suspended by "
+	var details []string
+	for _, suspension := range suspensions {
+		detail := suspension.owner + " for " + suspension.purpose
+		if len(prefix+strings.Join(append(details, detail), ", ")+".") > maxInstanceDeletionSuspensionDetailsLength {
+			omitted := len(suspensions) - len(details)
+			if len(details) == 0 {
+				details = []string{fmt.Sprintf("%d owner(s)", len(suspensions))}
+			} else {
+				details = append(details, fmt.Sprintf("and %d other owner(s)", omitted))
+			}
+			break
+		}
+		details = append(details, detail)
+	}
+
+	return prefix + strings.Join(details, ", ") + ".", true
+}
+
+type instanceDeletionSuspension struct {
+	purpose string
+	owner   string
+}
+
+func getInstanceDeletionSuspensions(machine *v1alpha1.Machine) []instanceDeletionSuspension {
+	if machine == nil {
+		return nil
+	}
+
+	prefix := v1alpha1.AnnotationKeySuspendInstanceDeletionPrefix + "/"
+	var suspensions []instanceDeletionSuspension
+	for annotation, owner := range machine.Annotations {
+		if annotation == v1alpha1.AnnotationKeySuspendInstanceDeletionPrefix {
+			klog.Warningf("Ignoring invalid instance deletion suspension annotation %q: purpose and owner must be non-empty", annotation)
+			continue
+		}
+		if !strings.HasPrefix(annotation, prefix) {
+			continue
+		}
+		purpose := strings.TrimPrefix(annotation, prefix)
+		if purpose == "" || owner == "" {
+			klog.Warningf("Ignoring invalid instance deletion suspension annotation %q: purpose and owner must be non-empty", annotation)
+			continue
+		}
+		suspensions = append(suspensions, instanceDeletionSuspension{purpose: purpose, owner: owner})
+	}
+
+	// Sort annotations to keep the condition message deterministic; annotation map iteration order is not stable.
+	slices.SortFunc(suspensions, func(a, b instanceDeletionSuspension) int {
+		if comparison := strings.Compare(a.purpose, b.purpose); comparison != 0 {
+			return comparison
+		}
+		return strings.Compare(a.owner, b.owner)
+	})
+	return suspensions
 }

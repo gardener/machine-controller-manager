@@ -25,6 +25,8 @@ import (
 
 	"github.com/onsi/gomega"
 	"github.com/onsi/gomega/gexec"
+
+	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -40,6 +42,8 @@ import (
 
 const (
 	dwdIgnoreScalingAnnotation = "dependency-watchdog.gardener.cloud/ignore-scaling"
+	terminationHookPurpose     = "integration-test"
+	terminationHookOwner       = "integration-test"
 )
 
 var (
@@ -680,7 +684,7 @@ func (c *IntegrationTestFramework) ControllerTests() {
 	ginkgo.Describe("machine resource", func() {
 		var initialNodes int16
 		ginkgo.Context("creation", func() {
-			ginkgo.It("should not lead to any errors and add 2 more node in target cluster", func() {
+			ginkgo.It("should not lead to any errors and add 3 more nodes in target cluster", func() {
 				// In case of existing deployments creating nodes when starting simulated
 				// provider, the change in node count can be >1, this delay prevents
 				// checking node count immediately to allow for a correct initial count
@@ -690,27 +694,27 @@ func (c *IntegrationTestFramework) ControllerTests() {
 				// Probe nodes currently available in target cluster
 				initialNodes = c.TargetCluster.GetNumberOfNodes()
 				ginkgo.By("Checking for errors")
-				gomega.Expect(c.ControlCluster.CreateMachines([]string{helpers.McName, helpers.NodeDeleteMcName}, controlClusterNamespace, gnaSecretNameLabelValue)).To(gomega.BeNil())
+				gomega.Expect(c.ControlCluster.CreateMachines([]string{helpers.McName, helpers.NodeDeleteMcName, helpers.SuspensionMcName}, controlClusterNamespace, gnaSecretNameLabelValue)).To(gomega.BeNil())
 
-				ginkgo.By("Waiting until number of ready nodes is 2 more than initial nodes")
+				ginkgo.By("Waiting until number of ready nodes is 3 more than initial nodes")
 				gomega.Eventually(
 					c.TargetCluster.GetNumberOfNodes,
 					c.timeout,
 					c.pollingInterval).
-					Should(gomega.BeNumerically("==", initialNodes+2))
+					Should(gomega.BeNumerically("==", initialNodes+3))
 
 				gomega.Eventually(
 					c.TargetCluster.GetNumberOfReadyNodes,
 					c.timeout,
 					c.pollingInterval).
-					Should(gomega.BeNumerically("==", initialNodes+2))
+					Should(gomega.BeNumerically("==", initialNodes+3))
 
 				// Wait for machine to be running
 				gomega.Eventually(
 					c.ControlCluster.AreMachinesRunning,
 					c.timeout,
 					c.pollingInterval).
-					WithArguments(ctx, []string{helpers.McName}, controlClusterNamespace).
+					WithArguments(ctx, []string{helpers.McName, helpers.NodeDeleteMcName, helpers.SuspensionMcName}, controlClusterNamespace).
 					Should(gomega.BeTrue())
 			})
 		})
@@ -739,19 +743,64 @@ func (c *IntegrationTestFramework) ControllerTests() {
 							WithArguments(ctx, helpers.McName, controlClusterNamespace).
 							Should(gomega.BeTrue())
 
-						ginkgo.By("Waiting until number of ready nodes is equal to number of initial nodes+1")
+						ginkgo.By("Waiting until number of ready nodes is equal to number of initial nodes+2")
 						gomega.Eventually(
 							c.TargetCluster.GetNumberOfNodes,
 							c.timeout,
 							c.pollingInterval).
-							Should(gomega.BeNumerically("==", initialNodes+1))
+							Should(gomega.BeNumerically("==", initialNodes+2))
 						gomega.Eventually(
 							c.TargetCluster.GetNumberOfReadyNodes,
 							c.timeout,
 							c.pollingInterval).
-							Should(gomega.BeNumerically("==", initialNodes+1))
+							Should(gomega.BeNumerically("==", initialNodes+2))
 					}
 
+				})
+
+				ginkgo.It("should suspend deletion until the suspension annotation is removed", func() {
+					suspensionAnnotationKey := v1alpha1.AnnotationKeySuspendInstanceDeletionPrefix + "/" + terminationHookPurpose
+
+					ginkgo.By("Adding the instance deletion suspension annotation")
+					err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+						return c.ControlCluster.PatchMachineAnnotations(ctx, helpers.SuspensionMcName, controlClusterNamespace, map[string]any{
+							suspensionAnnotationKey: terminationHookOwner,
+						})
+					})
+					gomega.Expect(err).NotTo(gomega.HaveOccurred())
+
+					ginkgo.By("Deleting the machine")
+					gomega.Expect(
+						c.ControlCluster.McmClient.
+							MachineV1alpha1().
+							Machines(controlClusterNamespace).
+							Delete(ctx, helpers.SuspensionMcName, metav1.DeleteOptions{})).
+						Should(gomega.BeNil(), "No Errors while deleting machine")
+
+					ginkgo.By("Waiting for InstanceDeletionSuspended=True")
+					gomega.Eventually(func() bool {
+						machine, err := c.ControlCluster.McmClient.
+							MachineV1alpha1().
+							Machines(controlClusterNamespace).
+							Get(ctx, helpers.SuspensionMcName, metav1.GetOptions{})
+						if err != nil {
+							return false
+						}
+						condition := mc_utils.GetMachineCondition(machine, v1alpha1.ConditionInstanceDeletionSuspended)
+						return condition != nil && condition.Status == corev1.ConditionTrue
+					}, c.timeout, c.pollingInterval).Should(gomega.BeTrue())
+
+					ginkgo.By("Removing the instance deletion suspension annotation")
+					err = c.removeMachineAnnotation(ctx, helpers.SuspensionMcName, suspensionAnnotationKey)
+					gomega.Expect(err).NotTo(gomega.HaveOccurred())
+
+					ginkgo.By("Waiting until the machine object is deleted")
+					gomega.Eventually(
+						c.ControlCluster.IsMachineDeleted,
+						c.timeout,
+						c.pollingInterval).
+						WithArguments(ctx, helpers.SuspensionMcName, controlClusterNamespace).
+						Should(gomega.BeTrue())
 				})
 			})
 			ginkgo.Context("node deletion", func() {
@@ -2300,9 +2349,17 @@ func (c *IntegrationTestFramework) cleanTestResources(ctx context.Context, timeo
 	if err := c.cleanMachineDeployment(ctx, helpers.McdName, timeout); err != nil {
 		log.Println(err.Error())
 	}
-	// Check and delete machine resource
-	if err := c.cleanMachine(ctx, helpers.McName, timeout); err != nil {
+
+	ginkgo.By("Removing termination hooks from machines")
+	if err := c.removeMachineAnnotation(ctx, helpers.SuspensionMcName, v1alpha1.AnnotationKeySuspendInstanceDeletionPrefix+"/"+terminationHookPurpose); err != nil {
 		log.Println(err.Error())
+	}
+
+	for _, machineName := range []string{helpers.McName, helpers.NodeDeleteMcName, helpers.SuspensionMcName} {
+		// Check and delete machine resource
+		if err := c.cleanMachine(ctx, machineName, timeout); err != nil {
+			log.Println(err.Error())
+		}
 	}
 
 	for _, machineClassName := range testMachineClassResources {
@@ -2316,6 +2373,18 @@ func (c *IntegrationTestFramework) cleanTestResources(ctx context.Context, timeo
 	if err := c.TargetCluster.DeleteVAPToRestartKubeletUpdates(ctx); err != nil {
 		log.Println(err.Error())
 	}
+}
+
+func (c *IntegrationTestFramework) removeMachineAnnotation(ctx context.Context, machineName, annotationKey string) error {
+	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		err := c.ControlCluster.PatchMachineAnnotations(ctx, machineName, controlClusterNamespace, map[string]any{
+			annotationKey: nil,
+		})
+		if apierrors.IsNotFound(err) {
+			return nil
+		}
+		return err
+	})
 }
 
 func (c *IntegrationTestFramework) cleanMachineDeployment(ctx context.Context, name string, timeout int64) error {
