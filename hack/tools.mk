@@ -19,7 +19,7 @@ DEFAULTER_GEN ?= $(TOOLS_BIN_DIR)/defaulter-gen
 CONVERSION_GEN ?= $(TOOLS_BIN_DIR)/conversion-gen
 OPENAPI_GEN ?= $(TOOLS_BIN_DIR)/openapi-gen
 VGOPATH ?= $(TOOLS_BIN_DIR)/vgopath
-GEN_CRD_API_REFERENCE_DOCS ?= $(TOOLS_BIN_DIR)/gen-crd-api-reference-docs
+CRD_REF_DOCS ?= $(TOOLS_BIN_DIR)/crd-ref-docs
 GO_ADD_LICENSE ?= $(TOOLS_BIN_DIR)/addlicense
 GOIMPORTS ?= $(TOOLS_BIN_DIR)/goimports
 GOLANGCI_LINT ?= $(TOOLS_BIN_DIR)/golangci-lint
@@ -29,7 +29,7 @@ GOSEC ?= $(TOOLS_BIN_DIR)/gosec
 CODE_GENERATOR_VERSION ?= $(call version_gomod,k8s.io/code-generator)
 VGOPATH_VERSION ?= v0.1.10
 CONTROLLER_TOOLS_VERSION ?= v0.20.1
-GEN_CRD_API_REFERENCE_DOCS_VERSION ?= v0.3.0
+CRD_REF_DOCS_VERSION ?= v0.3.0
 ADDLICENSE_VERSION ?= v1.1.1
 GOIMPORTS_VERSION ?= $(call version_gomod,golang.org/x/tools)
 GOLANGCI_LINT_VERSION ?= v2.11.4
@@ -73,8 +73,8 @@ $(VGOPATH):
 	fi
 	GOBIN=$(abspath $(TOOLS_BIN_DIR)) go install github.com/ironcore-dev/vgopath@$(VGOPATH_VERSION)
 
-$(GEN_CRD_API_REFERENCE_DOCS):
-	GOBIN=$(abspath $(TOOLS_BIN_DIR)) go install github.com/ahmetb/gen-crd-api-reference-docs@$(GEN_CRD_API_REFERENCE_DOCS_VERSION)
+$(CRD_REF_DOCS):
+	GOBIN=$(abspath $(TOOLS_BIN_DIR)) go install github.com/elastic/crd-ref-docs@$(CRD_REF_DOCS_VERSION)
 
 $(GOIMPORTS):
 	GOBIN=$(abspath $(TOOLS_BIN_DIR)) go install golang.org/x/tools/cmd/goimports@$(GOIMPORTS_VERSION)
