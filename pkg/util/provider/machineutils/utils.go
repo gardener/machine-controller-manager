@@ -255,8 +255,8 @@ func PatchMachine(
 // Invalid annotation values won't change the preservation state.
 // If Node has invalid annotation but Machine has a valid annotation - node takes precedence. We won't change the preservation state.
 func DeterminePreservationAction(
-	node *corev1.Node,
 	machine *v1alpha1.Machine,
+	node *corev1.Node,
 ) (annotationValue string, shouldHandlePreservation bool) {
 	if node != nil {
 		// node exists
@@ -273,6 +273,10 @@ func DeterminePreservationAction(
 				PreserveMachineAnnotationKey,
 				node.Annotations[PreserveMachineAnnotationKey],
 			)
+			// Preservation has expired so stop preservation
+			if machine.Status.CurrentStatus.PreserveExpiryTime != nil && machine.Status.CurrentStatus.PreserveExpiryTime.Before(&metav1.Time{Time: time.Now()}) {
+				return "", true
+			}
 			// treat it as no-op
 			return "", false
 		}
@@ -302,6 +306,10 @@ func DeterminePreservationAction(
 			PreserveMachineAnnotationKey,
 			machine.Annotations[PreserveMachineAnnotationKey],
 		)
+		// Preservation has expired so stop preservation
+		if machine.Status.CurrentStatus.PreserveExpiryTime != nil && machine.Status.CurrentStatus.PreserveExpiryTime.Before(&metav1.Time{Time: time.Now()}) {
+			return "", true
+		}
 		// treat it as no-op
 		return "", false
 	}

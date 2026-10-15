@@ -185,12 +185,12 @@ func logMachinesToDelete(machines []*v1alpha1.Machine) {
 // - machines which are auto-preserved
 // - machines which are candidates for auto-preservation
 // - remaining machines
-func filterMachinesForAutoPreservation(machines []*v1alpha1.Machine) ([]*v1alpha1.Machine, []*v1alpha1.Machine, []*v1alpha1.Machine) {
+func (c *controller) filterMachinesForAutoPreservation(machines []*v1alpha1.Machine) ([]*v1alpha1.Machine, []*v1alpha1.Machine, []*v1alpha1.Machine) {
 	var autoPreservedMachines, autoPreservationCandidates, remaining []*v1alpha1.Machine
 	for _, m := range machines {
 		if machineutils.IsAutoPreserved(m) {
 			autoPreservedMachines = append(autoPreservedMachines, m)
-		} else if isAutoPreservationCandidate(m) {
+		} else if c.isAutoPreservationCandidate(m) {
 			autoPreservationCandidates = append(autoPreservationCandidates, m)
 		} else {
 			remaining = append(remaining, m)
@@ -203,10 +203,23 @@ func filterMachinesForAutoPreservation(machines []*v1alpha1.Machine) ([]*v1alpha
 // - machine is failed and
 // - either machine does not have any preservation annotation
 // or has auto-preserved annotation but preserve expiry time is not set.
-func isAutoPreservationCandidate(machine *v1alpha1.Machine) bool {
+func (c *controller) isAutoPreservationCandidate(machine *v1alpha1.Machine) bool {
 	if !machineutils.IsFailed(machine) {
 		return false
 	}
+
+	node, err := c.nodeLister.Get(machine.Labels[v1alpha1.NodeLabelKey])
+	if err == nil {
+		if _, ok := node.Annotations[machineutils.PreserveMachineAnnotationKey]; ok {
+			return false
+		}
+	} else {
+		klog.V(3).Infof("Unable to get the node %q from lister.", machine.Labels[v1alpha1.NodeLabelKey])
+		if _, ok := machine.Annotations[machineutils.LastAppliedNodePreserveValueAnnotationKey]; ok {
+			return false
+		}
+	}
+
 	if _, ok := machine.Annotations[machineutils.PreserveMachineAnnotationKey]; !ok {
 		return true
 	}

@@ -909,12 +909,13 @@ func isMachineStatusEqual(s1, s2 v1alpha1.MachineStatus) bool {
 	return apiequality.Semantic.DeepEqual(s1Copy.LastOperation, s2Copy.LastOperation) && apiequality.Semantic.DeepEqual(s1Copy.CurrentStatus, s2Copy.CurrentStatus)
 }
 
-// shouldFailedMachineBeTerminated checks if preservation has started for failed machine(PreserveExpiryTime is set).
+// shouldFailedMachineBeTerminated checks if preservation is ongoing for failed machine(PreserveExpiryTime is set and not yet lapsed),
+// and if yes, returns false indicating that the machine must not be terminated.
 func (c *controller) shouldFailedMachineBeTerminated(machine *v1alpha1.Machine) bool {
 	if machine.Status.CurrentStatus.PreserveExpiryTime == nil {
 		return true
 	}
-	// if preserve expiry time is set and is in the future, machine is already preserved
+	// if preserve expiry time is set and is in the future, machine is already currently being preserved
 	if machine.Status.CurrentStatus.PreserveExpiryTime.After(time.Now()) {
 		klog.V(3).Infof("Failed machine %q is preserved until %v", machine.Name, machine.Status.CurrentStatus.PreserveExpiryTime)
 		return false
@@ -928,7 +929,7 @@ func (c *controller) shouldFailedMachineBeTerminated(machine *v1alpha1.Machine) 
 // MachineSet's AutoPreserveFailedMachineMax field. If the AutoPreserveFailedMachineMax limit is breached, it removes the preserve=auto-preserved annotation from the machines which are nearest to preserve expiry.
 func (c *controller) manageAutoPreservationOfFailedMachines(ctx context.Context, machines []*v1alpha1.Machine, machineSet *v1alpha1.MachineSet) ([]*v1alpha1.Machine, error) {
 	// TODO@thiyyakat: if preservation is to be honoured across updates, capacity remaining should consider machines in all machinesets
-	autoPreservedMachines, autoPreservationCandidates, remaining := filterMachinesForAutoPreservation(machines)
+	autoPreservedMachines, autoPreservationCandidates, remaining := c.filterMachinesForAutoPreservation(machines)
 	autoPreservationCapacityRemaining := machineSet.Spec.AutoPreserveFailedMachineMax - int32(len(autoPreservedMachines)) // #nosec G115 (CWE-190) -- number of machines will not exceed MaxInt32
 	if autoPreservationCapacityRemaining == 0 {
 		// no capacity remaining, nothing to do
@@ -1006,15 +1007,7 @@ func (c *controller) stopAutoPreservationForMachines(ctx context.Context, autoPr
 			klog.Errorf("unable to remove %q=%q annotation from machine %q: %v.", machineutils.PreserveMachineAnnotationKey, machineutils.PreserveMachineAnnotationValueAutoPreserved, machine.Name, err)
 			return nil, err
 		}
-		unpreservedMachine, err := machineutils.PatchMachine(ctx, c.controlMachineClient.Machines(machine.Namespace), updatedMachine, func(m *v1alpha1.Machine) error {
-			m.Status.CurrentStatus.PreserveExpiryTime = nil
-			return nil
-		}, true)
-		if err != nil {
-			klog.Errorf("unable to clear PreserveExpiryTime of machine %q: %v.", machine.Name, err)
-			return nil, err
-		}
-		autoPreservedMachines[index] = unpreservedMachine
+		autoPreservedMachines[index] = updatedMachine
 		numToStop--
 	}
 	return autoPreservedMachines, nil

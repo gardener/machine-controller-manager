@@ -224,7 +224,7 @@ func TestDeterminePreservationAction(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			val, shouldHandlePreservation := DeterminePreservationAction(tt.node, tt.machine)
+			val, shouldHandlePreservation := DeterminePreservationAction(tt.machine, tt.node)
 			if val != tt.expectedValue {
 				t.Errorf("expected value %q, got %q", tt.expectedValue, val)
 			}

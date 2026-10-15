@@ -4617,7 +4617,7 @@ var _ = Describe("machine", func() {
 					retry:                   machineutils.LongRetry,
 				},
 			}),
-			Entry("when invalid preserve annotation is added on machine of un-preserved machine, and node is not annotated should do nothing  ", testCase{
+			Entry("when invalid preserve annotation is added on un-preserved machine, and node is not annotated should do nothing  ", testCase{
 				setup: setup{
 					machineAnnotationValue: "invalidValue",
 					machineAnnotated:       true,

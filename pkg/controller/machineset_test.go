@@ -2602,7 +2602,7 @@ var _ = Describe("machineset", func() {
 			for _, name := range []string{m1.Name, m2.Name} {
 				updated, _ := c.controlMachineClient.Machines(testNamespace).Get(context.TODO(), name, metav1.GetOptions{})
 				Expect(updated.Annotations[machineutils.PreserveMachineAnnotationKey]).ToNot(Equal(machineutils.PreserveMachineAnnotationValueAutoPreserved))
-				Expect(updated.Status.CurrentStatus.PreserveExpiryTime).To(BeNil())
+				Expect(updated.Status.CurrentStatus.PreserveExpiryTime).NotTo(BeNil())
 			}
 		})
 
@@ -2628,7 +2628,7 @@ var _ = Describe("machineset", func() {
 			updatedLate, _ := c.controlMachineClient.Machines(testNamespace).Get(context.TODO(), machineLate.Name, metav1.GetOptions{})
 
 			Expect(updatedEarly.Annotations[machineutils.PreserveMachineAnnotationKey]).ToNot(Equal(machineutils.PreserveMachineAnnotationValueAutoPreserved))
-			Expect(updatedEarly.Status.CurrentStatus.PreserveExpiryTime).To(BeNil())
+			Expect(updatedEarly.Status.CurrentStatus.PreserveExpiryTime).NotTo(BeNil())
 
 			Expect(updatedLate.Annotations[machineutils.PreserveMachineAnnotationKey]).To(Equal(machineutils.PreserveMachineAnnotationValueAutoPreserved))
 			Expect(updatedLate.Status.CurrentStatus.PreserveExpiryTime).ToNot(BeNil())

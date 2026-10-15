@@ -807,15 +807,16 @@ func (c *controller) machineCreateErrorHandler(ctx context.Context, machine *v1a
 		lastKnownState = createMachineResponse.LastKnownState
 	}
 
+	lastUpdateTime := metav1.Now()
 	currentStatus := v1alpha1.CurrentStatus{
 		Phase:              c.getCreateFailurePhase(machine),
-		LastUpdateTime:     metav1.Now(),
+		LastUpdateTime:     lastUpdateTime,
 		PreserveExpiryTime: machine.Status.CurrentStatus.PreserveExpiryTime,
 	}
 	if currentStatus.Phase == v1alpha1.MachineFailed {
 		// check if preservation is needed for the failed machine
 		node, _ := c.nodeLister.Get(machine.Labels[v1alpha1.NodeLabelKey])
-		if val, shouldHandlePreservation := machineutils.DeterminePreservationAction(node, machine); shouldHandlePreservation && val == machineutils.PreserveMachineAnnotationValueWhenFailed {
+		if val, shouldHandlePreservation := machineutils.DeterminePreservationAction(machine, node); shouldHandlePreservation && val == machineutils.PreserveMachineAnnotationValueWhenFailed {
 			currentStatus.PreserveExpiryTime = &metav1.Time{Time: metav1.Now().Add(c.getEffectiveMachinePreserveTimeout(machine).Duration)}
 		}
 	}
@@ -828,7 +829,7 @@ func (c *controller) machineCreateErrorHandler(ctx context.Context, machine *v1a
 			ErrorCode:      machineErr.Code().String(),
 			State:          v1alpha1.MachineStateFailed,
 			Type:           v1alpha1.MachineOperationCreate,
-			LastUpdateTime: metav1.Now(),
+			LastUpdateTime: lastUpdateTime,
 		},
 		currentStatus,
 		lastKnownState,
@@ -1152,7 +1153,7 @@ func (c *controller) reconcileMachineHealth(ctx context.Context, machine *v1alph
 					PreserveExpiryTime: machine.Status.CurrentStatus.PreserveExpiryTime,
 				}
 				// check if preservation is needed for the failed machine
-				if val, shouldHandlePreservation := machineutils.DeterminePreservationAction(node, machine); shouldHandlePreservation && val == machineutils.PreserveMachineAnnotationValueWhenFailed {
+				if val, shouldHandlePreservation := machineutils.DeterminePreservationAction(machine, node); shouldHandlePreservation && val == machineutils.PreserveMachineAnnotationValueWhenFailed {
 					clone.Status.CurrentStatus.PreserveExpiryTime = &metav1.Time{Time: metav1.Now().Add(c.getEffectiveMachinePreserveTimeout(machine).Duration)}
 				}
 				cloneDirty = true
@@ -2231,7 +2232,7 @@ func (c *controller) updateMachineToFailedState(ctx context.Context, description
 	}
 
 	// check if preservation is needed for the failed machine
-	if val, shouldHandlePreservation := machineutils.DeterminePreservationAction(node, machine); shouldHandlePreservation && val == machineutils.PreserveMachineAnnotationValueWhenFailed {
+	if val, shouldHandlePreservation := machineutils.DeterminePreservationAction(machine, node); shouldHandlePreservation && val == machineutils.PreserveMachineAnnotationValueWhenFailed {
 		// we set the PreserveExpiryTime if not already set.
 		if clone.Status.CurrentStatus.PreserveExpiryTime == nil {
 			clone.Status.CurrentStatus.PreserveExpiryTime = &metav1.Time{Time: metav1.Now().Add(c.getEffectiveMachinePreserveTimeout(machine).Duration)}
@@ -2565,7 +2566,7 @@ func (c *controller) stopPreservationIfActive(ctx context.Context, machine *v1al
 			return machine, nil
 		}
 		klog.Errorf("error trying to get node %q of machine %q: %v. Retrying.", nodeName, machine.Name, err)
-		return nil, err
+		return machine, err
 	}
 	// prepare NodeCondition to set preservation as stopped
 	preservedConditionFalse := v1.NodeCondition{
@@ -2577,12 +2578,12 @@ func (c *controller) stopPreservationIfActive(ctx context.Context, machine *v1al
 	// Step 1: change node condition to reflect that preservation has stopped
 	updatedNode, err := nodeops.AddOrUpdateConditionsOnNode(ctx, c.targetCoreClient, node.Name, preservedConditionFalse)
 	if err != nil {
-		return nil, err
+		return machine, err
 	}
 	// Step 2: remove annotations from node
 	updatedNode, err = c.removePreservationRelatedAnnotationsOnNode(ctx, updatedNode, removePreservationAnnotations)
 	if err != nil {
-		return nil, err
+		return machine, err
 	}
 	// Step 3: remove annotation from machine if needed
 	if removePreservationAnnotations {
@@ -2599,7 +2600,7 @@ func (c *controller) stopPreservationIfActive(ctx context.Context, machine *v1al
 		Effect: v1.TaintEffectNoSchedule,
 	})
 	if err != nil {
-		return nil, err
+		return machine, err
 	}
 	// Step 5: update machine status to set preserve expiry time to nil
 	machine, err = c.clearMachinePreserveExpiryTime(ctx, machine)
