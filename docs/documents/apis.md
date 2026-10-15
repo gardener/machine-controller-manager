@@ -151,7 +151,7 @@ boolean
 <td>
 <code>lastUpdateTime</code></br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.29/#time-v1-meta">Time</a>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#time-v1-meta">Time</a>
 </em>
 </td>
 <td>
@@ -162,7 +162,7 @@ boolean
 <td>
 <code>preserveExpiryTime</code></br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.29/#time-v1-meta">Time</a>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#time-v1-meta">Time</a>
 </em>
 </td>
 <td>
@@ -199,7 +199,7 @@ InPlaceUpdateMachineDeployment specifies the spec to control the desired behavio
 <td>
 <code>maxUnavailable</code></br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.29/#intorstring-intstr-util">IntOrString</a>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#intorstring-intstr-util">IntOrString</a>
 </em>
 </td>
 <td>
@@ -211,7 +211,7 @@ InPlaceUpdateMachineDeployment specifies the spec to control the desired behavio
 <td>
 <code>maxSurge</code></br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.29/#intorstring-intstr-util">IntOrString</a>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#intorstring-intstr-util">IntOrString</a>
 </em>
 </td>
 <td>
@@ -283,7 +283,7 @@ string
 <td>
 <code>lastUpdateTime</code></br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.29/#time-v1-meta">Time</a>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#time-v1-meta">Time</a>
 </em>
 </td>
 <td>
@@ -354,7 +354,7 @@ string
 <td>
 <code>metadata</code></br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.29/#objectmeta-v1-meta">ObjectMeta</a>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#objectmeta-v1-meta">ObjectMeta</a>
 </em>
 </td>
 <td>
@@ -426,7 +426,7 @@ string
 <td>
 <code>metadata</code></br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.29/#objectmeta-v1-meta">ObjectMeta</a>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#objectmeta-v1-meta">ObjectMeta</a>
 </em>
 </td>
 <td>
@@ -449,7 +449,7 @@ Refer to the Kubernetes API documentation for the fields of the <code>metadata</
 <td>
 <code>credentialsSecretRef</code></br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.29/#secretreference-v1-core">SecretReference</a>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#secretreference-v1-core">SecretReference</a>
 </em>
 </td>
 <td>
@@ -460,7 +460,7 @@ Refer to the Kubernetes API documentation for the fields of the <code>metadata</
 <td>
 <code>providerSpec</code></br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.29/#rawextension-runtime-pkg">RawExtension</a>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#rawextension-runtime-pkg">RawExtension</a>
 </em>
 </td>
 <td>
@@ -482,7 +482,7 @@ string
 <td>
 <code>secretRef</code></br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.29/#secretreference-v1-core">SecretReference</a>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#secretreference-v1-core">SecretReference</a>
 </em>
 </td>
 <td>
@@ -519,7 +519,7 @@ MachineConfiguration describes the configurations useful for the machine-control
 <td>
 <code>drainTimeout</code></br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.29/#duration-v1-meta">Duration</a>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#duration-v1-meta">Duration</a>
 </em>
 </td>
 <td>
@@ -531,7 +531,7 @@ MachineConfiguration describes the configurations useful for the machine-control
 <td>
 <code>healthTimeout</code></br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.29/#duration-v1-meta">Duration</a>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#duration-v1-meta">Duration</a>
 </em>
 </td>
 <td>
@@ -543,7 +543,7 @@ MachineConfiguration describes the configurations useful for the machine-control
 <td>
 <code>creationTimeout</code></br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.29/#duration-v1-meta">Duration</a>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#duration-v1-meta">Duration</a>
 </em>
 </td>
 <td>
@@ -555,7 +555,7 @@ MachineConfiguration describes the configurations useful for the machine-control
 <td>
 <code>inPlaceUpdateTimeout</code></br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.29/#duration-v1-meta">Duration</a>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#duration-v1-meta">Duration</a>
 </em>
 </td>
 <td>
@@ -567,7 +567,7 @@ MachineConfiguration describes the configurations useful for the machine-control
 <td>
 <code>machinePreserveTimeout</code></br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.29/#duration-v1-meta">Duration</a>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#duration-v1-meta">Duration</a>
 </em>
 </td>
 <td>
@@ -653,7 +653,7 @@ string
 <td>
 <code>metadata</code></br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.29/#objectmeta-v1-meta">ObjectMeta</a>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#objectmeta-v1-meta">ObjectMeta</a>
 </em>
 </td>
 <td>
@@ -736,7 +736,7 @@ MachineDeploymentCondition describes the state of a MachineDeployment at a certa
 <td>
 <code>lastUpdateTime</code></br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.29/#time-v1-meta">Time</a>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#time-v1-meta">Time</a>
 </em>
 </td>
 <td>
@@ -747,7 +747,7 @@ MachineDeploymentCondition describes the state of a MachineDeployment at a certa
 <td>
 <code>lastTransitionTime</code></br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.29/#time-v1-meta">Time</a>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#time-v1-meta">Time</a>
 </em>
 </td>
 <td>
@@ -832,7 +832,7 @@ integer
 <td>
 <code>selector</code></br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.29/#labelselector-v1-meta">LabelSelector</a>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#labelselector-v1-meta">LabelSelector</a>
 </em>
 </td>
 <td>
@@ -1226,7 +1226,7 @@ string
 <td>
 <code>metadata</code></br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.29/#objectmeta-v1-meta">ObjectMeta</a>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#objectmeta-v1-meta">ObjectMeta</a>
 </em>
 </td>
 <td>
@@ -1309,7 +1309,7 @@ MachineSetCondition describes the state of a machine set at a certain point.
 <td>
 <code>lastTransitionTime</code></br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.29/#time-v1-meta">Time</a>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#time-v1-meta">Time</a>
 </em>
 </td>
 <td>
@@ -1397,7 +1397,7 @@ integer
 <td>
 <code>selector</code></br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.29/#labelselector-v1-meta">LabelSelector</a>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#labelselector-v1-meta">LabelSelector</a>
 </em>
 </td>
 <td>
@@ -1702,7 +1702,7 @@ MachineStatus holds the most recently observed status of Machine.
 <td>
 <code>addresses</code></br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.29/#nodeaddress-v1-core">NodeAddress</a> array
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#nodeaddress-v1-core">NodeAddress</a> array
 </em>
 </td>
 <td>
@@ -1714,7 +1714,7 @@ MachineStatus holds the most recently observed status of Machine.
 <td>
 <code>conditions</code></br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.29/#nodecondition-v1-core">NodeCondition</a> array
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#nodecondition-v1-core">NodeCondition</a> array
 </em>
 </td>
 <td>
@@ -1855,7 +1855,7 @@ MachineTemplateSpec describes the data a machine should have when created from a
 <td>
 <code>metadata</code></br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.29/#objectmeta-v1-meta">ObjectMeta</a>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#objectmeta-v1-meta">ObjectMeta</a>
 </em>
 </td>
 <td>
@@ -1975,7 +1975,7 @@ NodeTemplateSpec describes the data a node should have when created from a templ
 <td>
 <code>metadata</code></br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.29/#objectmeta-v1-meta">ObjectMeta</a>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#objectmeta-v1-meta">ObjectMeta</a>
 </em>
 </td>
 <td>
@@ -1986,7 +1986,7 @@ Refer to the Kubernetes API documentation for the fields of the <code>metadata</
 <td>
 <code>spec</code></br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.29/#nodespec-v1-core">NodeSpec</a>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#nodespec-v1-core">NodeSpec</a>
 </em>
 </td>
 <td>
@@ -2076,7 +2076,7 @@ RollingUpdateMachineDeployment is the spec to control the desired behavior of ro
 <td>
 <code>maxUnavailable</code></br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.29/#intorstring-intstr-util">IntOrString</a>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#intorstring-intstr-util">IntOrString</a>
 </em>
 </td>
 <td>
@@ -2088,7 +2088,7 @@ RollingUpdateMachineDeployment is the spec to control the desired behavior of ro
 <td>
 <code>maxSurge</code></br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.29/#intorstring-intstr-util">IntOrString</a>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#intorstring-intstr-util">IntOrString</a>
 </em>
 </td>
 <td>
@@ -2126,7 +2126,7 @@ UpdateConfiguration specifies the udpate configuration for the deployment strate
 <td>
 <code>maxUnavailable</code></br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.29/#intorstring-intstr-util">IntOrString</a>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#intorstring-intstr-util">IntOrString</a>
 </em>
 </td>
 <td>
@@ -2138,7 +2138,7 @@ UpdateConfiguration specifies the udpate configuration for the deployment strate
 <td>
 <code>maxSurge</code></br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.29/#intorstring-intstr-util">IntOrString</a>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#intorstring-intstr-util">IntOrString</a>
 </em>
 </td>
 <td>
