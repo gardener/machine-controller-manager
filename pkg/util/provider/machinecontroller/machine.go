@@ -837,10 +837,9 @@ func (c *controller) isCreationProcessing(machine *v1alpha1.Machine) bool {
 
 // manageMachinePreservation manages machine preservation based on the preserve annotation values on the node and machine objects.
 func (c *controller) manageMachinePreservation(ctx context.Context, machine *v1alpha1.Machine) (clone *v1alpha1.Machine, err error) {
-	nodeName := machine.Labels[v1alpha1.NodeLabelKey]
-	node, err := c.nodeLister.Get(nodeName)
+	node, err := c.nodeLister.Get(machine.Labels[v1alpha1.NodeLabelKey])
 	if err != nil {
-		klog.V(3).Infof("node %q not found. Will check the machine %q for annotation:%q", nodeName, machine.Name, machineutils.PreserveMachineAnnotationKey)
+		klog.V(3).Infof("node %q not found. Will check the machine %q for annotation:%q", machine.Labels[v1alpha1.NodeLabelKey], machine.Name, machineutils.PreserveMachineAnnotationKey)
 	}
 
 	preserveAnnotationValue, shouldHandlePreservation := machineutils.DeterminePreservationAction(machine, node)

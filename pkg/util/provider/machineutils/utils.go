@@ -14,7 +14,6 @@ import (
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	v1alpha1client "github.com/gardener/machine-controller-manager/pkg/client/clientset/versioned/typed/machine/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/sets"
@@ -128,7 +127,7 @@ const (
 )
 
 // GetMachineCondition returns a condition matching the type from the machine's status.
-func GetMachineCondition(machine *v1alpha1.Machine, conditionType v1.NodeConditionType) *v1.NodeCondition {
+func GetMachineCondition(machine *v1alpha1.Machine, conditionType corev1.NodeConditionType) *corev1.NodeCondition {
 	for _, cond := range machine.Status.Conditions {
 		if cond.Type == conditionType {
 			return &cond

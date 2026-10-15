@@ -50,7 +50,6 @@ import (
 	utiltime "github.com/gardener/machine-controller-manager/pkg/util/time"
 
 	corev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -300,9 +299,9 @@ func (c *controller) updateNodeConditionBasedOnLabel(ctx context.Context, machin
 	// If the condition is present and marked as update successful, we check if the node lacks the "update result" label.
 	// This ensures that the condition is not reverted from update successful to update candidate, as the node will already have the "update result" label from the same update process.
 	if inPlaceCond == nil || (inPlaceCond.Reason == v1alpha1.UpdateSuccessful && !metav1.HasLabel(nodeCopy.ObjectMeta, v1alpha1.LabelKeyNodeUpdateResult)) {
-		nodeCopy = nodeops.AddOrUpdateCondition(nodeCopy, v1.NodeCondition{
+		nodeCopy = nodeops.AddOrUpdateCondition(nodeCopy, corev1.NodeCondition{
 			Type:               v1alpha1.NodeInPlaceUpdate,
-			Status:             v1.ConditionTrue,
+			Status:             corev1.ConditionTrue,
 			LastTransitionTime: metav1.Now(),
 			Reason:             v1alpha1.CandidateForUpdate,
 			Message:            "Node is a candidate for in-place update",
@@ -313,9 +312,9 @@ func (c *controller) updateNodeConditionBasedOnLabel(ctx context.Context, machin
 	if !updateCondition {
 		if _, ok := nodeCopy.Labels[v1alpha1.LabelKeyNodeSelectedForUpdate]; ok {
 			if inPlaceCond.Reason == v1alpha1.CandidateForUpdate {
-				nodeCopy = nodeops.AddOrUpdateCondition(nodeCopy, v1.NodeCondition{
+				nodeCopy = nodeops.AddOrUpdateCondition(nodeCopy, corev1.NodeCondition{
 					Type:               v1alpha1.NodeInPlaceUpdate,
-					Status:             v1.ConditionTrue,
+					Status:             corev1.ConditionTrue,
 					LastTransitionTime: metav1.Now(),
 					Reason:             v1alpha1.SelectedForUpdate,
 					Message:            "Node is selected for in-place update",
@@ -333,9 +332,9 @@ func (c *controller) updateNodeConditionBasedOnLabel(ctx context.Context, machin
 			if inPlaceCond != nil && inPlaceCond.Reason == v1alpha1.UpdateSuccessful {
 				return machineutils.LongRetry, nil
 			}
-			nodeCopy = nodeops.AddOrUpdateCondition(nodeCopy, v1.NodeCondition{
+			nodeCopy = nodeops.AddOrUpdateCondition(nodeCopy, corev1.NodeCondition{
 				Type:               v1alpha1.NodeInPlaceUpdate,
-				Status:             v1.ConditionTrue,
+				Status:             corev1.ConditionTrue,
 				LastTransitionTime: metav1.Now(),
 				Reason:             v1alpha1.UpdateSuccessful,
 				Message:            "Node in-place update successful",
@@ -346,9 +345,9 @@ func (c *controller) updateNodeConditionBasedOnLabel(ctx context.Context, machin
 				return machineutils.LongRetry, nil
 			}
 
-			nodeCopy = nodeops.AddOrUpdateCondition(nodeCopy, v1.NodeCondition{
+			nodeCopy = nodeops.AddOrUpdateCondition(nodeCopy, corev1.NodeCondition{
 				Type:               v1alpha1.NodeInPlaceUpdate,
-				Status:             v1.ConditionTrue,
+				Status:             corev1.ConditionTrue,
 				LastTransitionTime: metav1.Now(),
 				Reason:             v1alpha1.UpdateFailed,
 				Message:            fmt.Sprintf("Node in-place update failed: %v", nodeCopy.Annotations[v1alpha1.AnnotationKeyMachineUpdateFailedReason]),
@@ -457,12 +456,12 @@ func (c *controller) updateMachineStatusAndNodeCondition(ctx context.Context, ma
 
 	if cond == nil {
 		// Add the condition to the node
-		cond = &v1.NodeCondition{
+		cond = &corev1.NodeCondition{
 			Type: v1alpha1.NodeInPlaceUpdate,
 		}
 	}
 
-	cond.Status = v1.ConditionTrue
+	cond.Status = corev1.ConditionTrue
 	cond.LastTransitionTime = metav1.Now()
 	cond.Reason = v1alpha1.DrainSuccessful
 	cond.Message = "Node draining successful"
@@ -484,7 +483,7 @@ func (c *controller) syncNodeTemplates(ctx context.Context, machine *v1alpha1.Ma
 		currentlyAppliedALTJSONByte             []byte
 		lastAppliedALT                          v1alpha1.NodeTemplateSpec
 		currentlyAppliedVirtualCapacityJSONByte []byte
-		lastAppliedVirtualCapacity              v1.ResourceList
+		lastAppliedVirtualCapacity              corev1.ResourceList
 	)
 
 	node, err := c.nodeLister.Get(getNodeName(machine))
@@ -529,7 +528,7 @@ func (c *controller) syncNodeTemplates(ctx context.Context, machine *v1alpha1.Ma
 	taintsChanged := SyncMachineTaints(machine, nodeCopy, lastAppliedALT.Spec.Taints)
 
 	var virtualCapacityChanged bool
-	var desiredVirtualCapacity v1.ResourceList
+	var desiredVirtualCapacity corev1.ResourceList
 	if machineClass != nil && machineClass.NodeTemplate != nil {
 		desiredVirtualCapacity = machineClass.NodeTemplate.VirtualCapacity
 		virtualCapacityChanged = SyncVirtualCapacity(desiredVirtualCapacity, nodeCopy, lastAppliedVirtualCapacity)
@@ -603,7 +602,7 @@ func (c *controller) syncNodeTemplates(ctx context.Context, machine *v1alpha1.Ma
 // It returns true if update is needed else false.
 func SyncMachineAnnotations(
 	machine *v1alpha1.Machine,
-	node *v1.Node,
+	node *corev1.Node,
 	lastAppliedAnnotations map[string]string,
 ) bool {
 	toBeUpdated := false
@@ -642,7 +641,7 @@ func SyncMachineAnnotations(
 // It returns true if update is needed else false.
 func SyncMachineLabels(
 	machine *v1alpha1.Machine,
-	node *v1.Node,
+	node *corev1.Node,
 	lastAppliedLabels map[string]string,
 ) bool {
 	toBeUpdated := false
@@ -681,20 +680,20 @@ type taintKeyEffect struct {
 	// Required. The taint key to be applied to a node.
 	Key string
 	// Valid effects are NoSchedule, PreferNoSchedule and NoExecute.
-	Effect v1.TaintEffect
+	Effect corev1.TaintEffect
 }
 
 // SyncMachineTaints syncs the taints of the machine with node-objects.
 // It returns true if update is needed else false.
 func SyncMachineTaints(
 	machine *v1alpha1.Machine,
-	node *v1.Node,
-	lastAppliedTaints []v1.Taint,
+	node *corev1.Node,
+	lastAppliedTaints []corev1.Taint,
 ) bool {
 	toBeUpdated := false
 	mTaints, nTaints := machine.Spec.NodeTemplateSpec.Spec.Taints, node.Spec.Taints
-	mTaintsMap := make(map[taintKeyEffect]*v1.Taint, 0)
-	nTaintsMap := make(map[taintKeyEffect]*v1.Taint, 0)
+	mTaintsMap := make(map[taintKeyEffect]*corev1.Taint, 0)
+	nTaintsMap := make(map[taintKeyEffect]*corev1.Taint, 0)
 
 	// Convert the slice of taints to map of taint [key, effect] = Taint
 	// Helps with indexed searching
@@ -739,7 +738,7 @@ func SyncMachineTaints(
 
 	if toBeUpdated {
 		// Convert the map of taints to slice of taints
-		nTaints = make([]v1.Taint, len(nTaintsMap))
+		nTaints = make([]corev1.Taint, len(nTaintsMap))
 		i := 0
 		for _, nV := range nTaintsMap {
 			nTaints[i] = *nV
@@ -753,14 +752,14 @@ func SyncMachineTaints(
 
 // SyncVirtualCapacity syncs the MachineClass.NodeTemplate.VirtualCapacity with the Node.Status.Capacity
 // It returns true if update is needed else false.
-func SyncVirtualCapacity(desiredVirtualCapacity v1.ResourceList, node *v1.Node, lastAppliedVirtualCapacity v1.ResourceList) bool {
+func SyncVirtualCapacity(desiredVirtualCapacity corev1.ResourceList, node *corev1.Node, lastAppliedVirtualCapacity corev1.ResourceList) bool {
 	toBeUpdated := false
 
 	if node.Status.Capacity == nil {
-		node.Status.Capacity = v1.ResourceList{}
+		node.Status.Capacity = corev1.ResourceList{}
 	}
 	if desiredVirtualCapacity == nil {
-		desiredVirtualCapacity = v1.ResourceList{}
+		desiredVirtualCapacity = corev1.ResourceList{}
 	}
 
 	// Delete any keys that existed in the past but has been deleted now
@@ -1188,7 +1187,7 @@ func (c *controller) reconcileMachineHealth(ctx context.Context, machine *v1alph
 	return machineutils.LongRetry, nil
 }
 
-func getFormattedNodeConditions(conditions []v1.NodeCondition) string {
+func getFormattedNodeConditions(conditions []corev1.NodeCondition) string {
 	var result string
 	if len(conditions) == 0 {
 		return "<none>\n"
@@ -1260,14 +1259,14 @@ func (c *controller) isHealthy(machine *v1alpha1.Machine) bool {
 	}
 
 	for _, condition := range machine.Status.Conditions {
-		if condition.Type == v1.NodeReady && condition.Status != v1.ConditionTrue {
+		if condition.Type == corev1.NodeReady && condition.Status != corev1.ConditionTrue {
 			// If Kubelet is not ready
 			return false
 		}
 
 		conditions := strings.Split(*c.getEffectiveNodeConditions(machine), ",")
 		for _, c := range conditions {
-			if string(condition.Type) == c && condition.Status != v1.ConditionFalse {
+			if string(condition.Type) == c && condition.Status != corev1.ConditionFalse {
 				return false
 			}
 		}
@@ -1276,16 +1275,16 @@ func (c *controller) isHealthy(machine *v1alpha1.Machine) bool {
 	return true
 }
 
-func criticalComponentsNotReadyTaintPresent(node *v1.Node) bool {
+func criticalComponentsNotReadyTaintPresent(node *corev1.Node) bool {
 	for _, taint := range node.Spec.Taints {
-		if taint.Key == machineutils.TaintNodeCriticalComponentsNotReady && taint.Effect == v1.TaintEffectNoSchedule {
+		if taint.Key == machineutils.TaintNodeCriticalComponentsNotReady && taint.Effect == corev1.TaintEffectNoSchedule {
 			return true
 		}
 	}
 	return false
 }
 
-func isPendingMachineWithCriticalComponentsNotReadyTaint(clone *v1alpha1.Machine, node *v1.Node) bool {
+func isPendingMachineWithCriticalComponentsNotReadyTaint(clone *v1alpha1.Machine, node *corev1.Node) bool {
 	if clone.Status.CurrentStatus.Phase == v1alpha1.MachinePending && criticalComponentsNotReadyTaintPresent(node) {
 		klog.V(3).Infof("Critical component taint %q still present on node %q for machine %q", machineutils.TaintNodeCriticalComponentsNotReady, getNodeName(clone), clone.Name)
 		return true
@@ -1424,8 +1423,8 @@ func (c *controller) updateMachineStatusAndNodeLabel(ctx context.Context, getMac
 }
 
 // isConditionEmpty returns true if passed NodeCondition is empty
-func isConditionEmpty(condition v1.NodeCondition) bool {
-	return condition == v1.NodeCondition{}
+func isConditionEmpty(condition corev1.NodeCondition) bool {
+	return condition == corev1.NodeCondition{}
 }
 
 // initializes err and description with the passed string message
@@ -1442,28 +1441,28 @@ func printLogInitError(s string, err *error, description *string, machine *v1alp
 func (c *controller) drainNodeForInPlace(ctx context.Context, machine *v1alpha1.Machine) (machineutils.RetryPeriod, error) {
 	var (
 		// Declarations
-		node            *v1.Node
+		node            *corev1.Node
 		err             error
 		forceDeletePods bool
 		timeOutOccurred bool
 		description     string
 		state           v1alpha1.MachineState
 
-		readOnlyFileSystemCondition, nodeReadyCondition v1.NodeCondition
+		readOnlyFileSystemCondition, nodeReadyCondition corev1.NodeCondition
 
 		// Initialization
-		maxEvictRetries                             = int32(math.Min(float64(*c.getEffectiveMaxEvictRetries(machine)), c.getEffectiveDrainTimeout(machine).Seconds()/drain.PodEvictionRetryInterval.Seconds()))
-		pvDetachTimeOut                             = c.safetyOptions.PvDetachTimeout.Duration
-		pvReattachTimeOut                           = c.safetyOptions.PvReattachTimeout.Duration
-		timeOutDuration                             = c.getEffectiveDrainTimeout(machine).Duration
-		forceDrainLabelPresent                      = machine.Labels["force-drain"] == "True"
-		nodeName                                    = machine.Labels[v1alpha1.NodeLabelKey]
-		nodeNotReadyDuration                        = 5 * time.Minute
-		ReadonlyFilesystem     v1.NodeConditionType = "ReadonlyFilesystem"
+		maxEvictRetries                                 = int32(math.Min(float64(*c.getEffectiveMaxEvictRetries(machine)), c.getEffectiveDrainTimeout(machine).Seconds()/drain.PodEvictionRetryInterval.Seconds()))
+		pvDetachTimeOut                                 = c.safetyOptions.PvDetachTimeout.Duration
+		pvReattachTimeOut                               = c.safetyOptions.PvReattachTimeout.Duration
+		timeOutDuration                                 = c.getEffectiveDrainTimeout(machine).Duration
+		forceDrainLabelPresent                          = machine.Labels["force-drain"] == "True"
+		nodeName                                        = machine.Labels[v1alpha1.NodeLabelKey]
+		nodeNotReadyDuration                            = 5 * time.Minute
+		ReadonlyFilesystem     corev1.NodeConditionType = "ReadonlyFilesystem"
 	)
 
 	for _, condition := range machine.Status.Conditions {
-		if condition.Type == v1.NodeReady {
+		if condition.Type == corev1.NodeReady {
 			nodeReadyCondition = condition
 		} else if condition.Type == ReadonlyFilesystem {
 			readOnlyFileSystemCondition = condition
@@ -1477,11 +1476,11 @@ func (c *controller) drainNodeForInPlace(ctx context.Context, machine *v1alpha1.
 		klog.Warningf("(drainNode) Node %q for machine %q doesn't exist. Skipping drain.", nodeName, machine.Name)
 	}
 
-	if !isConditionEmpty(nodeReadyCondition) && (nodeReadyCondition.Status != v1.ConditionTrue) && (time.Since(nodeReadyCondition.LastTransitionTime.Time) > nodeNotReadyDuration) {
+	if !isConditionEmpty(nodeReadyCondition) && (nodeReadyCondition.Status != corev1.ConditionTrue) && (time.Since(nodeReadyCondition.LastTransitionTime.Time) > nodeNotReadyDuration) {
 		message := "Setting forceDeletePods to true for drain as machine is NotReady for over 5min"
 		forceDeletePods = true
 		printLogInitError(message, &err, &description, machine, true)
-	} else if !isConditionEmpty(readOnlyFileSystemCondition) && (readOnlyFileSystemCondition.Status != v1.ConditionFalse) && (time.Since(readOnlyFileSystemCondition.LastTransitionTime.Time) > nodeNotReadyDuration) {
+	} else if !isConditionEmpty(readOnlyFileSystemCondition) && (readOnlyFileSystemCondition.Status != corev1.ConditionFalse) && (time.Since(readOnlyFileSystemCondition.LastTransitionTime.Time) > nodeNotReadyDuration) {
 		message := "Setting forceDeletePods to true for drain as machine is in ReadonlyFilesystem for over 5min"
 		forceDeletePods = true
 		printLogInitError(message, &err, &description, machine, true)
@@ -1587,17 +1586,17 @@ func (c *controller) drainNode(ctx context.Context, deleteMachineRequest *driver
 		timeOutOccurred                                 bool
 		description                                     string
 		state                                           v1alpha1.MachineState
-		readOnlyFileSystemCondition, nodeReadyCondition v1.NodeCondition
+		readOnlyFileSystemCondition, nodeReadyCondition corev1.NodeCondition
 
 		// Initialization
-		machine                                   = deleteMachineRequest.Machine
-		maxEvictRetries                           = int32(math.Min(float64(*c.getEffectiveMaxEvictRetries(machine)), c.getEffectiveDrainTimeout(machine).Seconds()/drain.PodEvictionRetryInterval.Seconds()))
-		pvDetachTimeOut                           = c.safetyOptions.PvDetachTimeout.Duration
-		pvReattachTimeOut                         = c.safetyOptions.PvReattachTimeout.Duration
-		timeOutDuration                           = c.getEffectiveDrainTimeout(deleteMachineRequest.Machine).Duration
-		nodeName                                  = machine.Labels[v1alpha1.NodeLabelKey]
-		nodeNotReadyDuration                      = 5 * time.Minute
-		ReadonlyFilesystem   v1.NodeConditionType = "ReadonlyFilesystem"
+		machine                                       = deleteMachineRequest.Machine
+		maxEvictRetries                               = int32(math.Min(float64(*c.getEffectiveMaxEvictRetries(machine)), c.getEffectiveDrainTimeout(machine).Seconds()/drain.PodEvictionRetryInterval.Seconds()))
+		pvDetachTimeOut                               = c.safetyOptions.PvDetachTimeout.Duration
+		pvReattachTimeOut                             = c.safetyOptions.PvReattachTimeout.Duration
+		timeOutDuration                               = c.getEffectiveDrainTimeout(deleteMachineRequest.Machine).Duration
+		nodeName                                      = machine.Labels[v1alpha1.NodeLabelKey]
+		nodeNotReadyDuration                          = 5 * time.Minute
+		ReadonlyFilesystem   corev1.NodeConditionType = "ReadonlyFilesystem"
 	)
 
 	if labelValue, exists := machine.Labels["force-deletion"]; exists {
@@ -1618,7 +1617,7 @@ func (c *controller) drainNode(ctx context.Context, deleteMachineRequest *driver
 		return machineutils.ShortRetry, err
 	}
 	for _, condition := range machine.Status.Conditions {
-		if condition.Type == v1.NodeReady {
+		if condition.Type == corev1.NodeReady {
 			nodeReadyCondition = condition
 		} else if condition.Type == ReadonlyFilesystem {
 			readOnlyFileSystemCondition = condition
@@ -1632,12 +1631,12 @@ func (c *controller) drainNode(ctx context.Context, deleteMachineRequest *driver
 		klog.Warningf("(drainNode) Node %q for machine %q doesn't exist. Skipping drain.", nodeName, machine.Name)
 	}
 
-	if !isConditionEmpty(nodeReadyCondition) && (nodeReadyCondition.Status != v1.ConditionTrue) && (time.Since(nodeReadyCondition.LastTransitionTime.Time) > nodeNotReadyDuration) {
+	if !isConditionEmpty(nodeReadyCondition) && (nodeReadyCondition.Status != corev1.ConditionTrue) && (time.Since(nodeReadyCondition.LastTransitionTime.Time) > nodeNotReadyDuration) {
 		message := "Setting forceDeletePods & forceDeleteMachine to true for drain as machine is NotReady for over 5min"
 		forceDeleteMachine = true
 		forceDeletePods = true
 		printLogInitError(message, &err, &description, machine, false)
-	} else if !isConditionEmpty(readOnlyFileSystemCondition) && (readOnlyFileSystemCondition.Status != v1.ConditionFalse) && (time.Since(readOnlyFileSystemCondition.LastTransitionTime.Time) > nodeNotReadyDuration) {
+	} else if !isConditionEmpty(readOnlyFileSystemCondition) && (readOnlyFileSystemCondition.Status != corev1.ConditionFalse) && (time.Since(readOnlyFileSystemCondition.LastTransitionTime.Time) > nodeNotReadyDuration) {
 		message := "Setting forceDeletePods & forceDeleteMachine to true for drain as machine is in ReadonlyFilesystem for over 5min"
 		forceDeleteMachine = true
 		forceDeletePods = true
@@ -1873,7 +1872,7 @@ func (c *controller) deleteVM(ctx context.Context, deleteMachineRequest *driver.
 
 	suspensionMessage, suspended := annotationsutils.IsInstanceDeletionSuspended(machine)
 	if suspended {
-		retryPeriod, err := c.updateInstanceDeletionSuspensionCondition(ctx, machine, v1.ConditionTrue, suspensionMessage, v1alpha1.InstanceDeletionSuspended)
+		retryPeriod, err := c.updateInstanceDeletionSuspensionCondition(ctx, machine, corev1.ConditionTrue, suspensionMessage, v1alpha1.InstanceDeletionSuspended)
 		if err != nil {
 			return retryPeriod, err
 		}
@@ -1881,9 +1880,9 @@ func (c *controller) deleteVM(ctx context.Context, deleteMachineRequest *driver.
 		return machineutils.LongRetry, nil
 	}
 
-	if condition := machineutils.GetMachineCondition(machine, v1alpha1.ConditionInstanceDeletionSuspended); condition != nil && condition.Status == v1.ConditionTrue {
+	if condition := machineutils.GetMachineCondition(machine, v1alpha1.ConditionInstanceDeletionSuspended); condition != nil && condition.Status == corev1.ConditionTrue {
 		// Persist the cleared condition before starting provider deletion.
-		retryPeriod, err := c.updateInstanceDeletionSuspensionCondition(ctx, machine, v1.ConditionFalse, "Instance Deletion is no longer suspended.", v1alpha1.InstanceDeletionResumed)
+		retryPeriod, err := c.updateInstanceDeletionSuspensionCondition(ctx, machine, corev1.ConditionFalse, "Instance Deletion is no longer suspended.", v1alpha1.InstanceDeletionResumed)
 		if err != nil {
 			return retryPeriod, err
 		}
@@ -1958,16 +1957,16 @@ func (c *controller) deleteVM(ctx context.Context, deleteMachineRequest *driver.
 	return retryRequired, err
 }
 
-func (c *controller) updateInstanceDeletionSuspensionCondition(ctx context.Context, machine *v1alpha1.Machine, status v1.ConditionStatus, message, reason string) (machineutils.RetryPeriod, error) {
+func (c *controller) updateInstanceDeletionSuspensionCondition(ctx context.Context, machine *v1alpha1.Machine, status corev1.ConditionStatus, message, reason string) (machineutils.RetryPeriod, error) {
 	clone := machine.DeepCopy()
 
 	existingCondition := machineutils.GetMachineCondition(clone, v1alpha1.ConditionInstanceDeletionSuspended)
-	if existingCondition == nil && status != v1.ConditionTrue {
+	if existingCondition == nil && status != corev1.ConditionTrue {
 		return 0, nil
 	}
 
 	now := metav1.Now()
-	condition := v1.NodeCondition{
+	condition := corev1.NodeCondition{
 		Type:               v1alpha1.ConditionInstanceDeletionSuspended,
 		Status:             status,
 		LastHeartbeatTime:  now,
@@ -1997,7 +1996,7 @@ func (c *controller) deleteNodeObject(ctx context.Context, machine *v1alpha1.Mac
 		err         error
 		description string
 		state       v1alpha1.MachineState
-		node        *v1.Node
+		node        *corev1.Node
 	)
 
 	// nodeName label is expected to be present on machine object, but in case it is not present
@@ -2179,9 +2178,9 @@ func (c *controller) UpdateNodeTerminationCondition(ctx context.Context, machine
 
 	nodeName := machine.Labels[v1alpha1.NodeLabelKey]
 
-	terminationCondition := v1.NodeCondition{
+	terminationCondition := corev1.NodeCondition{
 		Type:               machineutils.NodeTerminationCondition,
-		Status:             v1.ConditionTrue,
+		Status:             corev1.ConditionTrue,
 		LastHeartbeatTime:  metav1.Now(),
 		LastTransitionTime: metav1.Now(),
 	}
@@ -2334,7 +2333,7 @@ func (c *controller) waitForFailedMachineCacheUpdate(ctx context.Context, machin
 	return true
 }
 
-func setTerminationReasonByPhase(phase v1alpha1.MachinePhase, terminationCondition *v1.NodeCondition) {
+func setTerminationReasonByPhase(phase v1alpha1.MachinePhase, terminationCondition *corev1.NodeCondition) {
 	if phase == v1alpha1.MachineFailed { // if failed, terminated due to health
 		terminationCondition.Reason = machineutils.NodeUnhealthy
 		terminationCondition.Message = "Machine Controller is terminating failed machine"
@@ -2441,7 +2440,7 @@ func (c *controller) getNodeName(ctx context.Context, request *driver.GetMachine
 }
 
 func (c *controller) fetchMatchingNodeName(machineName string) (string, error) {
-	var nodes []*v1.Node
+	var nodes []*corev1.Node
 	nodes, err := c.nodeLister.List(labels.Everything())
 	if err != nil {
 		return "", fmt.Errorf("failed to list nodes for machine %q: %w", machineName, err)
@@ -2483,7 +2482,7 @@ func (c *controller) preserveMachine(ctx context.Context, machine *v1alpha1.Mach
 	// the machine transitions to Failed.
 	// In such cases, even though ConditionStatus would be set to True, on transitioning to
 	// Failed, the preservation needs to be considered as incomplete.
-	if existingNodePreservedCondition != nil && existingNodePreservedCondition.Status == v1.ConditionTrue &&
+	if existingNodePreservedCondition != nil && existingNodePreservedCondition.Status == corev1.ConditionTrue &&
 		!drainRequired {
 		return machine, nil
 	}
@@ -2523,9 +2522,9 @@ func (c *controller) stopPreservationIfActive(ctx context.Context, machine *v1al
 
 	if node != nil {
 		// prepare NodeCondition to set preservation as stopped
-		preservedConditionFalse := v1.NodeCondition{
+		preservedConditionFalse := corev1.NodeCondition{
 			Type:               v1alpha1.NodePreserved,
-			Status:             v1.ConditionFalse,
+			Status:             corev1.ConditionFalse,
 			LastTransitionTime: metav1.Now(),
 			Reason:             v1alpha1.PreservationStopped,
 		}
@@ -2541,9 +2540,9 @@ func (c *controller) stopPreservationIfActive(ctx context.Context, machine *v1al
 		}
 		// Step 3: remove preservation-related taint regardless of machine phase.
 		// If machine is in Running, workload can get scheduled onto it.
-		err = nodeops.RemoveTaintOffNode(ctx, c.targetCoreClient, updatedNode.Name, updatedNode, &v1.Taint{
+		err = nodeops.RemoveTaintOffNode(ctx, c.targetCoreClient, updatedNode.Name, updatedNode, &corev1.Taint{
 			Key:    machineutils.NodePreservedTaintKey,
-			Effect: v1.TaintEffectNoSchedule,
+			Effect: corev1.TaintEffectNoSchedule,
 		})
 		if err != nil {
 			return machine, err
@@ -2586,14 +2585,14 @@ func (c *controller) setPreserveExpiryTimeOnMachine(ctx context.Context, machine
 }
 
 // computeNewNodePreservedCondition returns the NodeCondition with the values set according to the preserveValue and the stage of Preservation
-func computeNewNodePreservedCondition(currentStatus v1alpha1.CurrentStatus, preserveValue string, drainErr error, existingNodeCondition *v1.NodeCondition) (*v1.NodeCondition, bool) {
+func computeNewNodePreservedCondition(currentStatus v1alpha1.CurrentStatus, preserveValue string, drainErr error, existingNodeCondition *corev1.NodeCondition) (*corev1.NodeCondition, bool) {
 	const preserveExpiryMessageSuffix = "Machine preserved until"
-	var newNodePreservedCondition *v1.NodeCondition
+	var newNodePreservedCondition *corev1.NodeCondition
 	var needsUpdate bool
 	if existingNodeCondition == nil {
-		newNodePreservedCondition = &v1.NodeCondition{
+		newNodePreservedCondition = &corev1.NodeCondition{
 			Type:               v1alpha1.NodePreserved,
-			Status:             v1.ConditionFalse,
+			Status:             corev1.ConditionFalse,
 			LastTransitionTime: metav1.Now(),
 		}
 		needsUpdate = true
@@ -2605,16 +2604,16 @@ func computeNewNodePreservedCondition(currentStatus v1alpha1.CurrentStatus, pres
 		if drainErr == nil {
 			if !strings.Contains(newNodePreservedCondition.Message, v1alpha1.PreservedNodeDrainSuccessful) {
 				newNodePreservedCondition.Message = fmt.Sprintf("%s %s %v.", v1alpha1.PreservedNodeDrainSuccessful, preserveExpiryMessageSuffix, currentStatus.PreserveExpiryTime)
-				newNodePreservedCondition.Status = v1.ConditionTrue
+				newNodePreservedCondition.Status = corev1.ConditionTrue
 				needsUpdate = true
 			}
 		} else if !strings.Contains(newNodePreservedCondition.Message, v1alpha1.PreservedNodeDrainUnsuccessful) {
 			newNodePreservedCondition.Message = fmt.Sprintf("%s %s %v.", v1alpha1.PreservedNodeDrainUnsuccessful, preserveExpiryMessageSuffix, currentStatus.PreserveExpiryTime)
-			newNodePreservedCondition.Status = v1.ConditionFalse
+			newNodePreservedCondition.Status = corev1.ConditionFalse
 			needsUpdate = true
 		}
-	} else if newNodePreservedCondition.Status != v1.ConditionTrue {
-		newNodePreservedCondition.Status = v1.ConditionTrue
+	} else if newNodePreservedCondition.Status != corev1.ConditionTrue {
+		newNodePreservedCondition.Status = corev1.ConditionTrue
 		newNodePreservedCondition.Message = fmt.Sprintf("%s %v.", preserveExpiryMessageSuffix, currentStatus.PreserveExpiryTime)
 		needsUpdate = true
 	}
@@ -2627,7 +2626,7 @@ func computeNewNodePreservedCondition(currentStatus v1alpha1.CurrentStatus, pres
 }
 
 // shouldPreservedNodeBeDrained returns true if the machine's backing node must be drained, else false
-func shouldPreservedNodeBeDrained(existingCondition *v1.NodeCondition, machinePhase v1alpha1.MachinePhase) bool {
+func shouldPreservedNodeBeDrained(existingCondition *corev1.NodeCondition, machinePhase v1alpha1.MachinePhase) bool {
 	if machinePhase == v1alpha1.MachineFailed {
 		if existingCondition == nil {
 			return true
@@ -2674,17 +2673,17 @@ func (c *controller) drainPreservedNode(ctx context.Context, machine *v1alpha1.M
 		err                                             error
 		forceDeletePods                                 bool
 		timeOutOccurred                                 bool
-		readOnlyFileSystemCondition, nodeReadyCondition v1.NodeCondition
+		readOnlyFileSystemCondition, nodeReadyCondition corev1.NodeCondition
 
 		// Initialization
-		maxEvictRetries                             = int32(math.Min(float64(*c.getEffectiveMaxEvictRetries(machine)), c.getEffectiveDrainTimeout(machine).Seconds()/drain.PodEvictionRetryInterval.Seconds()))
-		pvDetachTimeOut                             = c.safetyOptions.PvDetachTimeout.Duration
-		pvReattachTimeOut                           = c.safetyOptions.PvReattachTimeout.Duration
-		timeOutDuration                             = c.getEffectiveDrainTimeout(machine).Duration
-		forceDrainLabelPresent                      = machine.Labels["force-drain"] == "True"
-		nodeName                                    = machine.Labels[v1alpha1.NodeLabelKey]
-		nodeNotReadyDuration                        = 5 * time.Minute
-		ReadonlyFilesystem     v1.NodeConditionType = "ReadonlyFilesystem"
+		maxEvictRetries                                 = int32(math.Min(float64(*c.getEffectiveMaxEvictRetries(machine)), c.getEffectiveDrainTimeout(machine).Seconds()/drain.PodEvictionRetryInterval.Seconds()))
+		pvDetachTimeOut                                 = c.safetyOptions.PvDetachTimeout.Duration
+		pvReattachTimeOut                               = c.safetyOptions.PvReattachTimeout.Duration
+		timeOutDuration                                 = c.getEffectiveDrainTimeout(machine).Duration
+		forceDrainLabelPresent                          = machine.Labels["force-drain"] == "True"
+		nodeName                                        = machine.Labels[v1alpha1.NodeLabelKey]
+		nodeNotReadyDuration                            = 5 * time.Minute
+		ReadonlyFilesystem     corev1.NodeConditionType = "ReadonlyFilesystem"
 	)
 	if nodeName == "" {
 		klog.Warningf("(drainNode) machine %q has no node name. Skipping drain.", machine.Name)
@@ -2692,7 +2691,7 @@ func (c *controller) drainPreservedNode(ctx context.Context, machine *v1alpha1.M
 	}
 
 	for _, condition := range machine.Status.Conditions {
-		if condition.Type == v1.NodeReady {
+		if condition.Type == corev1.NodeReady {
 			nodeReadyCondition = condition
 		} else if condition.Type == ReadonlyFilesystem {
 			readOnlyFileSystemCondition = condition
@@ -2708,10 +2707,10 @@ func (c *controller) drainPreservedNode(ctx context.Context, machine *v1alpha1.M
 		return nil
 	}
 
-	if !isConditionEmpty(nodeReadyCondition) && (nodeReadyCondition.Status != v1.ConditionTrue) && (time.Since(nodeReadyCondition.LastTransitionTime.Time) > nodeNotReadyDuration) {
+	if !isConditionEmpty(nodeReadyCondition) && (nodeReadyCondition.Status != corev1.ConditionTrue) && (time.Since(nodeReadyCondition.LastTransitionTime.Time) > nodeNotReadyDuration) {
 		klog.Warningf("Setting forceDeletePods to true for drain because node %q with backing machine %q is NotReady for over 5min", nodeName, machine.Name)
 		forceDeletePods = true
-	} else if !isConditionEmpty(readOnlyFileSystemCondition) && (readOnlyFileSystemCondition.Status != v1.ConditionFalse) && (time.Since(readOnlyFileSystemCondition.LastTransitionTime.Time) > nodeNotReadyDuration) {
+	} else if !isConditionEmpty(readOnlyFileSystemCondition) && (readOnlyFileSystemCondition.Status != corev1.ConditionFalse) && (time.Since(readOnlyFileSystemCondition.LastTransitionTime.Time) > nodeNotReadyDuration) {
 		klog.Warningf("Setting forceDeletePods to true for drain because node %q with backing machine %q is in ReadonlyFilesystem for over 5min", nodeName, machine.Name)
 		forceDeletePods = true
 	}
@@ -2746,9 +2745,9 @@ func (c *controller) drainPreservedNode(ctx context.Context, machine *v1alpha1.M
 	// a taint with effect `NoSchedule` before draining the node, instead of cordoning it.
 	err = nodeops.AddOrUpdateTaintOnNode(ctx, c.targetCoreClient,
 		nodeName,
-		&v1.Taint{
+		&corev1.Taint{
 			Key:       machineutils.NodePreservedTaintKey,
-			Effect:    v1.TaintEffectNoSchedule,
+			Effect:    corev1.TaintEffectNoSchedule,
 			TimeAdded: new(metav1.Now()),
 		})
 	if err != nil {
