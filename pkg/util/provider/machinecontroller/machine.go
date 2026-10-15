@@ -302,9 +302,13 @@ func (c *controller) reconcileClusterMachine(ctx context.Context, machine *v1alp
 		}
 	}
 
-	machine, retry, err = c.manageMachinePreservation(ctx, machine)
+	machine, err = c.manageMachinePreservation(ctx, machine)
 	if err != nil {
-		return retry, err
+		if apierrors.IsConflict(err) {
+			return machineutils.ConflictRetry, err
+		} else {
+			return machineutils.ShortRetry, err
+		}
 	}
 
 	if machine.Spec.ProviderID == "" || machine.Status.CurrentStatus.Phase == "" || machine.Status.CurrentStatus.Phase == v1alpha1.MachineCrashLoopBackOff {
@@ -832,22 +836,7 @@ func (c *controller) isCreationProcessing(machine *v1alpha1.Machine) bool {
 */
 
 // manageMachinePreservation manages machine preservation based on the preserve annotation values on the node and machine objects.
-func (c *controller) manageMachinePreservation(ctx context.Context, machine *v1alpha1.Machine) (clone *v1alpha1.Machine, retry machineutils.RetryPeriod, err error) {
-	defer func() {
-		if err != nil {
-			if apierrors.IsNotFound(err) {
-				klog.Warningf("Error during preservation flow: %v", err.Error())
-				retry = machineutils.LongRetry
-				err = nil
-			} else if apierrors.IsConflict(err) {
-				retry = machineutils.ConflictRetry
-			} else {
-				retry = machineutils.ShortRetry
-			}
-		} else {
-			retry = machineutils.LongRetry
-		}
-	}()
+func (c *controller) manageMachinePreservation(ctx context.Context, machine *v1alpha1.Machine) (clone *v1alpha1.Machine, err error) {
 	nodeName := machine.Labels[v1alpha1.NodeLabelKey]
 	node, err := c.nodeLister.Get(nodeName)
 	if err != nil {
@@ -856,7 +845,7 @@ func (c *controller) manageMachinePreservation(ctx context.Context, machine *v1a
 
 	preserveAnnotationValue, shouldHandlePreservation := machineutils.DeterminePreservationAction(machine, node)
 	if !shouldHandlePreservation {
-		return machine, retry, nil
+		return machine, nil
 	}
 
 	clone = machine.DeepCopy()
@@ -864,22 +853,22 @@ func (c *controller) manageMachinePreservation(ctx context.Context, machine *v1a
 	// preserveAnnotationValue == "" implies the preservation annotation was deleted to indicate that
 	// preservation must be stopped
 	case "", machineutils.PreserveMachineAnnotationValueFalse:
-		clone, err = c.stopPreservationIfActive(ctx, clone, false)
+		clone, err = c.stopPreservationIfActive(ctx, clone, node, false)
 	case machineutils.PreserveMachineAnnotationValueWhenFailed:
 		// on timing out, remove preserve annotation to prevent incorrect re-preservation
 		if machineutils.IsPreserveExpiryTimeSetAndExpired(clone) {
-			clone, err = c.stopPreservationIfActive(ctx, clone, true)
+			clone, err = c.stopPreservationIfActive(ctx, clone, node, true)
 		} else if !machineutils.IsFailed(clone) {
-			clone, err = c.stopPreservationIfActive(ctx, clone, false)
+			clone, err = c.stopPreservationIfActive(ctx, clone, node, false)
 		} else {
-			clone, err = c.preserveMachine(ctx, clone, preserveAnnotationValue)
+			clone, err = c.preserveMachine(ctx, clone, node, preserveAnnotationValue)
 		}
 	case machineutils.PreserveMachineAnnotationValueNow:
 		if machineutils.IsPreserveExpiryTimeSetAndExpired(clone) {
 			// on timing out, remove preserve annotation to prevent incorrect re-preservation
-			clone, err = c.stopPreservationIfActive(ctx, clone, true)
+			clone, err = c.stopPreservationIfActive(ctx, clone, node, true)
 		} else {
-			clone, err = c.preserveMachine(ctx, clone, preserveAnnotationValue)
+			clone, err = c.preserveMachine(ctx, clone, node, preserveAnnotationValue)
 			if err != nil {
 				return
 			}
@@ -898,9 +887,9 @@ func (c *controller) manageMachinePreservation(ctx context.Context, machine *v1a
 			// To prevent incorrect re-preservation of a recovered, previously auto-preserved machine on future failures
 			// (since the autoPreserveFailedMachineCount maintained by the machineSetController, may have changed),
 			// in addition to stopping preservation, we also remove the preservation annotation on the machine.
-			clone, err = c.stopPreservationIfActive(ctx, clone, true)
+			clone, err = c.stopPreservationIfActive(ctx, clone, node, true)
 		} else {
-			clone, err = c.preserveMachine(ctx, clone, preserveAnnotationValue)
+			clone, err = c.preserveMachine(ctx, clone, node, preserveAnnotationValue)
 		}
 	}
 	if err != nil {

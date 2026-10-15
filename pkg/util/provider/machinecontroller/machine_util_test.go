@@ -4059,9 +4059,10 @@ var _ = Describe("machine_util", func() {
 						},
 					},
 				}
+				var node *corev1.Node
 				if tc.setup.nodeName != "" && tc.setup.nodeName != "err-backing-node" {
 
-					node := corev1.Node{
+					node = &corev1.Node{
 						ObjectMeta: metav1.ObjectMeta{
 							Name:        tc.setup.nodeName,
 							Labels:      map[string]string{},
@@ -4078,14 +4079,14 @@ var _ = Describe("machine_util", func() {
 					if tc.setup.isCAAnnotationPresent {
 						node.Annotations[autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationKey] = "true"
 					}
-					targetCoreObjects = append(targetCoreObjects, &node)
+					targetCoreObjects = append(targetCoreObjects, node)
 				}
 				controlMachineObjects = append(controlMachineObjects, machine)
 
 				c, trackers := createController(stop, testNamespace, controlMachineObjects, nil, targetCoreObjects, nil, false)
 				defer trackers.Stop()
 				waitForCacheSync(stop, c)
-				_, err := c.preserveMachine(context.TODO(), machine, tc.setup.preserveValue)
+				_, err := c.preserveMachine(context.TODO(), machine, node, tc.setup.preserveValue)
 				if tc.expect.err == nil {
 					Expect(err).To(BeNil())
 				} else {
@@ -4305,7 +4306,7 @@ var _ = Describe("machine_util", func() {
 					preserveValue: machineutils.PreserveMachineAnnotationValueNow,
 				},
 				expect: expect{
-					err:                     fmt.Errorf("node \"err-backing-node\" not found"),
+					err:                     nil,
 					isPreserveExpiryTimeSet: true,
 					isCAAnnotationPresent:   false,
 				},
@@ -4472,9 +4473,10 @@ var _ = Describe("machine_util", func() {
 						},
 					},
 				}
+				var node *corev1.Node
 				if tc.setup.nodeName != "" && tc.setup.nodeName != "err-backing-node" {
 					machine.Labels[machinev1.NodeLabelKey] = tc.setup.nodeName
-					node := &corev1.Node{
+					node = &corev1.Node{
 						ObjectMeta: metav1.ObjectMeta{
 							Name: "node-1",
 							Annotations: map[string]string{
@@ -4509,7 +4511,7 @@ var _ = Describe("machine_util", func() {
 				c, trackers := createController(stop, testNamespace, controlMachineObjects, nil, targetCoreObjects, nil, false)
 				defer trackers.Stop()
 				waitForCacheSync(stop, c)
-				_, err := c.stopPreservationIfActive(context.TODO(), machine, tc.setup.removePreserveAnnotation)
+				_, err := c.stopPreservationIfActive(context.TODO(), machine, node, tc.setup.removePreserveAnnotation)
 				if tc.expect.err != nil {
 					Expect(err).To(HaveOccurred())
 					Expect(err.Error()).To(Equal(tc.expect.err.Error()))

@@ -4383,7 +4383,6 @@ var _ = Describe("machine", func() {
 			nodeTainted            bool
 		}
 		type expect struct {
-			retry                   machineutils.RetryPeriod
 			preserveExpiryTimeIsSet bool
 			nodeCondition           *corev1.NodeCondition
 			machineAnnotationValue  string
@@ -4460,14 +4459,13 @@ var _ = Describe("machine", func() {
 				c, trackers := createController(stop, testNamespace, controlMachineObjects, nil, targetCoreObjects, nil, false)
 				defer trackers.Stop()
 				waitForCacheSync(stop, c)
-				_, retry, err := c.manageMachinePreservation(context.TODO(), machine)
+				_, err := c.manageMachinePreservation(context.TODO(), machine)
 				if tc.expect.err != nil {
 					Expect(err).To(HaveOccurred())
 					Expect(err.Error()).To(Equal(tc.expect.err.Error()))
 					return
 				}
 				Expect(err).ToNot(HaveOccurred())
-				Expect(retry).To(Equal(tc.expect.retry))
 				waitForCacheSync(stop, c)
 				updatedMachine, err := c.controlMachineClient.Machines(testNamespace).Get(context.TODO(), machine.Name, metav1.GetOptions{})
 				Expect(err).ToNot(HaveOccurred())
@@ -4506,7 +4504,6 @@ var _ = Describe("machine", func() {
 				expect: expect{
 					preserveExpiryTimeIsSet: false,
 					nodeCondition:           nil,
-					retry:                   machineutils.LongRetry,
 				},
 			}),
 			Entry("when preserve annotation 'now' is added to node of Running machine, should successfully start preservation", testCase{
@@ -4521,8 +4518,8 @@ var _ = Describe("machine", func() {
 					preserveExpiryTimeIsSet: true,
 					nodeCondition: &corev1.NodeCondition{
 						Type:   v1alpha1.NodePreserved,
-						Status: corev1.ConditionTrue},
-					retry: machineutils.LongRetry,
+						Status: corev1.ConditionTrue,
+					},
 				},
 			}),
 			Entry("when preserve annotation 'when-failed' added to node of Running machine, should not start preservation", testCase{
@@ -4536,7 +4533,6 @@ var _ = Describe("machine", func() {
 					laNodePreserveValue:     machineutils.PreserveMachineAnnotationValueWhenFailed,
 					preserveExpiryTimeIsSet: false,
 					nodeCondition:           nil,
-					retry:                   machineutils.LongRetry,
 				},
 			}),
 			Entry("when node of Failed machine has annotation `when-failed`, should start preservation", testCase{
@@ -4551,8 +4547,8 @@ var _ = Describe("machine", func() {
 					preserveExpiryTimeIsSet: true,
 					nodeCondition: &corev1.NodeCondition{
 						Type:   v1alpha1.NodePreserved,
-						Status: corev1.ConditionTrue},
-					retry:       machineutils.LongRetry,
+						Status: corev1.ConditionTrue,
+					},
 					nodeTainted: true,
 				},
 			}),
@@ -4568,7 +4564,6 @@ var _ = Describe("machine", func() {
 					laNodePreserveValue:     machineutils.PreserveMachineAnnotationValueFalse,
 					preserveExpiryTimeIsSet: false,
 					nodeCondition:           nil,
-					retry:                   machineutils.LongRetry,
 				},
 			}),
 			Entry("when machine is annotated for auto-preservation by MCM, should start preservation", testCase{
@@ -4582,8 +4577,8 @@ var _ = Describe("machine", func() {
 					preserveExpiryTimeIsSet: true,
 					nodeCondition: &corev1.NodeCondition{
 						Type:   v1alpha1.NodePreserved,
-						Status: corev1.ConditionTrue},
-					retry:                  machineutils.LongRetry,
+						Status: corev1.ConditionTrue,
+					},
 					machineAnnotationValue: machineutils.PreserveMachineAnnotationValueAutoPreserved,
 					nodeTainted:            true,
 				},
@@ -4599,7 +4594,6 @@ var _ = Describe("machine", func() {
 				expect: expect{
 					preserveExpiryTimeIsSet: false,
 					nodeCondition:           &corev1.NodeCondition{Type: v1alpha1.NodePreserved, Status: corev1.ConditionFalse},
-					retry:                   machineutils.LongRetry,
 				},
 			}),
 			Entry("when machine is annotated with preserve=when-failed and preservation times out, should stop preservation, and remove annotation", testCase{
@@ -4614,7 +4608,6 @@ var _ = Describe("machine", func() {
 				expect: expect{
 					preserveExpiryTimeIsSet: false,
 					nodeCondition:           &corev1.NodeCondition{Type: v1alpha1.NodePreserved, Status: corev1.ConditionFalse},
-					retry:                   machineutils.LongRetry,
 				},
 			}),
 			Entry("when invalid preserve annotation is added on un-preserved machine, and node is not annotated should do nothing  ", testCase{
@@ -4628,7 +4621,6 @@ var _ = Describe("machine", func() {
 					machineAnnotationValue:  "invalidValue",
 					preserveExpiryTimeIsSet: false,
 					nodeCondition:           nil,
-					retry:                   machineutils.LongRetry,
 					err:                     nil,
 				},
 			}),
@@ -4642,7 +4634,6 @@ var _ = Describe("machine", func() {
 				expect: expect{
 					preserveExpiryTimeIsSet: false,
 					nodeCondition:           nil,
-					retry:                   machineutils.LongRetry,
 					err:                     nil,
 				},
 			}),
@@ -4656,7 +4647,6 @@ var _ = Describe("machine", func() {
 				expect: expect{
 					preserveExpiryTimeIsSet: true,
 					nodeCondition:           nil,
-					retry:                   machineutils.LongRetry,
 					machineAnnotationValue:  machineutils.PreserveMachineAnnotationValueNow,
 					err:                     nil,
 				},
@@ -4672,7 +4662,6 @@ var _ = Describe("machine", func() {
 				expect: expect{
 					preserveExpiryTimeIsSet: false,
 					nodeCondition:           nil,
-					retry:                   machineutils.LongRetry,
 					err:                     nil,
 				},
 			}),
@@ -4687,7 +4676,6 @@ var _ = Describe("machine", func() {
 					preserveExpiryTimeIsSet: true,
 					nodeCondition:           nil,
 					machineAnnotationValue:  machineutils.PreserveMachineAnnotationValueNow,
-					retry:                   machineutils.LongRetry,
 					err:                     nil,
 				},
 			}),
@@ -4705,7 +4693,6 @@ var _ = Describe("machine", func() {
 					nodeCondition:           &corev1.NodeCondition{Type: v1alpha1.NodePreserved, Status: corev1.ConditionFalse},
 					machineAnnotationValue:  "",
 					nodeTainted:             false,
-					retry:                   machineutils.LongRetry,
 					err:                     nil,
 				},
 			}),
@@ -4723,9 +4710,9 @@ var _ = Describe("machine", func() {
 					preserveExpiryTimeIsSet: true,
 					nodeCondition: &corev1.NodeCondition{
 						Type:   v1alpha1.NodePreserved,
-						Status: corev1.ConditionTrue},
+						Status: corev1.ConditionTrue,
+					},
 					machineAnnotationValue: "",
-					retry:                  machineutils.LongRetry,
 					err:                    nil,
 				},
 			}),
@@ -4744,7 +4731,6 @@ var _ = Describe("machine", func() {
 					nodeCondition:           &corev1.NodeCondition{Type: v1alpha1.NodePreserved, Status: corev1.ConditionFalse},
 					machineAnnotationValue:  "",
 					laNodePreserveValue:     "",
-					retry:                   machineutils.LongRetry,
 					err:                     nil,
 				},
 			}),
@@ -4762,7 +4748,6 @@ var _ = Describe("machine", func() {
 						preserveExpiryTimeIsSet: false,
 						nodeCondition:           &corev1.NodeCondition{Type: v1alpha1.NodePreserved, Status: corev1.ConditionFalse},
 						machineAnnotationValue:  machineutils.PreserveMachineAnnotationValueWhenFailed,
-						retry:                   machineutils.LongRetry,
 						nodeTainted:             false,
 					},
 				}
@@ -4781,7 +4766,6 @@ var _ = Describe("machine", func() {
 						preserveExpiryTimeIsSet: false,
 						nodeCondition:           &corev1.NodeCondition{Type: v1alpha1.NodePreserved, Status: corev1.ConditionFalse},
 						machineAnnotationValue:  "",
-						retry:                   machineutils.LongRetry,
 						nodeTainted:             false,
 					},
 				}
@@ -4799,7 +4783,6 @@ var _ = Describe("machine", func() {
 						laNodePreserveValue:     machineutils.PreserveMachineAnnotationValueWhenFailed,
 						preserveExpiryTimeIsSet: true,
 						nodeCondition:           &corev1.NodeCondition{Type: v1alpha1.NodePreserved, Status: corev1.ConditionTrue},
-						retry:                   machineutils.LongRetry,
 						nodeTainted:             true,
 					},
 				}
@@ -4817,7 +4800,6 @@ var _ = Describe("machine", func() {
 						preserveExpiryTimeIsSet: true,
 						nodeCondition:           &corev1.NodeCondition{Type: v1alpha1.NodePreserved, Status: corev1.ConditionTrue},
 						machineAnnotationValue:  machineutils.PreserveMachineAnnotationValueNow,
-						retry:                   machineutils.LongRetry,
 						nodeTainted:             true,
 					},
 				}
@@ -4853,10 +4835,9 @@ var _ = Describe("machine", func() {
 				defer trackers.Stop()
 				waitForCacheSync(stop, c)
 
-				_, retry, err := c.manageMachinePreservation(context.TODO(), machine)
+				_, err := c.manageMachinePreservation(context.TODO(), machine)
 
 				Expect(err).ToNot(HaveOccurred())
-				Expect(retry).To(Equal(machineutils.LongRetry))
 
 				updatedMachine, err := c.controlMachineClient.Machines(testNamespace).Get(context.TODO(), machine.Name, metav1.GetOptions{})
 				Expect(err).ToNot(HaveOccurred())
