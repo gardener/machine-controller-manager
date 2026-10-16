@@ -756,12 +756,27 @@ func (s ActiveMachines) Less(i, j int) bool {
 	if isPreservedI != isPreservedJ {
 		return !isPreservedI // if s[i] preserved, it is "greater" and should not be deleted first, therefore, "less" is false, and vice versa
 	}
-	if isPreservedI { // both machines are preserved, in which case deprioritize explicitly preserved machines over auto-preserved
-		isAutoPreservedI := machineutils.IsAutoPreserved(s[i])
-		isAutoPreservedJ := machineutils.IsAutoPreserved(s[j])
-		if isAutoPreservedI != isAutoPreservedJ {
-			return isAutoPreservedI // if s[i] is auto-preserved, it is "less", and should be deleted first
+	if isPreservedI {
+		// both machines have preserve-expiry-time set, in which case deletion priority goes as
+		// - machine whose preserve annotation was removed as part of stop preservation
+		// - machine with auto-preservation annotation
+		// - machine with manual-preservation annotation
+		valI, okI := s[i].Annotations[machineutils.PreserveMachineAnnotationKey]
+		valJ, okJ := s[j].Annotations[machineutils.PreserveMachineAnnotationKey]
+		if okI != okJ {
+			return !okI
 		}
+
+		// has auto-preservation annotation
+		if valI != valJ {
+			if valI == machineutils.PreserveMachineAnnotationValueAutoPreserved {
+				return true
+			}
+			if valJ == machineutils.PreserveMachineAnnotationValueAutoPreserved {
+				return false
+			}
+		}
+
 		// if both are auto-preserved or both are explicitly preserved, we decide based on whichever machine
 		// has an earlier preserve expiry time
 		if !s[i].Status.CurrentStatus.PreserveExpiryTime.Equal(s[j].Status.CurrentStatus.PreserveExpiryTime) {
