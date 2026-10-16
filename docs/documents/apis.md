@@ -1,757 +1,60 @@
-## Specification
-### ProviderSpec Schema
-<br>
-<h3 id="machine.sapcloud.io/v1alpha1.Machine">
-<b>Machine</b>
-</h3>
+<p>Packages:</p>
+<ul>
+<li>
+<a href="#machine.sapcloud.io%2fv1alpha1">machine.sapcloud.io/v1alpha1</a>
+</li>
+</ul>
+
+<h2 id="machine.sapcloud.io/v1alpha1">machine.sapcloud.io/v1alpha1</h2>
 <p>
-<p>Machine is the representation of a physical or virtual machine.</p>
+
 </p>
+Resource Types:
+<ul>
+<li>
+<a href="#machine">Machine</a>
+</li>
+<li>
+<a href="#machineclass">MachineClass</a>
+</li>
+<li>
+<a href="#machinedeployment">MachineDeployment</a>
+</li>
+<li>
+<a href="#machineset">MachineSet</a>
+</li>
+<li>
+<a href="#machinetemplatespec">MachineTemplateSpec</a>
+</li>
+<li>
+<a href="#nodetemplatespec">NodeTemplateSpec</a>
+</li>
+</ul>
+
+<h3 id="classspec">ClassSpec
+</h3>
+
+
+<p>
+(<em>Appears on:</em><a href="#machinesetspec">MachineSetSpec</a>, <a href="#machinespec">MachineSpec</a>)
+</p>
+
+<p>
+ClassSpec is the class specification of machine
+</p>
+
 <table>
 <thead>
 <tr>
 <th>Field</th>
-<th>Type</th>
 <th>Description</th>
 </tr>
 </thead>
 <tbody>
+
 <tr>
 <td>
-<code>apiVersion</code>
-</td>
-<td>
-string
-</td>
-<td>
-<code>
-machine.sapcloud.io/v1alpha1
-</code>
-</td>
-</tr>
-<tr>
-<td>
-<code>kind</code>
-</td>
-<td>
-string
-</td>
-<td>
-<code>Machine</code>
-</td>
-</tr>
-<tr>
-<td>
-<code>metadata</code>
-</td>
-<td>
-<em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.29/#objectmeta-v1-meta">
-Kubernetes meta/v1.ObjectMeta
-</a>
-</em>
-</td>
-<td>
-<p>ObjectMeta for machine object</p>
-Refer to the Kubernetes API documentation for the fields of the
-<code>metadata</code> field.
-</td>
-</tr>
-<tr>
-<td>
-<code>spec</code>
-</td>
-<td>
-<em>
-<a href="#machine.sapcloud.io/v1alpha1.MachineSpec">
-MachineSpec
-</a>
-</em>
-</td>
-<td>
-<p>Spec contains the specification of the machine</p>
-<br/>
-<br/>
-<table>
-<tr>
-<td>
-<code>class</code>
-</td>
-<td>
-<em>
-<a href="#machine.sapcloud.io/v1alpha1.ClassSpec">
-ClassSpec
-</a>
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>Class contains the machineclass attributes of a machine</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>providerID</code>
-</td>
-<td>
-<em>
-string
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>ProviderID represents the provider&rsquo;s unique ID given to a machine</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>nodeTemplate</code>
-</td>
-<td>
-<em>
-<a href="#machine.sapcloud.io/v1alpha1.NodeTemplateSpec">
-NodeTemplateSpec
-</a>
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>NodeTemplateSpec describes the data a node should have when created from a template</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>MachineConfiguration</code>
-</td>
-<td>
-<em>
-<a href="#machine.sapcloud.io/v1alpha1.MachineConfiguration">
-MachineConfiguration
-</a>
-</em>
-</td>
-<td>
-<p>
-(Members of <code>MachineConfiguration</code> are embedded into this type.)
-</p>
-<em>(Optional)</em>
-<p>Configuration for the machine-controller.</p>
-</td>
-</tr>
-</table>
-</td>
-</tr>
-<tr>
-<td>
-<code>status</code>
-</td>
-<td>
-<em>
-<a href="#machine.sapcloud.io/v1alpha1.MachineStatus">
-MachineStatus
-</a>
-</em>
-</td>
-<td>
-<p>Status contains fields depicting the status</p>
-</td>
-</tr>
-</tbody>
-</table>
-<br>
-<h3 id="machine.sapcloud.io/v1alpha1.MachineClass">
-<b>MachineClass</b>
-</h3>
-<p>
-<p>MachineClass can be used to templatize and re-use provider configuration
-across multiple Machines / MachineSets / MachineDeployments.</p>
-</p>
-<table>
-<thead>
-<tr>
-<th>Field</th>
-<th>Type</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>
-<code>apiVersion</code>
-</td>
-<td>
-string
-</td>
-<td>
-<code>
-machine.sapcloud.io/v1alpha1
-</code>
-</td>
-</tr>
-<tr>
-<td>
-<code>kind</code>
-</td>
-<td>
-string
-</td>
-<td>
-<code>MachineClass</code>
-</td>
-</tr>
-<tr>
-<td>
-<code>metadata</code>
-</td>
-<td>
-<em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.29/#objectmeta-v1-meta">
-Kubernetes meta/v1.ObjectMeta
-</a>
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-Refer to the Kubernetes API documentation for the fields of the
-<code>metadata</code> field.
-</td>
-</tr>
-<tr>
-<td>
-<code>nodeTemplate</code>
-</td>
-<td>
-<em>
-<a href="#machine.sapcloud.io/v1alpha1.NodeTemplate">
-NodeTemplate
-</a>
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>NodeTemplate contains subfields to track all node resources and other node info required to scale nodegroup from zero</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>credentialsSecretRef</code>
-</td>
-<td>
-<em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.29/#secretreference-v1-core">
-Kubernetes core/v1.SecretReference
-</a>
-</em>
-</td>
-<td>
-<p>CredentialsSecretRef can optionally store the credentials (in this case the SecretRef does not need to store them).
-This might be useful if multiple machine classes with the same credentials but different user-datas are used.</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>providerSpec</code>
-</td>
-<td>
-<em>
-<a href="https://godoc.org/k8s.io/apimachinery/pkg/runtime#RawExtension">
-k8s.io/apimachinery/pkg/runtime.RawExtension
-</a>
-</em>
-</td>
-<td>
-<p>Provider-specific configuration to use during node creation.</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>provider</code>
-</td>
-<td>
-<em>
-string
-</em>
-</td>
-<td>
-<p>Provider is the combination of name and location of cloud-specific drivers.</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>secretRef</code>
-</td>
-<td>
-<em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.29/#secretreference-v1-core">
-Kubernetes core/v1.SecretReference
-</a>
-</em>
-</td>
-<td>
-<p>SecretRef stores the necessary secrets such as credentials or userdata.</p>
-</td>
-</tr>
-</tbody>
-</table>
-<br>
-<h3 id="machine.sapcloud.io/v1alpha1.MachineDeployment">
-<b>MachineDeployment</b>
-</h3>
-<p>
-<p>MachineDeployment enables declarative updates for machines and MachineSets.</p>
-</p>
-<table>
-<thead>
-<tr>
-<th>Field</th>
-<th>Type</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>
-<code>apiVersion</code>
-</td>
-<td>
-string
-</td>
-<td>
-<code>
-machine.sapcloud.io/v1alpha1
-</code>
-</td>
-</tr>
-<tr>
-<td>
-<code>kind</code>
-</td>
-<td>
-string
-</td>
-<td>
-<code>MachineDeployment</code>
-</td>
-</tr>
-<tr>
-<td>
-<code>metadata</code>
-</td>
-<td>
-<em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.29/#objectmeta-v1-meta">
-Kubernetes meta/v1.ObjectMeta
-</a>
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>Standard object metadata.</p>
-Refer to the Kubernetes API documentation for the fields of the
-<code>metadata</code> field.
-</td>
-</tr>
-<tr>
-<td>
-<code>spec</code>
-</td>
-<td>
-<em>
-<a href="#machine.sapcloud.io/v1alpha1.MachineDeploymentSpec">
-MachineDeploymentSpec
-</a>
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>Specification of the desired behavior of the MachineDeployment.</p>
-<br/>
-<br/>
-<table>
-<tr>
-<td>
-<code>replicas</code>
-</td>
-<td>
-<em>
-int32
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>Number of desired machines. This is a pointer to distinguish between explicit
-zero and not specified. Defaults to 0.</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>selector</code>
-</td>
-<td>
-<em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.29/#labelselector-v1-meta">
-Kubernetes meta/v1.LabelSelector
-</a>
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>Label selector for machines. Existing MachineSets whose machines are
-selected by this will be the ones affected by this MachineDeployment.</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>template</code>
-</td>
-<td>
-<em>
-<a href="#machine.sapcloud.io/v1alpha1.MachineTemplateSpec">
-MachineTemplateSpec
-</a>
-</em>
-</td>
-<td>
-<p>Template describes the machines that will be created.</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>strategy</code>
-</td>
-<td>
-<em>
-<a href="#machine.sapcloud.io/v1alpha1.MachineDeploymentStrategy">
-MachineDeploymentStrategy
-</a>
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>The MachineDeployment strategy to use to replace existing machines with new ones.</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>minReadySeconds</code>
-</td>
-<td>
-<em>
-int32
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>Minimum number of seconds for which a newly created machine should be ready
-without any of its container crashing, for it to be considered available.
-Defaults to 0 (machine will be considered available as soon as it is ready)</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>revisionHistoryLimit</code>
-</td>
-<td>
-<em>
-*int32
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>The number of old MachineSets to retain to allow rollback.
-This is a pointer to distinguish between explicit zero and not specified.</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>paused</code>
-</td>
-<td>
-<em>
-bool
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>Indicates that the MachineDeployment is paused and will not be processed by the
-MachineDeployment controller.</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>rollbackTo</code>
-</td>
-<td>
-<em>
-<a href="#machine.sapcloud.io/v1alpha1.RollbackConfig">
-RollbackConfig
-</a>
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>DEPRECATED.
-The config this MachineDeployment is rolling back to. Will be cleared after rollback is done.</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>progressDeadlineSeconds</code>
-</td>
-<td>
-<em>
-*int32
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>The maximum time in seconds for a MachineDeployment to make progress before it
-is considered to be failed. The MachineDeployment controller will continue to
-process failed MachineDeployments and a condition with a ProgressDeadlineExceeded
-reason will be surfaced in the MachineDeployment status. Note that progress will
-not be estimated during the time a MachineDeployment is paused. This is not set
-by default, which is treated as infinite deadline.</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>autoPreserveFailedMachineMax</code>
-</td>
-<td>
-<em>
-int32
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>The maximum number of failed machines in the machine deployment that can be auto-preserved.
-In the gardener context, this number is derived from the AutoPreserveFailedMachineMax set at the worker level, distributed amongst the worker&rsquo;s machine deployments</p>
-</td>
-</tr>
-</table>
-</td>
-</tr>
-<tr>
-<td>
-<code>status</code>
-</td>
-<td>
-<em>
-<a href="#machine.sapcloud.io/v1alpha1.MachineDeploymentStatus">
-MachineDeploymentStatus
-</a>
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>Most recently observed status of the MachineDeployment.</p>
-</td>
-</tr>
-</tbody>
-</table>
-<br>
-<h3 id="machine.sapcloud.io/v1alpha1.MachineSet">
-<b>MachineSet</b>
-</h3>
-<p>
-<p>MachineSet TODO</p>
-</p>
-<table>
-<thead>
-<tr>
-<th>Field</th>
-<th>Type</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>
-<code>apiVersion</code>
-</td>
-<td>
-string
-</td>
-<td>
-<code>
-machine.sapcloud.io/v1alpha1
-</code>
-</td>
-</tr>
-<tr>
-<td>
-<code>kind</code>
-</td>
-<td>
-string
-</td>
-<td>
-<code>MachineSet</code>
-</td>
-</tr>
-<tr>
-<td>
-<code>metadata</code>
-</td>
-<td>
-<em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.29/#objectmeta-v1-meta">
-Kubernetes meta/v1.ObjectMeta
-</a>
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-Refer to the Kubernetes API documentation for the fields of the
-<code>metadata</code> field.
-</td>
-</tr>
-<tr>
-<td>
-<code>spec</code>
-</td>
-<td>
-<em>
-<a href="#machine.sapcloud.io/v1alpha1.MachineSetSpec">
-MachineSetSpec
-</a>
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<br/>
-<br/>
-<table>
-<tr>
-<td>
-<code>replicas</code>
-</td>
-<td>
-<em>
-int32
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-</td>
-</tr>
-<tr>
-<td>
-<code>selector</code>
-</td>
-<td>
-<em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.29/#labelselector-v1-meta">
-Kubernetes meta/v1.LabelSelector
-</a>
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-</td>
-</tr>
-<tr>
-<td>
-<code>machineClass</code>
-</td>
-<td>
-<em>
-<a href="#machine.sapcloud.io/v1alpha1.ClassSpec">
-ClassSpec
-</a>
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-</td>
-</tr>
-<tr>
-<td>
-<code>template</code>
-</td>
-<td>
-<em>
-<a href="#machine.sapcloud.io/v1alpha1.MachineTemplateSpec">
-MachineTemplateSpec
-</a>
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-</td>
-</tr>
-<tr>
-<td>
-<code>minReadySeconds</code>
-</td>
-<td>
-<em>
-int32
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-</td>
-</tr>
-<tr>
-<td>
-<code>autoPreserveFailedMachineMax</code>
-</td>
-<td>
-<em>
-int32
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-</td>
-</tr>
-</table>
-</td>
-</tr>
-<tr>
-<td>
-<code>status</code>
-</td>
-<td>
-<em>
-<a href="#machine.sapcloud.io/v1alpha1.MachineSetStatus">
-MachineSetStatus
-</a>
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-</td>
-</tr>
-</tbody>
-</table>
-<br>
-<h3 id="machine.sapcloud.io/v1alpha1.ClassSpec">
-<b>ClassSpec</b>
-</h3>
-<p>
-(<em>Appears on:</em>
-<a href="#machine.sapcloud.io/v1alpha1.MachineSetSpec">MachineSetSpec</a>, 
-<a href="#machine.sapcloud.io/v1alpha1.MachineSpec">MachineSpec</a>)
-</p>
-<p>
-<p>ClassSpec is the class specification of machine</p>
-</p>
-<table>
-<thead>
-<tr>
-<th>Field</th>
-<th>Type</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>
-<code>apiGroup</code>
-</td>
-<td>
+<code>apiGroup</code></br>
 <em>
 string
 </em>
@@ -762,9 +65,7 @@ string
 </tr>
 <tr>
 <td>
-<code>kind</code>
-</td>
-<td>
+<code>kind</code></br>
 <em>
 string
 </em>
@@ -775,9 +76,7 @@ string
 </tr>
 <tr>
 <td>
-<code>name</code>
-</td>
-<td>
+<code>name</code></br>
 <em>
 string
 </em>
@@ -786,75 +85,73 @@ string
 <p>Name of machine class</p>
 </td>
 </tr>
+
 </tbody>
 </table>
-<br>
-<h3 id="machine.sapcloud.io/v1alpha1.ConditionStatus">
-<b>ConditionStatus</b>
-(<code>string</code> alias)</p></h3>
-<p>
-(<em>Appears on:</em>
-<a href="#machine.sapcloud.io/v1alpha1.MachineDeploymentCondition">MachineDeploymentCondition</a>, 
-<a href="#machine.sapcloud.io/v1alpha1.MachineSetCondition">MachineSetCondition</a>)
-</p>
-<p>
-<p>ConditionStatus are valid condition statuses</p>
-</p>
-<br>
-<h3 id="machine.sapcloud.io/v1alpha1.CurrentStatus">
-<b>CurrentStatus</b>
+
+
+<h3 id="conditionstatus">ConditionStatus
 </h3>
+<p><em>Underlying type: string</em></p>
+
+
 <p>
-(<em>Appears on:</em>
-<a href="#machine.sapcloud.io/v1alpha1.MachineStatus">MachineStatus</a>)
+(<em>Appears on:</em><a href="#machinedeploymentcondition">MachineDeploymentCondition</a>, <a href="#machinesetcondition">MachineSetCondition</a>)
 </p>
+
 <p>
-<p>CurrentStatus contains information about the current status of Machine.</p>
+ConditionStatus are valid condition statuses
 </p>
+
+
+<h3 id="currentstatus">CurrentStatus
+</h3>
+
+
+<p>
+(<em>Appears on:</em><a href="#machinestatus">MachineStatus</a>)
+</p>
+
+<p>
+CurrentStatus contains information about the current status of Machine.
+</p>
+
 <table>
 <thead>
 <tr>
 <th>Field</th>
-<th>Type</th>
 <th>Description</th>
 </tr>
 </thead>
 <tbody>
+
 <tr>
 <td>
-<code>phase</code>
-</td>
-<td>
+<code>phase</code></br>
 <em>
-<a href="#machine.sapcloud.io/v1alpha1.MachinePhase">
-MachinePhase
-</a>
+<a href="#machinephase">MachinePhase</a>
 </em>
 </td>
 <td>
+<p></p>
 </td>
 </tr>
 <tr>
 <td>
-<code>timeoutActive</code>
-</td>
-<td>
+<code>timeoutActive</code></br>
 <em>
-bool
+boolean
 </em>
 </td>
 <td>
+<p></p>
 </td>
 </tr>
 <tr>
 <td>
-<code>lastUpdateTime</code>
-</td>
-<td>
+<code>lastUpdateTime</code></br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.29/#time-v1-meta">
-Kubernetes meta/v1.Time
-</a>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#time-v1-meta">Time</a>
 </em>
 </td>
 <td>
@@ -863,102 +160,105 @@ Kubernetes meta/v1.Time
 </tr>
 <tr>
 <td>
-<code>preserveExpiryTime</code>
-</td>
-<td>
+<code>preserveExpiryTime</code></br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.29/#time-v1-meta">
-Kubernetes meta/v1.Time
-</a>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#time-v1-meta">Time</a>
 </em>
 </td>
 <td>
 <p>PreserveExpiryTime is the time at which MCM will stop preserving the machine</p>
 </td>
 </tr>
+
 </tbody>
 </table>
-<br>
-<h3 id="machine.sapcloud.io/v1alpha1.InPlaceUpdateMachineDeployment">
-<b>InPlaceUpdateMachineDeployment</b>
+
+
+<h3 id="inplaceupdatemachinedeployment">InPlaceUpdateMachineDeployment
 </h3>
+
+
 <p>
-(<em>Appears on:</em>
-<a href="#machine.sapcloud.io/v1alpha1.MachineDeploymentStrategy">MachineDeploymentStrategy</a>)
+(<em>Appears on:</em><a href="#machinedeploymentstrategy">MachineDeploymentStrategy</a>)
 </p>
+
 <p>
-<p>InPlaceUpdateMachineDeployment specifies the spec to control the desired behavior of inplace update.</p>
+InPlaceUpdateMachineDeployment specifies the spec to control the desired behavior of inplace update.
 </p>
+
 <table>
 <thead>
 <tr>
 <th>Field</th>
-<th>Type</th>
 <th>Description</th>
 </tr>
 </thead>
 <tbody>
+
 <tr>
 <td>
-<code>UpdateConfiguration</code>
-</td>
-<td>
+<code>maxUnavailable</code></br>
 <em>
-<a href="#machine.sapcloud.io/v1alpha1.UpdateConfiguration">
-UpdateConfiguration
-</a>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#intorstring-intstr-util">IntOrString</a>
 </em>
 </td>
 <td>
-<p>
-(Members of <code>UpdateConfiguration</code> are embedded into this type.)
-</p>
+<em>(Optional)</em>
+<p>The maximum number of machines that can be unavailable during the update.<br />Value can be an absolute number (ex: 5) or a percentage of desired machines (ex: 10%).<br />Absolute number is calculated from percentage by rounding down.<br />This can not be 0 if MaxSurge is 0.<br />Example: when this is set to 30%, the old machine set can be scaled down to 70% of desired machines<br />immediately when the update starts. Once new machines are ready, old machine set<br />can be scaled down further, followed by scaling up the new machine set, ensuring<br />that the total number of machines available at all times during the update is at<br />least 70% of desired machines.</p>
 </td>
 </tr>
 <tr>
 <td>
-<code>orchestrationType</code>
+<code>maxSurge</code></br>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#intorstring-intstr-util">IntOrString</a>
+</em>
 </td>
 <td>
+<em>(Optional)</em>
+<p>The maximum number of machines that can be scheduled above the desired number of<br />machines.<br />Value can be an absolute number (ex: 5) or a percentage of desired machines (ex: 10%).<br />This can not be 0 if MaxUnavailable is 0.<br />Absolute number is calculated from percentage by rounding up.<br />Example: when this is set to 30%, the new machine set can be scaled up immediately when<br />the update starts, such that the total number of old and new machines does not exceed<br />130% of desired machines. Once old machines have been killed,<br />new machine set can be scaled up further, ensuring that total number of machines running<br />at any time during the update is utmost 130% of desired machines.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>orchestrationType</code></br>
 <em>
-<a href="#machine.sapcloud.io/v1alpha1.OrchestrationType">
-OrchestrationType
-</a>
+<a href="#orchestrationtype">OrchestrationType</a>
 </em>
 </td>
 <td>
 <p>OrchestrationType specifies the orchestration type for the inplace update.</p>
 </td>
 </tr>
+
 </tbody>
 </table>
-<br>
-<h3 id="machine.sapcloud.io/v1alpha1.LastOperation">
-<b>LastOperation</b>
+
+
+<h3 id="lastoperation">LastOperation
 </h3>
+
+
 <p>
-(<em>Appears on:</em>
-<a href="#machine.sapcloud.io/v1alpha1.MachineSetStatus">MachineSetStatus</a>, 
-<a href="#machine.sapcloud.io/v1alpha1.MachineStatus">MachineStatus</a>, 
-<a href="#machine.sapcloud.io/v1alpha1.MachineSummary">MachineSummary</a>)
+(<em>Appears on:</em><a href="#machinesetstatus">MachineSetStatus</a>, <a href="#machinestatus">MachineStatus</a>, <a href="#machinesummary">MachineSummary</a>)
 </p>
+
 <p>
-<p>LastOperation suggests the last operation performed on the object</p>
+LastOperation suggests the last operation performed on the object
 </p>
+
 <table>
 <thead>
 <tr>
 <th>Field</th>
-<th>Type</th>
 <th>Description</th>
 </tr>
 </thead>
 <tbody>
+
 <tr>
 <td>
-<code>description</code>
-</td>
-<td>
+<code>description</code></br>
 <em>
 string
 </em>
@@ -969,9 +269,7 @@ string
 </tr>
 <tr>
 <td>
-<code>errorCode</code>
-</td>
-<td>
+<code>errorCode</code></br>
 <em>
 string
 </em>
@@ -983,13 +281,9 @@ string
 </tr>
 <tr>
 <td>
-<code>lastUpdateTime</code>
-</td>
-<td>
+<code>lastUpdateTime</code></br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.29/#time-v1-meta">
-Kubernetes meta/v1.Time
-</a>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#time-v1-meta">Time</a>
 </em>
 </td>
 <td>
@@ -998,13 +292,9 @@ Kubernetes meta/v1.Time
 </tr>
 <tr>
 <td>
-<code>state</code>
-</td>
-<td>
+<code>state</code></br>
 <em>
-<a href="#machine.sapcloud.io/v1alpha1.MachineState">
-MachineState
-</a>
+<a href="#machinestate">MachineState</a>
 </em>
 </td>
 <td>
@@ -1013,50 +303,223 @@ MachineState
 </tr>
 <tr>
 <td>
-<code>type</code>
-</td>
-<td>
+<code>type</code></br>
 <em>
-<a href="#machine.sapcloud.io/v1alpha1.MachineOperationType">
-MachineOperationType
-</a>
+<a href="#machineoperationtype">MachineOperationType</a>
 </em>
 </td>
 <td>
 <p>Type of operation</p>
 </td>
 </tr>
+
 </tbody>
 </table>
-<br>
-<h3 id="machine.sapcloud.io/v1alpha1.MachineConfiguration">
-<b>MachineConfiguration</b>
+
+
+<h3 id="machine">Machine
 </h3>
+
+
 <p>
-(<em>Appears on:</em>
-<a href="#machine.sapcloud.io/v1alpha1.MachineSpec">MachineSpec</a>)
+Machine is the representation of a physical or virtual machine.
 </p>
-<p>
-<p>MachineConfiguration describes the configurations useful for the machine-controller.</p>
-</p>
+
 <table>
 <thead>
 <tr>
 <th>Field</th>
-<th>Type</th>
 <th>Description</th>
 </tr>
 </thead>
 <tbody>
+
 <tr>
 <td>
-<code>drainTimeout</code>
+<code>apiVersion</code></br>
+string</td>
+<td>
+<code>machine.sapcloud.io/v1alpha1</code>
+</td>
+</tr>
+<tr>
+<td>
+<code>kind</code></br>
+string
+</td>
+<td><code>Machine</code></td>
+</tr>
+
+<tr>
+<td>
+<code>metadata</code></br>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#objectmeta-v1-meta">ObjectMeta</a>
+</em>
 </td>
 <td>
+Refer to the Kubernetes API documentation for the fields of the <code>metadata</code> field.
+</td>
+</tr>
+<tr>
+<td>
+<code>spec</code></br>
 <em>
-<a href="https://godoc.org/k8s.io/apimachinery/pkg/apis/meta/v1#Duration">
-Kubernetes meta/v1.Duration
-</a>
+<a href="#machinespec">MachineSpec</a>
+</em>
+</td>
+<td>
+<p>Spec contains the specification of the machine</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>status</code></br>
+<em>
+<a href="#machinestatus">MachineStatus</a>
+</em>
+</td>
+<td>
+<p>Status contains fields depicting the status</p>
+</td>
+</tr>
+
+</tbody>
+</table>
+
+
+<h3 id="machineclass">MachineClass
+</h3>
+
+
+<p>
+MachineClass can be used to templatize and re-use provider configuration
+across multiple Machines / MachineSets / MachineDeployments.
+</p>
+
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+
+<tr>
+<td>
+<code>apiVersion</code></br>
+string</td>
+<td>
+<code>machine.sapcloud.io/v1alpha1</code>
+</td>
+</tr>
+<tr>
+<td>
+<code>kind</code></br>
+string
+</td>
+<td><code>MachineClass</code></td>
+</tr>
+
+<tr>
+<td>
+<code>metadata</code></br>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#objectmeta-v1-meta">ObjectMeta</a>
+</em>
+</td>
+<td>
+Refer to the Kubernetes API documentation for the fields of the <code>metadata</code> field.
+</td>
+</tr>
+<tr>
+<td>
+<code>nodeTemplate</code></br>
+<em>
+<a href="#nodetemplate">NodeTemplate</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>NodeTemplate contains subfields to track all node resources and other node info required to scale nodegroup from zero</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>credentialsSecretRef</code></br>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#secretreference-v1-core">SecretReference</a>
+</em>
+</td>
+<td>
+<p>CredentialsSecretRef can optionally store the credentials (in this case the SecretRef does not need to store them).<br />This might be useful if multiple machine classes with the same credentials but different user-datas are used.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>providerSpec</code></br>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#rawextension-runtime-pkg">RawExtension</a>
+</em>
+</td>
+<td>
+<p>Provider-specific configuration to use during node creation.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>provider</code></br>
+<em>
+string
+</em>
+</td>
+<td>
+<p>Provider is the combination of name and location of cloud-specific drivers.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>secretRef</code></br>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#secretreference-v1-core">SecretReference</a>
+</em>
+</td>
+<td>
+<p>SecretRef stores the necessary secrets such as credentials or userdata.</p>
+</td>
+</tr>
+
+</tbody>
+</table>
+
+
+<h3 id="machineconfiguration">MachineConfiguration
+</h3>
+
+
+<p>
+(<em>Appears on:</em><a href="#machinespec">MachineSpec</a>)
+</p>
+
+<p>
+MachineConfiguration describes the configurations useful for the machine-controller.
+</p>
+
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+
+<tr>
+<td>
+<code>drainTimeout</code></br>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#duration-v1-meta">Duration</a>
 </em>
 </td>
 <td>
@@ -1066,13 +529,9 @@ Kubernetes meta/v1.Duration
 </tr>
 <tr>
 <td>
-<code>healthTimeout</code>
-</td>
-<td>
+<code>healthTimeout</code></br>
 <em>
-<a href="https://godoc.org/k8s.io/apimachinery/pkg/apis/meta/v1#Duration">
-Kubernetes meta/v1.Duration
-</a>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#duration-v1-meta">Duration</a>
 </em>
 </td>
 <td>
@@ -1082,13 +541,9 @@ Kubernetes meta/v1.Duration
 </tr>
 <tr>
 <td>
-<code>creationTimeout</code>
-</td>
-<td>
+<code>creationTimeout</code></br>
 <em>
-<a href="https://godoc.org/k8s.io/apimachinery/pkg/apis/meta/v1#Duration">
-Kubernetes meta/v1.Duration
-</a>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#duration-v1-meta">Duration</a>
 </em>
 </td>
 <td>
@@ -1098,13 +553,9 @@ Kubernetes meta/v1.Duration
 </tr>
 <tr>
 <td>
-<code>inPlaceUpdateTimeout</code>
-</td>
-<td>
+<code>inPlaceUpdateTimeout</code></br>
 <em>
-<a href="https://godoc.org/k8s.io/apimachinery/pkg/apis/meta/v1#Duration">
-Kubernetes meta/v1.Duration
-</a>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#duration-v1-meta">Duration</a>
 </em>
 </td>
 <td>
@@ -1114,13 +565,9 @@ Kubernetes meta/v1.Duration
 </tr>
 <tr>
 <td>
-<code>machinePreserveTimeout</code>
-</td>
-<td>
+<code>machinePreserveTimeout</code></br>
 <em>
-<a href="https://godoc.org/k8s.io/apimachinery/pkg/apis/meta/v1#Duration">
-Kubernetes meta/v1.Duration
-</a>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#duration-v1-meta">Duration</a>
 </em>
 </td>
 <td>
@@ -1130,26 +577,21 @@ Kubernetes meta/v1.Duration
 </tr>
 <tr>
 <td>
-<code>disableHealthTimeout</code>
-</td>
-<td>
+<code>disableHealthTimeout</code></br>
 <em>
-*bool
+boolean
 </em>
 </td>
 <td>
 <em>(Optional)</em>
-<p>DisableHealthTimeout if set to true, health timeout will be ignored. Leading to machine never being declared failed.
-This is intended to be used only for in-place updates.</p>
+<p>DisableHealthTimeout if set to true, health timeout will be ignored. Leading to machine never being declared failed.<br />This is intended to be used only for in-place updates.</p>
 </td>
 </tr>
 <tr>
 <td>
-<code>maxEvictRetries</code>
-</td>
-<td>
+<code>maxEvictRetries</code></br>
 <em>
-*int32
+integer
 </em>
 </td>
 <td>
@@ -1159,11 +601,9 @@ This is intended to be used only for in-place updates.</p>
 </tr>
 <tr>
 <td>
-<code>nodeConditions</code>
-</td>
-<td>
+<code>nodeConditions</code></br>
 <em>
-*string
+string
 </em>
 </td>
 <td>
@@ -1171,37 +611,110 @@ This is intended to be used only for in-place updates.</p>
 <p>NodeConditions are the set of conditions if set to true for MachineHealthTimeOut, machine will be declared failed.</p>
 </td>
 </tr>
+
 </tbody>
 </table>
-<br>
-<h3 id="machine.sapcloud.io/v1alpha1.MachineDeploymentCondition">
-<b>MachineDeploymentCondition</b>
+
+
+<h3 id="machinedeployment">MachineDeployment
 </h3>
+
+
 <p>
-(<em>Appears on:</em>
-<a href="#machine.sapcloud.io/v1alpha1.MachineDeploymentStatus">MachineDeploymentStatus</a>)
+MachineDeployment enables declarative updates for machines and MachineSets.
 </p>
-<p>
-<p>MachineDeploymentCondition describes the state of a MachineDeployment at a certain point.</p>
-</p>
+
 <table>
 <thead>
 <tr>
 <th>Field</th>
-<th>Type</th>
 <th>Description</th>
 </tr>
 </thead>
 <tbody>
+
 <tr>
 <td>
-<code>type</code>
+<code>apiVersion</code></br>
+string</td>
+<td>
+<code>machine.sapcloud.io/v1alpha1</code>
+</td>
+</tr>
+<tr>
+<td>
+<code>kind</code></br>
+string
+</td>
+<td><code>MachineDeployment</code></td>
+</tr>
+
+<tr>
+<td>
+<code>metadata</code></br>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#objectmeta-v1-meta">ObjectMeta</a>
+</em>
 </td>
 <td>
+Refer to the Kubernetes API documentation for the fields of the <code>metadata</code> field.
+</td>
+</tr>
+<tr>
+<td>
+<code>spec</code></br>
 <em>
-<a href="#machine.sapcloud.io/v1alpha1.MachineDeploymentConditionType">
-MachineDeploymentConditionType
-</a>
+<a href="#machinedeploymentspec">MachineDeploymentSpec</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Specification of the desired behavior of the MachineDeployment.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>status</code></br>
+<em>
+<a href="#machinedeploymentstatus">MachineDeploymentStatus</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Most recently observed status of the MachineDeployment.</p>
+</td>
+</tr>
+
+</tbody>
+</table>
+
+
+<h3 id="machinedeploymentcondition">MachineDeploymentCondition
+</h3>
+
+
+<p>
+(<em>Appears on:</em><a href="#machinedeploymentstatus">MachineDeploymentStatus</a>)
+</p>
+
+<p>
+MachineDeploymentCondition describes the state of a MachineDeployment at a certain point.
+</p>
+
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+
+<tr>
+<td>
+<code>type</code></br>
+<em>
+<a href="#machinedeploymentconditiontype">MachineDeploymentConditionType</a>
 </em>
 </td>
 <td>
@@ -1210,13 +723,9 @@ MachineDeploymentConditionType
 </tr>
 <tr>
 <td>
-<code>status</code>
-</td>
-<td>
+<code>status</code></br>
 <em>
-<a href="#machine.sapcloud.io/v1alpha1.ConditionStatus">
-ConditionStatus
-</a>
+<a href="#conditionstatus">ConditionStatus</a>
 </em>
 </td>
 <td>
@@ -1225,13 +734,9 @@ ConditionStatus
 </tr>
 <tr>
 <td>
-<code>lastUpdateTime</code>
-</td>
-<td>
+<code>lastUpdateTime</code></br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.29/#time-v1-meta">
-Kubernetes meta/v1.Time
-</a>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#time-v1-meta">Time</a>
 </em>
 </td>
 <td>
@@ -1240,13 +745,9 @@ Kubernetes meta/v1.Time
 </tr>
 <tr>
 <td>
-<code>lastTransitionTime</code>
-</td>
-<td>
+<code>lastTransitionTime</code></br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.29/#time-v1-meta">
-Kubernetes meta/v1.Time
-</a>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#time-v1-meta">Time</a>
 </em>
 </td>
 <td>
@@ -1255,22 +756,18 @@ Kubernetes meta/v1.Time
 </tr>
 <tr>
 <td>
-<code>reason</code>
-</td>
-<td>
+<code>reason</code></br>
 <em>
 string
 </em>
 </td>
 <td>
-<p>The reason for the condition&rsquo;s last transition.</p>
+<p>The reason for the condition's last transition.</p>
 </td>
 </tr>
 <tr>
 <td>
-<code>message</code>
-</td>
-<td>
+<code>message</code></br>
 <em>
 string
 </em>
@@ -1279,80 +776,75 @@ string
 <p>A human readable message indicating details about the transition.</p>
 </td>
 </tr>
+
 </tbody>
 </table>
-<br>
-<h3 id="machine.sapcloud.io/v1alpha1.MachineDeploymentConditionType">
-<b>MachineDeploymentConditionType</b>
-(<code>string</code> alias)</p></h3>
-<p>
-(<em>Appears on:</em>
-<a href="#machine.sapcloud.io/v1alpha1.MachineDeploymentCondition">MachineDeploymentCondition</a>)
-</p>
-<p>
-<p>MachineDeploymentConditionType are valid conditions of MachineDeployments</p>
-</p>
-<br>
-<h3 id="machine.sapcloud.io/v1alpha1.MachineDeploymentSpec">
-<b>MachineDeploymentSpec</b>
+
+
+<h3 id="machinedeploymentconditiontype">MachineDeploymentConditionType
 </h3>
+<p><em>Underlying type: string</em></p>
+
+
 <p>
-(<em>Appears on:</em>
-<a href="#machine.sapcloud.io/v1alpha1.MachineDeployment">MachineDeployment</a>)
+(<em>Appears on:</em><a href="#machinedeploymentcondition">MachineDeploymentCondition</a>)
 </p>
+
 <p>
-<p>MachineDeploymentSpec is the specification of the desired behavior of the MachineDeployment.</p>
+MachineDeploymentConditionType are valid conditions of MachineDeployments
 </p>
+
+
+<h3 id="machinedeploymentspec">MachineDeploymentSpec
+</h3>
+
+
+<p>
+(<em>Appears on:</em><a href="#machinedeployment">MachineDeployment</a>)
+</p>
+
+<p>
+MachineDeploymentSpec is the specification of the desired behavior of the MachineDeployment.
+</p>
+
 <table>
 <thead>
 <tr>
 <th>Field</th>
-<th>Type</th>
 <th>Description</th>
 </tr>
 </thead>
 <tbody>
+
 <tr>
 <td>
-<code>replicas</code>
-</td>
-<td>
+<code>replicas</code></br>
 <em>
-int32
+integer
 </em>
 </td>
 <td>
 <em>(Optional)</em>
-<p>Number of desired machines. This is a pointer to distinguish between explicit
-zero and not specified. Defaults to 0.</p>
+<p>Number of desired machines. This is a pointer to distinguish between explicit<br />zero and not specified. Defaults to 0.</p>
 </td>
 </tr>
 <tr>
 <td>
-<code>selector</code>
-</td>
-<td>
+<code>selector</code></br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.29/#labelselector-v1-meta">
-Kubernetes meta/v1.LabelSelector
-</a>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#labelselector-v1-meta">LabelSelector</a>
 </em>
 </td>
 <td>
 <em>(Optional)</em>
-<p>Label selector for machines. Existing MachineSets whose machines are
-selected by this will be the ones affected by this MachineDeployment.</p>
+<p>Label selector for machines. Existing MachineSets whose machines are<br />selected by this will be the ones affected by this MachineDeployment.</p>
 </td>
 </tr>
 <tr>
 <td>
-<code>template</code>
-</td>
-<td>
+<code>template</code></br>
 <em>
-<a href="#machine.sapcloud.io/v1alpha1.MachineTemplateSpec">
-MachineTemplateSpec
-</a>
+<a href="#machinetemplatespec">MachineTemplateSpec</a>
 </em>
 </td>
 <td>
@@ -1361,13 +853,9 @@ MachineTemplateSpec
 </tr>
 <tr>
 <td>
-<code>strategy</code>
-</td>
-<td>
+<code>strategy</code></br>
 <em>
-<a href="#machine.sapcloud.io/v1alpha1.MachineDeploymentStrategy">
-MachineDeploymentStrategy
-</a>
+<a href="#machinedeploymentstrategy">MachineDeploymentStrategy</a>
 </em>
 </td>
 <td>
@@ -1377,130 +865,107 @@ MachineDeploymentStrategy
 </tr>
 <tr>
 <td>
-<code>minReadySeconds</code>
-</td>
-<td>
+<code>minReadySeconds</code></br>
 <em>
-int32
+integer
 </em>
 </td>
 <td>
 <em>(Optional)</em>
-<p>Minimum number of seconds for which a newly created machine should be ready
-without any of its container crashing, for it to be considered available.
-Defaults to 0 (machine will be considered available as soon as it is ready)</p>
+<p>Minimum number of seconds for which a newly created machine should be ready<br />without any of its container crashing, for it to be considered available.<br />Defaults to 0 (machine will be considered available as soon as it is ready)</p>
 </td>
 </tr>
 <tr>
 <td>
-<code>revisionHistoryLimit</code>
-</td>
-<td>
+<code>revisionHistoryLimit</code></br>
 <em>
-*int32
+integer
 </em>
 </td>
 <td>
 <em>(Optional)</em>
-<p>The number of old MachineSets to retain to allow rollback.
-This is a pointer to distinguish between explicit zero and not specified.</p>
+<p>The number of old MachineSets to retain to allow rollback.<br />This is a pointer to distinguish between explicit zero and not specified.</p>
 </td>
 </tr>
 <tr>
 <td>
-<code>paused</code>
-</td>
-<td>
+<code>paused</code></br>
 <em>
-bool
+boolean
 </em>
 </td>
 <td>
 <em>(Optional)</em>
-<p>Indicates that the MachineDeployment is paused and will not be processed by the
-MachineDeployment controller.</p>
+<p>Indicates that the MachineDeployment is paused and will not be processed by the<br />MachineDeployment controller.</p>
 </td>
 </tr>
 <tr>
 <td>
-<code>rollbackTo</code>
-</td>
-<td>
+<code>rollbackTo</code></br>
 <em>
-<a href="#machine.sapcloud.io/v1alpha1.RollbackConfig">
-RollbackConfig
-</a>
+<a href="#rollbackconfig">RollbackConfig</a>
 </em>
 </td>
 <td>
 <em>(Optional)</em>
-<p>DEPRECATED.
-The config this MachineDeployment is rolling back to. Will be cleared after rollback is done.</p>
+<p>DEPRECATED.<br />The config this MachineDeployment is rolling back to. Will be cleared after rollback is done.</p>
 </td>
 </tr>
 <tr>
 <td>
-<code>progressDeadlineSeconds</code>
-</td>
-<td>
+<code>progressDeadlineSeconds</code></br>
 <em>
-*int32
+integer
 </em>
 </td>
 <td>
 <em>(Optional)</em>
-<p>The maximum time in seconds for a MachineDeployment to make progress before it
-is considered to be failed. The MachineDeployment controller will continue to
-process failed MachineDeployments and a condition with a ProgressDeadlineExceeded
-reason will be surfaced in the MachineDeployment status. Note that progress will
-not be estimated during the time a MachineDeployment is paused. This is not set
-by default, which is treated as infinite deadline.</p>
+<p>The maximum time in seconds for a MachineDeployment to make progress before it<br />is considered to be failed. The MachineDeployment controller will continue to<br />process failed MachineDeployments and a condition with a ProgressDeadlineExceeded<br />reason will be surfaced in the MachineDeployment status. Note that progress will<br />not be estimated during the time a MachineDeployment is paused. This is not set<br />by default, which is treated as infinite deadline.</p>
 </td>
 </tr>
 <tr>
 <td>
-<code>autoPreserveFailedMachineMax</code>
-</td>
-<td>
+<code>autoPreserveFailedMachineMax</code></br>
 <em>
-int32
+integer
 </em>
 </td>
 <td>
 <em>(Optional)</em>
-<p>The maximum number of failed machines in the machine deployment that can be auto-preserved.
-In the gardener context, this number is derived from the AutoPreserveFailedMachineMax set at the worker level, distributed amongst the worker&rsquo;s machine deployments</p>
+<p>The maximum number of failed machines in the machine deployment that can be auto-preserved.<br />In the gardener context, this number is derived from the AutoPreserveFailedMachineMax set at the worker level, distributed amongst the worker's machine deployments</p>
 </td>
 </tr>
+
 </tbody>
 </table>
-<br>
-<h3 id="machine.sapcloud.io/v1alpha1.MachineDeploymentStatus">
-<b>MachineDeploymentStatus</b>
+
+
+<h3 id="machinedeploymentstatus">MachineDeploymentStatus
 </h3>
+
+
 <p>
-(<em>Appears on:</em>
-<a href="#machine.sapcloud.io/v1alpha1.MachineDeployment">MachineDeployment</a>)
+(<em>Appears on:</em><a href="#machinedeployment">MachineDeployment</a>)
 </p>
+
 <p>
-<p>MachineDeploymentStatus is the most recently observed status of the MachineDeployment.</p>
+MachineDeploymentStatus is the most recently observed status of the MachineDeployment.
 </p>
+
 <table>
 <thead>
 <tr>
 <th>Field</th>
-<th>Type</th>
 <th>Description</th>
 </tr>
 </thead>
 <tbody>
+
 <tr>
 <td>
-<code>observedGeneration</code>
-</td>
-<td>
+<code>observedGeneration</code></br>
 <em>
-int64
+integer
 </em>
 </td>
 <td>
@@ -1510,11 +975,9 @@ int64
 </tr>
 <tr>
 <td>
-<code>replicas</code>
-</td>
-<td>
+<code>replicas</code></br>
 <em>
-int32
+integer
 </em>
 </td>
 <td>
@@ -1524,11 +987,9 @@ int32
 </tr>
 <tr>
 <td>
-<code>updatedReplicas</code>
-</td>
-<td>
+<code>updatedReplicas</code></br>
 <em>
-int32
+integer
 </em>
 </td>
 <td>
@@ -1538,11 +999,9 @@ int32
 </tr>
 <tr>
 <td>
-<code>readyReplicas</code>
-</td>
-<td>
+<code>readyReplicas</code></br>
 <em>
-int32
+integer
 </em>
 </td>
 <td>
@@ -1552,11 +1011,9 @@ int32
 </tr>
 <tr>
 <td>
-<code>availableReplicas</code>
-</td>
-<td>
+<code>availableReplicas</code></br>
 <em>
-int32
+integer
 </em>
 </td>
 <td>
@@ -1566,11 +1023,9 @@ int32
 </tr>
 <tr>
 <td>
-<code>preservedFailedReplicas</code>
-</td>
-<td>
+<code>preservedFailedReplicas</code></br>
 <em>
-int32
+integer
 </em>
 </td>
 <td>
@@ -1580,61 +1035,44 @@ int32
 </tr>
 <tr>
 <td>
-<code>unavailableReplicas</code>
-</td>
-<td>
+<code>unavailableReplicas</code></br>
 <em>
-int32
+integer
 </em>
 </td>
 <td>
 <em>(Optional)</em>
-<p>Total number of unavailable machines targeted by this MachineDeployment. This is the total number of
-machines that are still required for the MachineDeployment to have 100% available capacity. They may
-either be machines that are running but not yet available, machines that still have not been created, or
-machines that are preserved in Failed phase.</p>
+<p>Total number of unavailable machines targeted by this MachineDeployment. This is the total number of<br />machines that are still required for the MachineDeployment to have 100% available capacity. They may<br />either be machines that are running but not yet available, machines that still have not been created, or<br />machines that are preserved in Failed phase.</p>
 </td>
 </tr>
 <tr>
 <td>
-<code>conditions</code>
-</td>
-<td>
+<code>conditions</code></br>
 <em>
-<a href="#machine.sapcloud.io/v1alpha1.MachineDeploymentCondition">
-[]MachineDeploymentCondition
-</a>
+<a href="#machinedeploymentcondition">MachineDeploymentCondition</a> array
 </em>
 </td>
 <td>
-<p>Represents the latest available observations of a MachineDeployment&rsquo;s current state.</p>
+<p>Represents the latest available observations of a MachineDeployment's current state.</p>
 </td>
 </tr>
 <tr>
 <td>
-<code>collisionCount</code>
-</td>
-<td>
+<code>collisionCount</code></br>
 <em>
-*int32
+integer
 </em>
 </td>
 <td>
 <em>(Optional)</em>
-<p>Count of hash collisions for the MachineDeployment. The MachineDeployment controller uses this
-field as a collision avoidance mechanism when it needs to create the name for the
-newest MachineSet.</p>
+<p>Count of hash collisions for the MachineDeployment. The MachineDeployment controller uses this<br />field as a collision avoidance mechanism when it needs to create the name for the<br />newest MachineSet.</p>
 </td>
 </tr>
 <tr>
 <td>
-<code>failedMachines</code>
-</td>
-<td>
+<code>failedMachines</code></br>
 <em>
-<a href="#machine.sapcloud.io/v1alpha1.*github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.MachineSummary">
-[]*github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.MachineSummary
-</a>
+<a href="#machinesummary">MachineSummary</a> array
 </em>
 </td>
 <td>
@@ -1642,144 +1080,214 @@ newest MachineSet.</p>
 <p>FailedMachines has summary of machines on which lastOperation Failed</p>
 </td>
 </tr>
+
 </tbody>
 </table>
-<br>
-<h3 id="machine.sapcloud.io/v1alpha1.MachineDeploymentStrategy">
-<b>MachineDeploymentStrategy</b>
+
+
+<h3 id="machinedeploymentstrategy">MachineDeploymentStrategy
 </h3>
+
+
 <p>
-(<em>Appears on:</em>
-<a href="#machine.sapcloud.io/v1alpha1.MachineDeploymentSpec">MachineDeploymentSpec</a>)
+(<em>Appears on:</em><a href="#machinedeploymentspec">MachineDeploymentSpec</a>)
 </p>
+
 <p>
-<p>MachineDeploymentStrategy describes how to replace existing machines with new ones.</p>
+MachineDeploymentStrategy describes how to replace existing machines with new ones.
 </p>
+
 <table>
 <thead>
 <tr>
 <th>Field</th>
-<th>Type</th>
 <th>Description</th>
 </tr>
 </thead>
 <tbody>
+
 <tr>
 <td>
-<code>type</code>
-</td>
-<td>
+<code>type</code></br>
 <em>
-<a href="#machine.sapcloud.io/v1alpha1.MachineDeploymentStrategyType">
-MachineDeploymentStrategyType
-</a>
+<a href="#machinedeploymentstrategytype">MachineDeploymentStrategyType</a>
 </em>
 </td>
 <td>
 <em>(Optional)</em>
-<p>Type of MachineDeployment. Can be &ldquo;Recreate&rdquo; or &ldquo;RollingUpdate&rdquo;. Default is RollingUpdate.</p>
+<p>Type of MachineDeployment. Can be "Recreate" or "RollingUpdate". Default is RollingUpdate.</p>
 </td>
 </tr>
 <tr>
 <td>
-<code>rollingUpdate</code>
-</td>
-<td>
+<code>rollingUpdate</code></br>
 <em>
-<a href="#machine.sapcloud.io/v1alpha1.RollingUpdateMachineDeployment">
-RollingUpdateMachineDeployment
-</a>
+<a href="#rollingupdatemachinedeployment">RollingUpdateMachineDeployment</a>
 </em>
 </td>
 <td>
 <em>(Optional)</em>
-<p>Rolling update config params. Present only if MachineDeploymentStrategyType =</p>
-<h2>RollingUpdate.</h2>
-<p>TODO: Update this to follow our convention for oneOf, whatever we decide it
-to be.</p>
+<p>Rolling update config params. Present only if MachineDeploymentStrategyType =<br />RollingUpdate.</p>
 </td>
 </tr>
 <tr>
 <td>
-<code>inPlaceUpdate</code>
-</td>
-<td>
+<code>inPlaceUpdate</code></br>
 <em>
-<a href="#machine.sapcloud.io/v1alpha1.InPlaceUpdateMachineDeployment">
-InPlaceUpdateMachineDeployment
-</a>
+<a href="#inplaceupdatemachinedeployment">InPlaceUpdateMachineDeployment</a>
 </em>
 </td>
 <td>
 <em>(Optional)</em>
-<p>InPlaceUpdate update config params. Present only if MachineDeploymentStrategyType =
-InPlaceUpdate.</p>
+<p>InPlaceUpdate update config params. Present only if MachineDeploymentStrategyType =<br />InPlaceUpdate.</p>
 </td>
 </tr>
+
 </tbody>
 </table>
-<br>
-<h3 id="machine.sapcloud.io/v1alpha1.MachineDeploymentStrategyType">
-<b>MachineDeploymentStrategyType</b>
-(<code>string</code> alias)</p></h3>
-<p>
-(<em>Appears on:</em>
-<a href="#machine.sapcloud.io/v1alpha1.MachineDeploymentStrategy">MachineDeploymentStrategy</a>)
-</p>
-<p>
-<p>MachineDeploymentStrategyType are valid strategy types for rolling MachineDeployments</p>
-</p>
-<br>
-<h3 id="machine.sapcloud.io/v1alpha1.MachineOperationType">
-<b>MachineOperationType</b>
-(<code>string</code> alias)</p></h3>
-<p>
-(<em>Appears on:</em>
-<a href="#machine.sapcloud.io/v1alpha1.LastOperation">LastOperation</a>)
-</p>
-<p>
-<p>MachineOperationType is a label for the operation performed on a machine object.</p>
-</p>
-<br>
-<h3 id="machine.sapcloud.io/v1alpha1.MachinePhase">
-<b>MachinePhase</b>
-(<code>string</code> alias)</p></h3>
-<p>
-(<em>Appears on:</em>
-<a href="#machine.sapcloud.io/v1alpha1.CurrentStatus">CurrentStatus</a>)
-</p>
-<p>
-<p>MachinePhase is a label for the condition of a machine at the current time.</p>
-</p>
-<br>
-<h3 id="machine.sapcloud.io/v1alpha1.MachineSetCondition">
-<b>MachineSetCondition</b>
+
+
+<h3 id="machinedeploymentstrategytype">MachineDeploymentStrategyType
 </h3>
+<p><em>Underlying type: string</em></p>
+
+
 <p>
-(<em>Appears on:</em>
-<a href="#machine.sapcloud.io/v1alpha1.MachineSetStatus">MachineSetStatus</a>)
+(<em>Appears on:</em><a href="#machinedeploymentstrategy">MachineDeploymentStrategy</a>)
 </p>
+
 <p>
-<p>MachineSetCondition describes the state of a machine set at a certain point.</p>
+MachineDeploymentStrategyType are valid strategy types for rolling MachineDeployments
 </p>
+
+
+<h3 id="machineoperationtype">MachineOperationType
+</h3>
+<p><em>Underlying type: string</em></p>
+
+
+<p>
+(<em>Appears on:</em><a href="#lastoperation">LastOperation</a>)
+</p>
+
+<p>
+MachineOperationType is a label for the operation performed on a machine object.
+</p>
+
+
+<h3 id="machinephase">MachinePhase
+</h3>
+<p><em>Underlying type: string</em></p>
+
+
+<p>
+(<em>Appears on:</em><a href="#currentstatus">CurrentStatus</a>)
+</p>
+
+<p>
+MachinePhase is a label for the condition of a machine at the current time.
+</p>
+
+
+<h3 id="machineset">MachineSet
+</h3>
+
+
+<p>
+MachineSet TODO
+</p>
+
 <table>
 <thead>
 <tr>
 <th>Field</th>
-<th>Type</th>
 <th>Description</th>
 </tr>
 </thead>
 <tbody>
+
 <tr>
 <td>
-<code>type</code>
+<code>apiVersion</code></br>
+string</td>
+<td>
+<code>machine.sapcloud.io/v1alpha1</code>
+</td>
+</tr>
+<tr>
+<td>
+<code>kind</code></br>
+string
+</td>
+<td><code>MachineSet</code></td>
+</tr>
+
+<tr>
+<td>
+<code>metadata</code></br>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#objectmeta-v1-meta">ObjectMeta</a>
+</em>
 </td>
 <td>
+Refer to the Kubernetes API documentation for the fields of the <code>metadata</code> field.
+</td>
+</tr>
+<tr>
+<td>
+<code>spec</code></br>
 <em>
-<a href="#machine.sapcloud.io/v1alpha1.MachineSetConditionType">
-MachineSetConditionType
-</a>
+<a href="#machinesetspec">MachineSetSpec</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p></p>
+</td>
+</tr>
+<tr>
+<td>
+<code>status</code></br>
+<em>
+<a href="#machinesetstatus">MachineSetStatus</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p></p>
+</td>
+</tr>
+
+</tbody>
+</table>
+
+
+<h3 id="machinesetcondition">MachineSetCondition
+</h3>
+
+
+<p>
+(<em>Appears on:</em><a href="#machinesetstatus">MachineSetStatus</a>)
+</p>
+
+<p>
+MachineSetCondition describes the state of a machine set at a certain point.
+</p>
+
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+
+<tr>
+<td>
+<code>type</code></br>
+<em>
+<a href="#machinesetconditiontype">MachineSetConditionType</a>
 </em>
 </td>
 <td>
@@ -1788,13 +1296,9 @@ MachineSetConditionType
 </tr>
 <tr>
 <td>
-<code>status</code>
-</td>
-<td>
+<code>status</code></br>
 <em>
-<a href="#machine.sapcloud.io/v1alpha1.ConditionStatus">
-ConditionStatus
-</a>
+<a href="#conditionstatus">ConditionStatus</a>
 </em>
 </td>
 <td>
@@ -1803,13 +1307,9 @@ ConditionStatus
 </tr>
 <tr>
 <td>
-<code>lastTransitionTime</code>
-</td>
-<td>
+<code>lastTransitionTime</code></br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.29/#time-v1-meta">
-Kubernetes meta/v1.Time
-</a>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#time-v1-meta">Time</a>
 </em>
 </td>
 <td>
@@ -1819,23 +1319,19 @@ Kubernetes meta/v1.Time
 </tr>
 <tr>
 <td>
-<code>reason</code>
-</td>
-<td>
+<code>reason</code></br>
 <em>
 string
 </em>
 </td>
 <td>
 <em>(Optional)</em>
-<p>The reason for the condition&rsquo;s last transition.</p>
+<p>The reason for the condition's last transition.</p>
 </td>
 </tr>
 <tr>
 <td>
-<code>message</code>
-</td>
-<td>
+<code>message</code></br>
 <em>
 string
 </em>
@@ -1845,152 +1341,149 @@ string
 <p>A human readable message indicating details about the transition.</p>
 </td>
 </tr>
+
 </tbody>
 </table>
-<br>
-<h3 id="machine.sapcloud.io/v1alpha1.MachineSetConditionType">
-<b>MachineSetConditionType</b>
-(<code>string</code> alias)</p></h3>
-<p>
-(<em>Appears on:</em>
-<a href="#machine.sapcloud.io/v1alpha1.MachineSetCondition">MachineSetCondition</a>)
-</p>
-<p>
-<p>MachineSetConditionType is the condition on machineset object</p>
-</p>
-<br>
-<h3 id="machine.sapcloud.io/v1alpha1.MachineSetSpec">
-<b>MachineSetSpec</b>
+
+
+<h3 id="machinesetconditiontype">MachineSetConditionType
 </h3>
+<p><em>Underlying type: string</em></p>
+
+
 <p>
-(<em>Appears on:</em>
-<a href="#machine.sapcloud.io/v1alpha1.MachineSet">MachineSet</a>)
+(<em>Appears on:</em><a href="#machinesetcondition">MachineSetCondition</a>)
 </p>
+
 <p>
-<p>MachineSetSpec is the specification of a MachineSet.</p>
+MachineSetConditionType is the condition on machineset object
 </p>
+
+
+<h3 id="machinesetspec">MachineSetSpec
+</h3>
+
+
+<p>
+(<em>Appears on:</em><a href="#machineset">MachineSet</a>)
+</p>
+
+<p>
+MachineSetSpec is the specification of a MachineSet.
+</p>
+
 <table>
 <thead>
 <tr>
 <th>Field</th>
-<th>Type</th>
 <th>Description</th>
 </tr>
 </thead>
 <tbody>
+
 <tr>
 <td>
-<code>replicas</code>
-</td>
-<td>
+<code>replicas</code></br>
 <em>
-int32
+integer
 </em>
 </td>
 <td>
 <em>(Optional)</em>
+<p></p>
 </td>
 </tr>
 <tr>
 <td>
-<code>selector</code>
-</td>
-<td>
+<code>selector</code></br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.29/#labelselector-v1-meta">
-Kubernetes meta/v1.LabelSelector
-</a>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#labelselector-v1-meta">LabelSelector</a>
 </em>
 </td>
 <td>
 <em>(Optional)</em>
+<p></p>
 </td>
 </tr>
 <tr>
 <td>
-<code>machineClass</code>
-</td>
-<td>
+<code>machineClass</code></br>
 <em>
-<a href="#machine.sapcloud.io/v1alpha1.ClassSpec">
-ClassSpec
-</a>
+<a href="#classspec">ClassSpec</a>
 </em>
 </td>
 <td>
 <em>(Optional)</em>
+<p></p>
 </td>
 </tr>
 <tr>
 <td>
-<code>template</code>
-</td>
-<td>
+<code>template</code></br>
 <em>
-<a href="#machine.sapcloud.io/v1alpha1.MachineTemplateSpec">
-MachineTemplateSpec
-</a>
+<a href="#machinetemplatespec">MachineTemplateSpec</a>
 </em>
 </td>
 <td>
 <em>(Optional)</em>
+<p></p>
 </td>
 </tr>
 <tr>
 <td>
-<code>minReadySeconds</code>
-</td>
-<td>
+<code>minReadySeconds</code></br>
 <em>
-int32
+integer
 </em>
 </td>
 <td>
 <em>(Optional)</em>
+<p></p>
 </td>
 </tr>
 <tr>
 <td>
-<code>autoPreserveFailedMachineMax</code>
-</td>
-<td>
+<code>autoPreserveFailedMachineMax</code></br>
 <em>
-int32
+integer
 </em>
 </td>
 <td>
 <em>(Optional)</em>
+<p></p>
 </td>
 </tr>
+
 </tbody>
 </table>
-<br>
-<h3 id="machine.sapcloud.io/v1alpha1.MachineSetStatus">
-<b>MachineSetStatus</b>
+
+
+<h3 id="machinesetstatus">MachineSetStatus
 </h3>
+
+
 <p>
-(<em>Appears on:</em>
-<a href="#machine.sapcloud.io/v1alpha1.MachineSet">MachineSet</a>)
+(<em>Appears on:</em><a href="#machineset">MachineSet</a>)
 </p>
+
 <p>
-<p>MachineSetStatus holds the most recently observed status of MachineSet.</p>
+MachineSetStatus holds the most recently observed status of MachineSet.
 </p>
+
 <table>
 <thead>
 <tr>
 <th>Field</th>
-<th>Type</th>
 <th>Description</th>
 </tr>
 </thead>
 <tbody>
+
 <tr>
 <td>
-<code>replicas</code>
-</td>
-<td>
+<code>replicas</code></br>
 <em>
-int32
+integer
 </em>
 </td>
 <td>
@@ -1999,11 +1492,9 @@ int32
 </tr>
 <tr>
 <td>
-<code>fullyLabeledReplicas</code>
-</td>
-<td>
+<code>fullyLabeledReplicas</code></br>
 <em>
-int32
+integer
 </em>
 </td>
 <td>
@@ -2013,11 +1504,9 @@ int32
 </tr>
 <tr>
 <td>
-<code>readyReplicas</code>
-</td>
-<td>
+<code>readyReplicas</code></br>
 <em>
-int32
+integer
 </em>
 </td>
 <td>
@@ -2027,11 +1516,9 @@ int32
 </tr>
 <tr>
 <td>
-<code>availableReplicas</code>
-</td>
-<td>
+<code>availableReplicas</code></br>
 <em>
-int32
+integer
 </em>
 </td>
 <td>
@@ -2041,11 +1528,9 @@ int32
 </tr>
 <tr>
 <td>
-<code>preservedFailedReplicas</code>
-</td>
-<td>
+<code>preservedFailedReplicas</code></br>
 <em>
-int32
+integer
 </em>
 </td>
 <td>
@@ -2054,11 +1539,9 @@ int32
 </tr>
 <tr>
 <td>
-<code>observedGeneration</code>
-</td>
-<td>
+<code>observedGeneration</code></br>
 <em>
-int64
+integer
 </em>
 </td>
 <td>
@@ -2068,29 +1551,21 @@ int64
 </tr>
 <tr>
 <td>
-<code>machineSetCondition</code>
-</td>
-<td>
+<code>machineSetCondition</code></br>
 <em>
-<a href="#machine.sapcloud.io/v1alpha1.MachineSetCondition">
-[]MachineSetCondition
-</a>
+<a href="#machinesetcondition">MachineSetCondition</a> array
 </em>
 </td>
 <td>
 <em>(Optional)</em>
-<p>Represents the latest available observations of a replica set&rsquo;s current state.</p>
+<p>Represents the latest available observations of a replica set's current state.</p>
 </td>
 </tr>
 <tr>
 <td>
-<code>lastOperation</code>
-</td>
-<td>
+<code>lastOperation</code></br>
 <em>
-<a href="#machine.sapcloud.io/v1alpha1.LastOperation">
-LastOperation
-</a>
+<a href="#lastoperation">LastOperation</a>
 </em>
 </td>
 <td>
@@ -2099,13 +1574,9 @@ LastOperation
 </tr>
 <tr>
 <td>
-<code>failedMachines</code>
-</td>
-<td>
+<code>failedMachines</code></br>
 <em>
-<a href="#machine.sapcloud.io/v1alpha1.[]github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.MachineSummary">
-[]github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.MachineSummary
-</a>
+<a href="#machinesummary">MachineSummary</a>
 </em>
 </td>
 <td>
@@ -2115,11 +1586,9 @@ LastOperation
 </tr>
 <tr>
 <td>
-<code>autoPreserveFailedMachineCount</code>
-</td>
-<td>
+<code>autoPreserveFailedMachineCount</code></br>
 <em>
-int32
+integer
 </em>
 </td>
 <td>
@@ -2127,38 +1596,37 @@ int32
 <p>AutoPreserveFailedMachineCount has a count of the number of failed machines in the machineset that are currently auto-preserved</p>
 </td>
 </tr>
+
 </tbody>
 </table>
-<br>
-<h3 id="machine.sapcloud.io/v1alpha1.MachineSpec">
-<b>MachineSpec</b>
+
+
+<h3 id="machinespec">MachineSpec
 </h3>
+
+
 <p>
-(<em>Appears on:</em>
-<a href="#machine.sapcloud.io/v1alpha1.Machine">Machine</a>, 
-<a href="#machine.sapcloud.io/v1alpha1.MachineTemplateSpec">MachineTemplateSpec</a>)
+(<em>Appears on:</em><a href="#machine">Machine</a>, <a href="#machinetemplatespec">MachineTemplateSpec</a>)
 </p>
+
 <p>
-<p>MachineSpec is the specification of a Machine.</p>
+MachineSpec is the specification of a Machine.
 </p>
+
 <table>
 <thead>
 <tr>
 <th>Field</th>
-<th>Type</th>
 <th>Description</th>
 </tr>
 </thead>
 <tbody>
+
 <tr>
 <td>
-<code>class</code>
-</td>
-<td>
+<code>class</code></br>
 <em>
-<a href="#machine.sapcloud.io/v1alpha1.ClassSpec">
-ClassSpec
-</a>
+<a href="#classspec">ClassSpec</a>
 </em>
 </td>
 <td>
@@ -2168,27 +1636,21 @@ ClassSpec
 </tr>
 <tr>
 <td>
-<code>providerID</code>
-</td>
-<td>
+<code>providerID</code></br>
 <em>
 string
 </em>
 </td>
 <td>
 <em>(Optional)</em>
-<p>ProviderID represents the provider&rsquo;s unique ID given to a machine</p>
+<p>ProviderID represents the provider's unique ID given to a machine</p>
 </td>
 </tr>
 <tr>
 <td>
-<code>nodeTemplate</code>
-</td>
-<td>
+<code>nodeTemplate</code></br>
 <em>
-<a href="#machine.sapcloud.io/v1alpha1.NodeTemplateSpec">
-NodeTemplateSpec
-</a>
+<a href="#nodetemplatespec">NodeTemplateSpec</a>
 </em>
 </td>
 <td>
@@ -2196,84 +1658,63 @@ NodeTemplateSpec
 <p>NodeTemplateSpec describes the data a node should have when created from a template</p>
 </td>
 </tr>
-<tr>
-<td>
-<code>MachineConfiguration</code>
-</td>
-<td>
-<em>
-<a href="#machine.sapcloud.io/v1alpha1.MachineConfiguration">
-MachineConfiguration
-</a>
-</em>
-</td>
-<td>
-<p>
-(Members of <code>MachineConfiguration</code> are embedded into this type.)
-</p>
-<em>(Optional)</em>
-<p>Configuration for the machine-controller.</p>
-</td>
-</tr>
+
 </tbody>
 </table>
-<br>
-<h3 id="machine.sapcloud.io/v1alpha1.MachineState">
-<b>MachineState</b>
-(<code>string</code> alias)</p></h3>
-<p>
-(<em>Appears on:</em>
-<a href="#machine.sapcloud.io/v1alpha1.LastOperation">LastOperation</a>)
-</p>
-<p>
-<p>MachineState is a current state of the operation.</p>
-</p>
-<br>
-<h3 id="machine.sapcloud.io/v1alpha1.MachineStatus">
-<b>MachineStatus</b>
+
+
+<h3 id="machinestate">MachineState
 </h3>
+<p><em>Underlying type: string</em></p>
+
+
 <p>
-(<em>Appears on:</em>
-<a href="#machine.sapcloud.io/v1alpha1.Machine">Machine</a>)
+(<em>Appears on:</em><a href="#lastoperation">LastOperation</a>)
 </p>
+
 <p>
-<p>MachineStatus holds the most recently observed status of Machine.</p>
+MachineState is a current state of the operation.
 </p>
+
+
+<h3 id="machinestatus">MachineStatus
+</h3>
+
+
+<p>
+(<em>Appears on:</em><a href="#machine">Machine</a>)
+</p>
+
+<p>
+MachineStatus holds the most recently observed status of Machine.
+</p>
+
 <table>
 <thead>
 <tr>
 <th>Field</th>
-<th>Type</th>
 <th>Description</th>
 </tr>
 </thead>
 <tbody>
+
 <tr>
 <td>
-<code>addresses</code>
-</td>
-<td>
+<code>addresses</code></br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.29/#nodeaddress-v1-core">
-[]Kubernetes core/v1.NodeAddress
-</a>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#nodeaddress-v1-core">NodeAddress</a> array
 </em>
 </td>
 <td>
 <em>(Optional)</em>
-<p>Addresses of this machines. This field is only present if the MCM provider runs without a target cluster and may
-be used by clients to determine how to connect to the machine, instead of the <code>Node.status.addresses</code> field.</p>
+<p>Addresses of this machines. This field is only present if the MCM provider runs without a target cluster and may<br />be used by clients to determine how to connect to the machine, instead of the `Node.status.addresses` field.</p>
 </td>
 </tr>
 <tr>
 <td>
-<code>conditions</code>
-</td>
-<td>
+<code>conditions</code></br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.29/#nodecondition-v1-core">
-[]Kubernetes core/v1.NodeCondition
-</a>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#nodecondition-v1-core">NodeCondition</a> array
 </em>
 </td>
 <td>
@@ -2282,13 +1723,9 @@ be used by clients to determine how to connect to the machine, instead of the <c
 </tr>
 <tr>
 <td>
-<code>lastOperation</code>
-</td>
-<td>
+<code>lastOperation</code></br>
 <em>
-<a href="#machine.sapcloud.io/v1alpha1.LastOperation">
-LastOperation
-</a>
+<a href="#lastoperation">LastOperation</a>
 </em>
 </td>
 <td>
@@ -2297,13 +1734,9 @@ LastOperation
 </tr>
 <tr>
 <td>
-<code>currentStatus</code>
-</td>
-<td>
+<code>currentStatus</code></br>
 <em>
-<a href="#machine.sapcloud.io/v1alpha1.CurrentStatus">
-CurrentStatus
-</a>
+<a href="#currentstatus">CurrentStatus</a>
 </em>
 </td>
 <td>
@@ -2312,42 +1745,45 @@ CurrentStatus
 </tr>
 <tr>
 <td>
-<code>lastKnownState</code>
-</td>
-<td>
+<code>lastKnownState</code></br>
 <em>
 string
 </em>
 </td>
 <td>
 <em>(Optional)</em>
-<p>LastKnownState can store details of the last known state of the VM by the plugins.
-It can be used by future operation calls to determine current infrastucture state</p>
+<p>LastKnownState can store details of the last known state of the VM by the plugins.<br />It can be used by future operation calls to determine current infrastucture state</p>
 </td>
 </tr>
+
 </tbody>
 </table>
-<br>
-<h3 id="machine.sapcloud.io/v1alpha1.MachineSummary">
-<b>MachineSummary</b>
+
+
+<h3 id="machinesummary">MachineSummary
 </h3>
+
+
 <p>
-<p>MachineSummary store the summary of machine.</p>
+(<em>Appears on:</em><a href="#machinedeploymentstatus">MachineDeploymentStatus</a>, <a href="#machinesetstatus">MachineSetStatus</a>)
 </p>
+
+<p>
+MachineSummary store the summary of machine.
+</p>
+
 <table>
 <thead>
 <tr>
 <th>Field</th>
-<th>Type</th>
 <th>Description</th>
 </tr>
 </thead>
 <tbody>
+
 <tr>
 <td>
-<code>name</code>
-</td>
-<td>
+<code>name</code></br>
 <em>
 string
 </em>
@@ -2358,26 +1794,20 @@ string
 </tr>
 <tr>
 <td>
-<code>providerID</code>
-</td>
-<td>
+<code>providerID</code></br>
 <em>
 string
 </em>
 </td>
 <td>
-<p>ProviderID represents the provider&rsquo;s unique ID given to a machine</p>
+<p>ProviderID represents the provider's unique ID given to a machine</p>
 </td>
 </tr>
 <tr>
 <td>
-<code>lastOperation</code>
-</td>
-<td>
+<code>lastOperation</code></br>
 <em>
-<a href="#machine.sapcloud.io/v1alpha1.LastOperation">
-LastOperation
-</a>
+<a href="#lastoperation">LastOperation</a>
 </em>
 </td>
 <td>
@@ -2386,9 +1816,7 @@ LastOperation
 </tr>
 <tr>
 <td>
-<code>ownerRef</code>
-</td>
-<td>
+<code>ownerRef</code></br>
 <em>
 string
 </em>
@@ -2397,192 +1825,84 @@ string
 <p>OwnerRef</p>
 </td>
 </tr>
+
 </tbody>
 </table>
-<br>
-<h3 id="machine.sapcloud.io/v1alpha1.MachineTemplateSpec">
-<b>MachineTemplateSpec</b>
+
+
+<h3 id="machinetemplatespec">MachineTemplateSpec
 </h3>
+
+
 <p>
-(<em>Appears on:</em>
-<a href="#machine.sapcloud.io/v1alpha1.MachineDeploymentSpec">MachineDeploymentSpec</a>, 
-<a href="#machine.sapcloud.io/v1alpha1.MachineSetSpec">MachineSetSpec</a>)
+(<em>Appears on:</em><a href="#machinedeploymentspec">MachineDeploymentSpec</a>, <a href="#machinesetspec">MachineSetSpec</a>)
 </p>
+
 <p>
-<p>MachineTemplateSpec describes the data a machine should have when created from a template</p>
+MachineTemplateSpec describes the data a machine should have when created from a template
 </p>
+
 <table>
 <thead>
 <tr>
 <th>Field</th>
-<th>Type</th>
 <th>Description</th>
 </tr>
 </thead>
 <tbody>
+
 <tr>
 <td>
-<code>metadata</code>
-</td>
-<td>
+<code>metadata</code></br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.29/#objectmeta-v1-meta">
-Kubernetes meta/v1.ObjectMeta
-</a>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#objectmeta-v1-meta">ObjectMeta</a>
 </em>
 </td>
 <td>
-<em>(Optional)</em>
-<p>Standard object&rsquo;s metadata.
-More info: <a href="https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata">https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata</a></p>
-Refer to the Kubernetes API documentation for the fields of the
-<code>metadata</code> field.
+Refer to the Kubernetes API documentation for the fields of the <code>metadata</code> field.
 </td>
 </tr>
 <tr>
 <td>
-<code>spec</code>
-</td>
-<td>
+<code>spec</code></br>
 <em>
-<a href="#machine.sapcloud.io/v1alpha1.MachineSpec">
-MachineSpec
-</a>
+<a href="#machinespec">MachineSpec</a>
 </em>
 </td>
 <td>
 <em>(Optional)</em>
-<p>Specification of the desired behavior of the machine.
-More info: <a href="https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#spec-and-status">https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#spec-and-status</a></p>
-<br/>
-<br/>
-<table>
-<tr>
-<td>
-<code>class</code>
-</td>
-<td>
-<em>
-<a href="#machine.sapcloud.io/v1alpha1.ClassSpec">
-ClassSpec
-</a>
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>Class contains the machineclass attributes of a machine</p>
+<p>Specification of the desired behavior of the machine.<br />More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#spec-and-status</p>
 </td>
 </tr>
-<tr>
-<td>
-<code>providerID</code>
-</td>
-<td>
-<em>
-string
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>ProviderID represents the provider&rsquo;s unique ID given to a machine</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>nodeTemplate</code>
-</td>
-<td>
-<em>
-<a href="#machine.sapcloud.io/v1alpha1.NodeTemplateSpec">
-NodeTemplateSpec
-</a>
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>NodeTemplateSpec describes the data a node should have when created from a template</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>MachineConfiguration</code>
-</td>
-<td>
-<em>
-<a href="#machine.sapcloud.io/v1alpha1.MachineConfiguration">
-MachineConfiguration
-</a>
-</em>
-</td>
-<td>
-<p>
-(Members of <code>MachineConfiguration</code> are embedded into this type.)
-</p>
-<em>(Optional)</em>
-<p>Configuration for the machine-controller.</p>
-</td>
-</tr>
-</table>
-</td>
-</tr>
+
 </tbody>
 </table>
-<br>
-<h3 id="machine.sapcloud.io/v1alpha1.NodeTemplate">
-<b>NodeTemplate</b>
+
+
+<h3 id="nodetemplate">NodeTemplate
 </h3>
+
+
 <p>
-(<em>Appears on:</em>
-<a href="#machine.sapcloud.io/v1alpha1.MachineClass">MachineClass</a>)
+(<em>Appears on:</em><a href="#machineclass">MachineClass</a>)
 </p>
+
 <p>
-<p>NodeTemplate contains subfields to track all node resources and other node info required to scale nodegroup from zero</p>
+NodeTemplate contains subfields to track all node resources and other node info required to scale nodegroup from zero
 </p>
+
 <table>
 <thead>
 <tr>
 <th>Field</th>
-<th>Type</th>
 <th>Description</th>
 </tr>
 </thead>
 <tbody>
+
 <tr>
 <td>
-<code>capacity</code>
-</td>
-<td>
-<em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.29/#resourcelist-v1-core">
-Kubernetes core/v1.ResourceList
-</a>
-</em>
-</td>
-<td>
-<p>Capacity contains subfields to track all node resources required to scale nodegroup from zero</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>virtualCapacity</code>
-</td>
-<td>
-<em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.29/#resourcelist-v1-core">
-Kubernetes core/v1.ResourceList
-</a>
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>VirtualCapacity represents the expected Node &lsquo;virtual&rsquo; capacity ie comprising virtual extended resources.</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>instanceType</code>
-</td>
-<td>
+<code>instanceType</code></br>
 <em>
 string
 </em>
@@ -2593,9 +1913,7 @@ string
 </tr>
 <tr>
 <td>
-<code>region</code>
-</td>
-<td>
+<code>region</code></br>
 <em>
 string
 </em>
@@ -2606,9 +1924,7 @@ string
 </tr>
 <tr>
 <td>
-<code>zone</code>
-</td>
-<td>
+<code>zone</code></br>
 <em>
 string
 </em>
@@ -2619,11 +1935,9 @@ string
 </tr>
 <tr>
 <td>
-<code>architecture</code>
-</td>
-<td>
+<code>architecture</code></br>
 <em>
-*string
+string
 </em>
 </td>
 <td>
@@ -2631,211 +1945,100 @@ string
 <p>CPU Architecture of the node belonging to nodeGroup</p>
 </td>
 </tr>
+
 </tbody>
 </table>
-<br>
-<h3 id="machine.sapcloud.io/v1alpha1.NodeTemplateSpec">
-<b>NodeTemplateSpec</b>
+
+
+<h3 id="nodetemplatespec">NodeTemplateSpec
 </h3>
+
+
 <p>
-(<em>Appears on:</em>
-<a href="#machine.sapcloud.io/v1alpha1.MachineSpec">MachineSpec</a>)
+(<em>Appears on:</em><a href="#machinespec">MachineSpec</a>)
 </p>
+
 <p>
-<p>NodeTemplateSpec describes the data a node should have when created from a template</p>
+NodeTemplateSpec describes the data a node should have when created from a template
 </p>
+
 <table>
 <thead>
 <tr>
 <th>Field</th>
-<th>Type</th>
 <th>Description</th>
 </tr>
 </thead>
 <tbody>
+
 <tr>
 <td>
-<code>metadata</code>
-</td>
-<td>
+<code>metadata</code></br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.29/#objectmeta-v1-meta">
-Kubernetes meta/v1.ObjectMeta
-</a>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#objectmeta-v1-meta">ObjectMeta</a>
 </em>
 </td>
 <td>
-<em>(Optional)</em>
-Refer to the Kubernetes API documentation for the fields of the
-<code>metadata</code> field.
+Refer to the Kubernetes API documentation for the fields of the <code>metadata</code> field.
 </td>
 </tr>
 <tr>
 <td>
-<code>spec</code>
-</td>
-<td>
+<code>spec</code></br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.29/#nodespec-v1-core">
-Kubernetes core/v1.NodeSpec
-</a>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#nodespec-v1-core">NodeSpec</a>
 </em>
 </td>
 <td>
 <em>(Optional)</em>
 <p>NodeSpec describes the attributes that a node is created with.</p>
-<br/>
-<br/>
-<table>
-<tr>
-<td>
-<code>podCIDR</code>
-</td>
-<td>
-<em>
-string
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>PodCIDR represents the pod IP range assigned to the node.</p>
 </td>
 </tr>
-<tr>
-<td>
-<code>podCIDRs</code>
-</td>
-<td>
-<em>
-[]string
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>podCIDRs represents the IP ranges assigned to the node for usage by Pods on that node. If this
-field is specified, the 0th entry must match the podCIDR field. It may contain at most 1 value for
-each of IPv4 and IPv6.</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>providerID</code>
-</td>
-<td>
-<em>
-string
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>ID of the node assigned by the cloud provider in the format: <ProviderName>://<ProviderSpecificNodeID></p>
-</td>
-</tr>
-<tr>
-<td>
-<code>unschedulable</code>
-</td>
-<td>
-<em>
-bool
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>Unschedulable controls node schedulability of new pods. By default, node is schedulable.
-More info: <a href="https://kubernetes.io/docs/concepts/nodes/node/#manual-node-administration">https://kubernetes.io/docs/concepts/nodes/node/#manual-node-administration</a></p>
-</td>
-</tr>
-<tr>
-<td>
-<code>taints</code>
-</td>
-<td>
-<em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.29/#taint-v1-core">
-[]Kubernetes core/v1.Taint
-</a>
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>If specified, the node&rsquo;s taints.</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>configSource</code>
-</td>
-<td>
-<em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.29/#nodeconfigsource-v1-core">
-Kubernetes core/v1.NodeConfigSource
-</a>
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>Deprecated: Previously used to specify the source of the node&rsquo;s configuration for the DynamicKubeletConfig feature. This feature is removed.</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>externalID</code>
-</td>
-<td>
-<em>
-string
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>Deprecated. Not all kubelets will set this field. Remove field after 1.13.
-see: <a href="https://issues.k8s.io/61966">https://issues.k8s.io/61966</a></p>
-</td>
-</tr>
-</table>
-</td>
-</tr>
+
 </tbody>
 </table>
-<br>
-<h3 id="machine.sapcloud.io/v1alpha1.OrchestrationType">
-<b>OrchestrationType</b>
-(<code>string</code> alias)</p></h3>
-<p>
-(<em>Appears on:</em>
-<a href="#machine.sapcloud.io/v1alpha1.InPlaceUpdateMachineDeployment">InPlaceUpdateMachineDeployment</a>)
-</p>
-<p>
-<p>OrchestrationType specifies the orchestration type for the inplace update.</p>
-</p>
-<br>
-<h3 id="machine.sapcloud.io/v1alpha1.RollbackConfig">
-<b>RollbackConfig</b>
+
+
+<h3 id="orchestrationtype">OrchestrationType
 </h3>
+<p><em>Underlying type: string</em></p>
+
+
 <p>
-(<em>Appears on:</em>
-<a href="#machine.sapcloud.io/v1alpha1.MachineDeploymentSpec">MachineDeploymentSpec</a>)
+(<em>Appears on:</em><a href="#inplaceupdatemachinedeployment">InPlaceUpdateMachineDeployment</a>)
 </p>
+
 <p>
-<p>RollbackConfig is the config to rollback a MachineDeployment</p>
+OrchestrationType specifies the orchestration type for the inplace update.
 </p>
+
+
+<h3 id="rollbackconfig">RollbackConfig
+</h3>
+
+
+<p>
+(<em>Appears on:</em><a href="#machinedeploymentspec">MachineDeploymentSpec</a>)
+</p>
+
+<p>
+RollbackConfig is the config to rollback a MachineDeployment
+</p>
+
 <table>
 <thead>
 <tr>
 <th>Field</th>
-<th>Type</th>
 <th>Description</th>
 </tr>
 </thead>
 <tbody>
+
 <tr>
 <td>
-<code>revision</code>
-</td>
-<td>
+<code>revision</code></br>
 <em>
-int64
+integer
 </em>
 </td>
 <td>
@@ -2843,120 +2046,108 @@ int64
 <p>The revision to rollback to. If set to 0, rollback to the last revision.</p>
 </td>
 </tr>
+
 </tbody>
 </table>
-<br>
-<h3 id="machine.sapcloud.io/v1alpha1.RollingUpdateMachineDeployment">
-<b>RollingUpdateMachineDeployment</b>
+
+
+<h3 id="rollingupdatemachinedeployment">RollingUpdateMachineDeployment
 </h3>
+
+
 <p>
-(<em>Appears on:</em>
-<a href="#machine.sapcloud.io/v1alpha1.MachineDeploymentStrategy">MachineDeploymentStrategy</a>)
+(<em>Appears on:</em><a href="#machinedeploymentstrategy">MachineDeploymentStrategy</a>)
 </p>
+
 <p>
-<p>RollingUpdateMachineDeployment is the spec to control the desired behavior of rolling update.</p>
+RollingUpdateMachineDeployment is the spec to control the desired behavior of rolling update.
 </p>
+
 <table>
 <thead>
 <tr>
 <th>Field</th>
-<th>Type</th>
 <th>Description</th>
 </tr>
 </thead>
 <tbody>
+
 <tr>
 <td>
-<code>UpdateConfiguration</code>
-</td>
-<td>
+<code>maxUnavailable</code></br>
 <em>
-<a href="#machine.sapcloud.io/v1alpha1.UpdateConfiguration">
-UpdateConfiguration
-</a>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#intorstring-intstr-util">IntOrString</a>
 </em>
 </td>
 <td>
-<p>
-(Members of <code>UpdateConfiguration</code> are embedded into this type.)
-</p>
+<em>(Optional)</em>
+<p>The maximum number of machines that can be unavailable during the update.<br />Value can be an absolute number (ex: 5) or a percentage of desired machines (ex: 10%).<br />Absolute number is calculated from percentage by rounding down.<br />This can not be 0 if MaxSurge is 0.<br />Example: when this is set to 30%, the old machine set can be scaled down to 70% of desired machines<br />immediately when the update starts. Once new machines are ready, old machine set<br />can be scaled down further, followed by scaling up the new machine set, ensuring<br />that the total number of machines available at all times during the update is at<br />least 70% of desired machines.</p>
 </td>
 </tr>
+<tr>
+<td>
+<code>maxSurge</code></br>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#intorstring-intstr-util">IntOrString</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>The maximum number of machines that can be scheduled above the desired number of<br />machines.<br />Value can be an absolute number (ex: 5) or a percentage of desired machines (ex: 10%).<br />This can not be 0 if MaxUnavailable is 0.<br />Absolute number is calculated from percentage by rounding up.<br />Example: when this is set to 30%, the new machine set can be scaled up immediately when<br />the update starts, such that the total number of old and new machines does not exceed<br />130% of desired machines. Once old machines have been killed,<br />new machine set can be scaled up further, ensuring that total number of machines running<br />at any time during the update is utmost 130% of desired machines.</p>
+</td>
+</tr>
+
 </tbody>
 </table>
-<br>
-<h3 id="machine.sapcloud.io/v1alpha1.UpdateConfiguration">
-<b>UpdateConfiguration</b>
+
+
+<h3 id="updateconfiguration">UpdateConfiguration
 </h3>
+
+
 <p>
-(<em>Appears on:</em>
-<a href="#machine.sapcloud.io/v1alpha1.InPlaceUpdateMachineDeployment">InPlaceUpdateMachineDeployment</a>, 
-<a href="#machine.sapcloud.io/v1alpha1.RollingUpdateMachineDeployment">RollingUpdateMachineDeployment</a>)
+(<em>Appears on:</em><a href="#inplaceupdatemachinedeployment">InPlaceUpdateMachineDeployment</a>, <a href="#rollingupdatemachinedeployment">RollingUpdateMachineDeployment</a>)
 </p>
+
 <p>
-<p>UpdateConfiguration specifies the udpate configuration for the deployment strategy.</p>
+UpdateConfiguration specifies the udpate configuration for the deployment strategy.
 </p>
+
 <table>
 <thead>
 <tr>
 <th>Field</th>
-<th>Type</th>
 <th>Description</th>
 </tr>
 </thead>
 <tbody>
+
 <tr>
 <td>
-<code>maxUnavailable</code>
-</td>
-<td>
+<code>maxUnavailable</code></br>
 <em>
-<a href="https://godoc.org/k8s.io/apimachinery/pkg/util/intstr#IntOrString">
-k8s.io/apimachinery/pkg/util/intstr.IntOrString
-</a>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#intorstring-intstr-util">IntOrString</a>
 </em>
 </td>
 <td>
 <em>(Optional)</em>
-<p>The maximum number of machines that can be unavailable during the update.
-Value can be an absolute number (ex: 5) or a percentage of desired machines (ex: 10%).
-Absolute number is calculated from percentage by rounding down.
-This can not be 0 if MaxSurge is 0.
-Example: when this is set to 30%, the old machine set can be scaled down to 70% of desired machines
-immediately when the update starts. Once new machines are ready, old machine set
-can be scaled down further, followed by scaling up the new machine set, ensuring
-that the total number of machines available at all times during the update is at
-least 70% of desired machines.</p>
+<p>The maximum number of machines that can be unavailable during the update.<br />Value can be an absolute number (ex: 5) or a percentage of desired machines (ex: 10%).<br />Absolute number is calculated from percentage by rounding down.<br />This can not be 0 if MaxSurge is 0.<br />Example: when this is set to 30%, the old machine set can be scaled down to 70% of desired machines<br />immediately when the update starts. Once new machines are ready, old machine set<br />can be scaled down further, followed by scaling up the new machine set, ensuring<br />that the total number of machines available at all times during the update is at<br />least 70% of desired machines.</p>
 </td>
 </tr>
 <tr>
 <td>
-<code>maxSurge</code>
-</td>
-<td>
+<code>maxSurge</code></br>
 <em>
-<a href="https://godoc.org/k8s.io/apimachinery/pkg/util/intstr#IntOrString">
-k8s.io/apimachinery/pkg/util/intstr.IntOrString
-</a>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#intorstring-intstr-util">IntOrString</a>
 </em>
 </td>
 <td>
 <em>(Optional)</em>
-<p>The maximum number of machines that can be scheduled above the desired number of
-machines.
-Value can be an absolute number (ex: 5) or a percentage of desired machines (ex: 10%).
-This can not be 0 if MaxUnavailable is 0.
-Absolute number is calculated from percentage by rounding up.
-Example: when this is set to 30%, the new machine set can be scaled up immediately when
-the update starts, such that the total number of old and new machines does not exceed
-130% of desired machines. Once old machines have been killed,
-new machine set can be scaled up further, ensuring that total number of machines running
-at any time during the update is utmost 130% of desired machines.</p>
+<p>The maximum number of machines that can be scheduled above the desired number of<br />machines.<br />Value can be an absolute number (ex: 5) or a percentage of desired machines (ex: 10%).<br />This can not be 0 if MaxUnavailable is 0.<br />Absolute number is calculated from percentage by rounding up.<br />Example: when this is set to 30%, the new machine set can be scaled up immediately when<br />the update starts, such that the total number of old and new machines does not exceed<br />130% of desired machines. Once old machines have been killed,<br />new machine set can be scaled up further, ensuring that total number of machines running<br />at any time during the update is utmost 130% of desired machines.</p>
 </td>
 </tr>
+
 </tbody>
 </table>
-<hr/>
-<p><em>
-Generated with <a href="https://github.com/ahmetb/gen-crd-api-reference-docs">gen-crd-api-reference-docs</a>
-</em></p>
+
+
