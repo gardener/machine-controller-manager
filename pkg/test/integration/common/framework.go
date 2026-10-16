@@ -11,6 +11,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"net"
 	"os"
 	"os/exec"
 	"path"
@@ -105,6 +106,9 @@ var (
 	controlKubeConfigPath string
 	// Path to the target cluster's kubeconfig
 	targetKubeConfigPath string
+
+	// Ports MCM and MC bind to when run locally.
+	mcmPort, mcPort string
 )
 
 // ProviderSpecPatch struct holds tags for provider, which we want to patch the  machineclass with
@@ -195,6 +199,25 @@ func setGlobalsFromEnvVars() {
 	isTagsStrings = os.Getenv("TAGS_ARE_STRINGS")
 	gnaSecretNameLabelValue = os.Getenv("GNA_SECRET_NAME")
 	preserveCRDDuringCleanup = os.Getenv("PRESERVE_CRD_AT_END")
+	if p := os.Getenv("MCM_PORT"); p != "" {
+		mcmPort = p
+	}
+	if p := os.Getenv("MC_PORT"); p != "" {
+		mcPort = p
+	}
+}
+
+// freePort returns configured if set, else an available loopback TCP port.
+func freePort(configured string) string {
+	if configured != "" {
+		return configured
+	}
+	l, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		panic(fmt.Sprintf("freePort: %v", err))
+	}
+	defer l.Close()
+	return strconv.Itoa(l.Addr().(*net.TCPAddr).Port)
 }
 
 func (c *IntegrationTestFramework) initializeClusters() error {
@@ -544,24 +567,26 @@ func (c *IntegrationTestFramework) buildMCMStartArgs() []string {
 	}
 	return strings.Fields(
 		fmt.Sprintf(
-			"make --directory=%s start CONTROL_KUBECONFIG=%s TARGET_KUBECONFIG=%s CONTROL_NAMESPACE=%s LEADER_ELECT=false MACHINE_SAFETY_OVERSHOOTING_PERIOD=300ms"+mcmQPSArgs,
+			"make --directory=%s start CONTROL_KUBECONFIG=%s TARGET_KUBECONFIG=%s CONTROL_NAMESPACE=%s LEADER_ELECT=false MACHINE_SAFETY_OVERSHOOTING_PERIOD=300ms MCM_PORT=%s"+mcmQPSArgs,
 			mcmRepoPath,
 			c.ControlCluster.KubeConfigFilePath,
 			c.TargetCluster.KubeConfigFilePath,
-			controlClusterNamespace),
+			controlClusterNamespace,
+			freePort(mcmPort)),
 	)
 }
 
 // runControllersLocally run the machine controller and machine controller manager binary locally
 func (c *IntegrationTestFramework) runControllersLocally() {
-	ginkgo.By("Starting Machine Controller ")
+	ginkgo.By("Starting Machine Controller")
 	args := strings.Fields(
 		fmt.Sprintf(
-			"make --directory=%s start CONTROL_KUBECONFIG=%s TARGET_KUBECONFIG=%s CONTROL_NAMESPACE=%s LEADER_ELECT=false ",
+			"make --directory=%s start CONTROL_KUBECONFIG=%s TARGET_KUBECONFIG=%s CONTROL_NAMESPACE=%s LEADER_ELECT=false MC_PORT=%s ",
 			"../../..",
 			c.ControlCluster.KubeConfigFilePath,
 			c.TargetCluster.KubeConfigFilePath,
-			controlClusterNamespace),
+			controlClusterNamespace,
+			freePort(mcPort)),
 	)
 	outputFile, err := rotateOrAppendLogFile(mcLogFile, true)
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
@@ -683,6 +708,7 @@ func (c *IntegrationTestFramework) ControllerTests() {
 	// Testcase #01 | Machine
 	ginkgo.Describe("machine resource", func() {
 		var initialNodes int16
+		testNodeCount := int16(len(helpers.TestMcNames)) //#nosec G115 (CWE-190) -- Test only
 		ginkgo.Context("creation", func() {
 			ginkgo.It("should not lead to any errors and add 3 more nodes in target cluster", func() {
 				// In case of existing deployments creating nodes when starting simulated
@@ -694,27 +720,27 @@ func (c *IntegrationTestFramework) ControllerTests() {
 				// Probe nodes currently available in target cluster
 				initialNodes = c.TargetCluster.GetNumberOfNodes()
 				ginkgo.By("Checking for errors")
-				gomega.Expect(c.ControlCluster.CreateMachines([]string{helpers.McName, helpers.NodeDeleteMcName, helpers.SuspensionMcName}, controlClusterNamespace, gnaSecretNameLabelValue)).To(gomega.BeNil())
+				gomega.Expect(c.ControlCluster.CreateMachines(helpers.TestMcNames, controlClusterNamespace, gnaSecretNameLabelValue)).To(gomega.BeNil())
 
-				ginkgo.By("Waiting until number of ready nodes is 3 more than initial nodes")
+				ginkgo.By(fmt.Sprintf("Waiting until number of ready nodes is %d more than initial nodes", testNodeCount))
 				gomega.Eventually(
 					c.TargetCluster.GetNumberOfNodes,
 					c.timeout,
 					c.pollingInterval).
-					Should(gomega.BeNumerically("==", initialNodes+3))
+					Should(gomega.BeNumerically("==", initialNodes+testNodeCount))
 
 				gomega.Eventually(
 					c.TargetCluster.GetNumberOfReadyNodes,
 					c.timeout,
 					c.pollingInterval).
-					Should(gomega.BeNumerically("==", initialNodes+3))
+					Should(gomega.BeNumerically("==", initialNodes+testNodeCount))
 
 				// Wait for machine to be running
 				gomega.Eventually(
 					c.ControlCluster.AreMachinesRunning,
 					c.timeout,
 					c.pollingInterval).
-					WithArguments(ctx, []string{helpers.McName, helpers.NodeDeleteMcName, helpers.SuspensionMcName}, controlClusterNamespace).
+					WithArguments(ctx, helpers.TestMcNames, controlClusterNamespace).
 					Should(gomega.BeTrue())
 			})
 		})
@@ -743,17 +769,18 @@ func (c *IntegrationTestFramework) ControllerTests() {
 							WithArguments(ctx, helpers.McName, controlClusterNamespace).
 							Should(gomega.BeTrue())
 
-						ginkgo.By("Waiting until number of ready nodes is equal to number of initial nodes+2")
+						// Wait until the number of ready nodes reflects the deletion of one machine(machine deletion results in node deletion)
+						ginkgo.By(fmt.Sprintf("Waiting until number of ready nodes is equal to number of initial nodes+%d", testNodeCount-1))
 						gomega.Eventually(
 							c.TargetCluster.GetNumberOfNodes,
 							c.timeout,
 							c.pollingInterval).
-							Should(gomega.BeNumerically("==", initialNodes+2))
+							Should(gomega.BeNumerically("==", initialNodes+testNodeCount-1))
 						gomega.Eventually(
 							c.TargetCluster.GetNumberOfReadyNodes,
 							c.timeout,
 							c.pollingInterval).
-							Should(gomega.BeNumerically("==", initialNodes+2))
+							Should(gomega.BeNumerically("==", initialNodes+testNodeCount-1))
 					}
 
 				})
@@ -1657,7 +1684,7 @@ func (c *IntegrationTestFramework) ControllerTests() {
 				err := c.ControlCluster.CreateOrUpdateMcd(ctx, mcd, controlClusterNamespace)
 				gomega.Expect(err).To(gomega.BeNil())
 
-				ginkgo.By("wait for atleast two machine to start running")
+				ginkgo.By("wait for atleast two machines to start running")
 				var runningMachines []v1alpha1.Machine
 				gomega.Eventually(
 					func() int {
@@ -1887,7 +1914,7 @@ func (c *IntegrationTestFramework) ControllerTests() {
 				}
 				gomega.Expect(originalOwnerRefMcsName).ToNot(gomega.Equal(""))
 
-				ginkgo.By("Trigger inPlace rollout by updating MachineClass")
+				ginkgo.By(fmt.Sprintf("Trigger inPlace rollout by updating MachineClass: %s", runningMachines[0].Name))
 				retryErr := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 					md, err := c.ControlCluster.McmClient.MachineV1alpha1().MachineDeployments(controlClusterNamespace).Get(ctx, helpers.InPlaceMcdNameHappyPath, metav1.GetOptions{})
 					if err != nil {
@@ -1899,7 +1926,7 @@ func (c *IntegrationTestFramework) ControllerTests() {
 				})
 				gomega.Expect(retryErr).To(gomega.BeNil())
 
-				ginkgo.By("Wait for machine to transition to InPlaceUpdating")
+				ginkgo.By(fmt.Sprintf("Wait for machine to transition to InPlaceUpdating: %s", runningMachines[0].Name))
 				gomega.Eventually(
 					c.ControlCluster.AreMachinesInPhase,
 					c.timeout,
@@ -1907,7 +1934,7 @@ func (c *IntegrationTestFramework) ControllerTests() {
 					WithArguments(ctx, []string{runningMachines[0].Name}, controlClusterNamespace, v1alpha1.MachineInPlaceUpdating).
 					Should(gomega.BeTrue())
 
-				ginkgo.By("Add node.machine.sapcloud.io/update-result:successful label to node")
+				ginkgo.By(fmt.Sprintf("Add node.machine.sapcloud.io/update-result:successful label to node: %s", runningMachines[0].ObjectMeta.Labels[v1alpha1.NodeLabelKey]))
 				retryErr = retry.RetryOnConflict(retry.DefaultRetry, func() error {
 					node, err := c.TargetCluster.Clientset.CoreV1().Nodes().Get(ctx, runningMachines[0].ObjectMeta.Labels[v1alpha1.NodeLabelKey], metav1.GetOptions{})
 					if err != nil {
@@ -1919,7 +1946,7 @@ func (c *IntegrationTestFramework) ControllerTests() {
 				})
 				gomega.Expect(retryErr).To(gomega.BeNil())
 
-				ginkgo.By("Wait for machine to become ready")
+				ginkgo.By(fmt.Sprintf("Wait for machine to become ready: %s", runningMachines[0].Name))
 				gomega.Eventually(
 					c.ControlCluster.AreMachinesInPhase,
 					c.timeout,
@@ -1927,7 +1954,7 @@ func (c *IntegrationTestFramework) ControllerTests() {
 					WithArguments(ctx, []string{runningMachines[0].Name}, controlClusterNamespace, v1alpha1.MachineRunning).
 					Should(gomega.BeTrue())
 
-				ginkgo.By("Verify that owning mcs has changed on the machine")
+				ginkgo.By(fmt.Sprintf("Verify that owning mcs has changed on the machine: %s", runningMachines[0].Name))
 				gomega.Eventually(
 					func() bool {
 						machines, err := c.ControlCluster.GetRunningMachineListByLabel(ctx, controlClusterNamespace, helpers.InPlaceMcdLabels(helpers.InPlaceMcdNameHappyPath))
@@ -1944,7 +1971,7 @@ func (c *IntegrationTestFramework) ControllerTests() {
 					c.timeout,
 					c.pollingInterval).Should(gomega.BeTrue())
 
-				ginkgo.By("Validate inplace annotations on node have been removed")
+				ginkgo.By(fmt.Sprintf("Validate inplace annotations on node have been removed: %s", runningMachines[0].ObjectMeta.Labels[v1alpha1.NodeLabelKey]))
 				nodeName := runningMachines[0].ObjectMeta.Labels[v1alpha1.NodeLabelKey]
 				gomega.Eventually(
 					func() bool {
@@ -1984,7 +2011,7 @@ func (c *IntegrationTestFramework) ControllerTests() {
 				gomega.Expect(err).To(gomega.BeNil())
 				gomega.Expect(runningMachines).To(gomega.HaveLen(1))
 
-				ginkgo.By("Trigger inPlace rollout by updating MachineClass")
+				ginkgo.By(fmt.Sprintf("Trigger inPlace rollout by updating MachineClass: %s", runningMachines[0].Name))
 				retryErr := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 					md, err := c.ControlCluster.McmClient.MachineV1alpha1().MachineDeployments(controlClusterNamespace).Get(ctx, helpers.InPlaceMcdNameFailure, metav1.GetOptions{})
 					if err != nil {
@@ -1996,7 +2023,7 @@ func (c *IntegrationTestFramework) ControllerTests() {
 				})
 				gomega.Expect(retryErr).To(gomega.BeNil())
 
-				ginkgo.By("Wait for machine to transition to InPlaceUpdating")
+				ginkgo.By(fmt.Sprintf("Wait for machine to transition to InPlaceUpdating: %s", runningMachines[0].Name))
 				gomega.Eventually(
 					c.ControlCluster.AreMachinesInPhase,
 					c.timeout,
@@ -2004,7 +2031,7 @@ func (c *IntegrationTestFramework) ControllerTests() {
 					WithArguments(ctx, []string{runningMachines[0].Name}, controlClusterNamespace, v1alpha1.MachineInPlaceUpdating).
 					Should(gomega.BeTrue())
 
-				ginkgo.By("Simulate failed update by setting update-result=failed and failure reason annotation on node")
+				ginkgo.By(fmt.Sprintf("Simulate failed update by setting update-result=failed and failure reason annotation on node: %s", runningMachines[0].ObjectMeta.Labels[v1alpha1.NodeLabelKey]))
 				nodeName := runningMachines[0].ObjectMeta.Labels[v1alpha1.NodeLabelKey]
 				retryErr = retry.RetryOnConflict(retry.DefaultRetry, func() error {
 					node, err := c.TargetCluster.Clientset.CoreV1().Nodes().Get(ctx, nodeName, metav1.GetOptions{})
@@ -2021,7 +2048,7 @@ func (c *IntegrationTestFramework) ControllerTests() {
 				})
 				gomega.Expect(retryErr).To(gomega.BeNil())
 
-				ginkgo.By("Wait for machine to transition to InPlaceUpdateFailed phase")
+				ginkgo.By(fmt.Sprintf("Wait for machine to transition to InPlaceUpdateFailed phase: %s", runningMachines[0].Name))
 				gomega.Eventually(
 					c.ControlCluster.AreMachinesInPhase,
 					c.timeout,
@@ -2029,12 +2056,12 @@ func (c *IntegrationTestFramework) ControllerTests() {
 					WithArguments(ctx, []string{runningMachines[0].Name}, controlClusterNamespace, v1alpha1.MachineInPlaceUpdateFailed).
 					Should(gomega.BeTrue())
 
-				ginkgo.By("Verify node remains cordoned after failure")
+				ginkgo.By(fmt.Sprintf("Verify node remains cordoned after failure: %s", nodeName))
 				node, err := c.TargetCluster.Clientset.CoreV1().Nodes().Get(ctx, nodeName, metav1.GetOptions{})
 				gomega.Expect(err).To(gomega.BeNil())
 				gomega.Expect(node.Spec.Unschedulable).To(gomega.BeTrue())
 
-				ginkgo.By("Verify failure reason is propagated to machine status condition")
+				ginkgo.By(fmt.Sprintf("Verify failure reason is propagated to machine status condition: %s", runningMachines[0].Name))
 				gomega.Eventually(
 					func() bool {
 						machine, err := c.ControlCluster.McmClient.MachineV1alpha1().Machines(controlClusterNamespace).Get(ctx, runningMachines[0].Name, metav1.GetOptions{})
@@ -2066,7 +2093,7 @@ func (c *IntegrationTestFramework) ControllerTests() {
 				gomega.Expect(err).To(gomega.BeNil())
 				gomega.Expect(runningMachines).To(gomega.HaveLen(1))
 
-				ginkgo.By("Trigger inPlace rollout by updating MachineClass")
+				ginkgo.By(fmt.Sprintf("Trigger inPlace rollout by updating MachineClass: %s", runningMachines[0].Name))
 				retryErr := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 					md, err := c.ControlCluster.McmClient.MachineV1alpha1().MachineDeployments(controlClusterNamespace).Get(ctx, helpers.InPlaceMcdNameTimeout, metav1.GetOptions{})
 					if err != nil {
@@ -2078,7 +2105,7 @@ func (c *IntegrationTestFramework) ControllerTests() {
 				})
 				gomega.Expect(retryErr).To(gomega.BeNil())
 
-				ginkgo.By("Wait for machine to transition to InPlaceUpdating")
+				ginkgo.By(fmt.Sprintf("Wait for machine to transition to InPlaceUpdating: %s", runningMachines[0].Name))
 				gomega.Eventually(
 					c.ControlCluster.AreMachinesInPhase,
 					c.timeout,
@@ -2086,7 +2113,7 @@ func (c *IntegrationTestFramework) ControllerTests() {
 					WithArguments(ctx, []string{runningMachines[0].Name}, controlClusterNamespace, v1alpha1.MachineInPlaceUpdating).
 					Should(gomega.BeTrue())
 
-				ginkgo.By("Wait for machine to transition to InPlaceUpdateFailed after timeout elapses")
+				ginkgo.By(fmt.Sprintf("Wait for machine to transition to InPlaceUpdateFailed after timeout elapses: %s", runningMachines[0].Name))
 				gomega.Eventually(
 					c.ControlCluster.AreMachinesInPhase,
 					5*time.Minute,
@@ -2094,7 +2121,7 @@ func (c *IntegrationTestFramework) ControllerTests() {
 					WithArguments(ctx, []string{runningMachines[0].Name}, controlClusterNamespace, v1alpha1.MachineInPlaceUpdateFailed).
 					Should(gomega.BeTrue())
 
-				ginkgo.By("Verify timeout message is present in machine status")
+				ginkgo.By(fmt.Sprintf("Verify timeout message is present in machine status: %s", runningMachines[0].Name))
 				machine, err := c.ControlCluster.McmClient.MachineV1alpha1().Machines(controlClusterNamespace).Get(ctx, runningMachines[0].Name, metav1.GetOptions{})
 				gomega.Expect(err).To(gomega.BeNil())
 				gomega.Expect(machine.Status.LastOperation.Description).To(gomega.ContainSubstring("failed to in-place update"))
@@ -2120,7 +2147,7 @@ func (c *IntegrationTestFramework) ControllerTests() {
 				}
 				gomega.Expect(originalMcsName).ToNot(gomega.Equal(""))
 
-				ginkgo.By("Trigger inPlace rollout by updating MachineClass")
+				ginkgo.By(fmt.Sprintf("Trigger inPlace rollout by updating MachineClass: %s", runningMachines[0].Name))
 				retryErr := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 					md, err := c.ControlCluster.McmClient.MachineV1alpha1().MachineDeployments(controlClusterNamespace).Get(ctx, helpers.InPlaceMcdNameManual, metav1.GetOptions{})
 					if err != nil {
@@ -2132,7 +2159,7 @@ func (c *IntegrationTestFramework) ControllerTests() {
 				})
 				gomega.Expect(retryErr).To(gomega.BeNil())
 
-				ginkgo.By("Verify node is labeled candidate-for-update by MCM")
+				ginkgo.By(fmt.Sprintf("Verify node is labeled candidate-for-update by MCM: %s", runningMachines[0].ObjectMeta.Labels[v1alpha1.NodeLabelKey]))
 				nodeName := runningMachines[0].ObjectMeta.Labels[v1alpha1.NodeLabelKey]
 				gomega.Eventually(
 					func() bool {
@@ -2146,7 +2173,7 @@ func (c *IntegrationTestFramework) ControllerTests() {
 					c.timeout,
 					c.pollingInterval).Should(gomega.BeTrue())
 
-				ginkgo.By("Verify machine is not automatically moved to InPlaceUpdating")
+				ginkgo.By(fmt.Sprintf("Verify machine is not automatically moved to InPlaceUpdating: %s", runningMachines[0].Name))
 				gomega.Consistently(
 					c.ControlCluster.AreMachinesInPhase,
 					30*time.Second,
@@ -2154,7 +2181,7 @@ func (c *IntegrationTestFramework) ControllerTests() {
 					WithArguments(ctx, []string{runningMachines[0].Name}, controlClusterNamespace, v1alpha1.MachineInPlaceUpdating).
 					Should(gomega.BeFalse())
 
-				ginkgo.By("Manually label node as selected-for-update to trigger inPlace update")
+				ginkgo.By(fmt.Sprintf("Manually label node as selected-for-update to trigger inPlace update: %s", nodeName))
 				retryErr = retry.RetryOnConflict(retry.DefaultRetry, func() error {
 					node, err := c.TargetCluster.Clientset.CoreV1().Nodes().Get(ctx, nodeName, metav1.GetOptions{})
 					if err != nil {
@@ -2166,7 +2193,7 @@ func (c *IntegrationTestFramework) ControllerTests() {
 				})
 				gomega.Expect(retryErr).To(gomega.BeNil())
 
-				ginkgo.By("Wait for machine to transition to InPlaceUpdating after manual selection")
+				ginkgo.By(fmt.Sprintf("Wait for machine to transition to InPlaceUpdating after manual selection: %s", runningMachines[0].Name))
 				gomega.Eventually(
 					c.ControlCluster.AreMachinesInPhase,
 					c.timeout,
@@ -2174,7 +2201,7 @@ func (c *IntegrationTestFramework) ControllerTests() {
 					WithArguments(ctx, []string{runningMachines[0].Name}, controlClusterNamespace, v1alpha1.MachineInPlaceUpdating).
 					Should(gomega.BeTrue())
 
-				ginkgo.By("Simulate successful update result on node")
+				ginkgo.By(fmt.Sprintf("Simulate successful update result on node: %s", nodeName))
 				retryErr = retry.RetryOnConflict(retry.DefaultRetry, func() error {
 					node, err := c.TargetCluster.Clientset.CoreV1().Nodes().Get(ctx, nodeName, metav1.GetOptions{})
 					if err != nil {
@@ -2186,7 +2213,7 @@ func (c *IntegrationTestFramework) ControllerTests() {
 				})
 				gomega.Expect(retryErr).To(gomega.BeNil())
 
-				ginkgo.By("Wait for machine to return to Running")
+				ginkgo.By(fmt.Sprintf("Wait for machine to return to Running: %s", runningMachines[0].Name))
 				gomega.Eventually(
 					c.ControlCluster.AreMachinesInPhase,
 					c.timeout,
@@ -2194,7 +2221,7 @@ func (c *IntegrationTestFramework) ControllerTests() {
 					WithArguments(ctx, []string{runningMachines[0].Name}, controlClusterNamespace, v1alpha1.MachineRunning).
 					Should(gomega.BeTrue())
 
-				ginkgo.By("Verify machine moved to new MachineSet and node is cleaned up of inplace labels")
+				ginkgo.By(fmt.Sprintf("Verify machine moved to new MachineSet and node is cleaned up of inplace labels: %s", runningMachines[0].Name))
 				gomega.Eventually(
 					func() bool {
 						machine, err := c.ControlCluster.McmClient.MachineV1alpha1().Machines(controlClusterNamespace).Get(ctx, runningMachines[0].Name, metav1.GetOptions{})
@@ -2230,24 +2257,10 @@ func (c *IntegrationTestFramework) ControllerTests() {
 
 	// Testcase #05 | Orphaned Resources
 	ginkgo.Describe("orphaned resources", ginkgo.Ordered, func() {
-		// Ensure the test machine deployment is deleted before querying the cloud provider for orphans.
+		// Ensure the test resources are cleaned up before querying the cloud provider for orphans.
 		ginkgo.BeforeAll(func() {
-			ginkgo.By("Ensuring the test machine deployment is deleted")
-			err := c.ControlCluster.McmClient.
-				MachineV1alpha1().
-				MachineDeployments(controlClusterNamespace).
-				Delete(ctx, helpers.McdName, metav1.DeleteOptions{})
-			if err != nil && !apierrors.IsNotFound(err) {
-				gomega.Expect(err).NotTo(gomega.HaveOccurred())
-			}
-
-			ginkgo.By("Waiting until the test machine deployment is deleted")
-			gomega.Eventually(
-				c.ControlCluster.IsMachineDeploymentDeleted,
-				c.timeout,
-				c.pollingInterval).
-				WithArguments(ctx, helpers.McdName, controlClusterNamespace).
-				Should(gomega.BeTrue())
+			ginkgo.By("Ensuring the test resources are cleaned up")
+			c.cleanTestResources(ctx, 900)
 		})
 		ginkgo.Context("when the hyperscaler resources are queried", func() {
 			ginkgo.It("should have been deleted", func() {
@@ -2288,14 +2301,18 @@ func (c *IntegrationTestFramework) Cleanup() {
 			gomega.Expect(err).NotTo(gomega.HaveOccurred())
 			args := strings.Fields(
 				fmt.Sprintf(
-					"make --directory=%s start CONTROL_KUBECONFIG=%s TARGET_KUBECONFIG=%s CONTROL_NAMESPACE=%s LEADER_ELECT=false ",
+					"make --directory=%s start CONTROL_KUBECONFIG=%s TARGET_KUBECONFIG=%s CONTROL_NAMESPACE=%s LEADER_ELECT=false MC_PORT=%s ",
 					"../../..",
 					c.ControlCluster.KubeConfigFilePath,
 					c.TargetCluster.KubeConfigFilePath,
-					controlClusterNamespace),
+					controlClusterNamespace,
+					freePort(mcPort)),
 			)
 			mcsession, err = gexec.Start(exec.Command(args[0], args[1:]...), outputFile, outputFile) // #nosec G204 -- Test only
 			gomega.Expect(err).NotTo(gomega.HaveOccurred())
+			// Verify the restarted MC stays alive.
+			gomega.Consistently(mcsession.ExitCode, 5*time.Second, time.Second).
+				Should(gomega.Equal(-1), "restarted MC exited unexpectedly; see "+mcLogFile)
 			break
 		}
 		time.Sleep(2 * time.Second)
@@ -2310,6 +2327,9 @@ func (c *IntegrationTestFramework) Cleanup() {
 			args := c.buildMCMStartArgs()
 			mcmsession, err = gexec.Start(exec.Command(args[0], args[1:]...), outputFile, outputFile) // #nosec G204 -- Test only
 			gomega.Expect(err).NotTo(gomega.HaveOccurred())
+			// Verify the restarted MCM stays alive.
+			gomega.Consistently(mcmsession.ExitCode, 5*time.Second, time.Second).
+				Should(gomega.Equal(-1), "restarted MCM exited unexpectedly; see "+mcmLogFile)
 			break
 		}
 		time.Sleep(2 * time.Second)
@@ -2345,9 +2365,11 @@ func (c *IntegrationTestFramework) Cleanup() {
 }
 
 func (c *IntegrationTestFramework) cleanTestResources(ctx context.Context, timeout int64) {
-	// Check and delete machinedeployment resource
-	if err := c.cleanMachineDeployment(ctx, helpers.McdName, timeout); err != nil {
-		log.Println(err.Error())
+	// Check and delete machinedeployment resources
+	for _, machineDeploymentName := range helpers.TestMcdNames {
+		if err := c.cleanMachineDeployment(ctx, machineDeploymentName, timeout); err != nil {
+			log.Println(err.Error())
+		}
 	}
 
 	ginkgo.By("Removing termination hooks from machines")
@@ -2355,7 +2377,7 @@ func (c *IntegrationTestFramework) cleanTestResources(ctx context.Context, timeo
 		log.Println(err.Error())
 	}
 
-	for _, machineName := range []string{helpers.McName, helpers.NodeDeleteMcName, helpers.SuspensionMcName} {
+	for _, machineName := range helpers.TestMcNames {
 		// Check and delete machine resource
 		if err := c.cleanMachine(ctx, machineName, timeout); err != nil {
 			log.Println(err.Error())
@@ -2489,7 +2511,9 @@ func stopMCM(ctx context.Context) {
 		"make --directory=../../..",
 	}
 	for _, proc := range processesToKill {
-		pids, err := findAndKillProcess(ctx, proc)
+		// Pass controlKubeConfigPath as a guard so that stopMCM only kills processes belonging
+		// to this run. This prevents stopMCM from killing a sibling provider's controllers.
+		pids, err := findAndKillProcess(ctx, proc, controlKubeConfigPath)
 		if err != nil {
 			log.Println(err.Error())
 		}
@@ -2499,8 +2523,8 @@ func stopMCM(ctx context.Context) {
 	}
 }
 
-func findAndKillProcess(ctx context.Context, prefix string) (pids []int, err error) {
-	pids, err = findPidsByPrefix(ctx, prefix)
+func findAndKillProcess(ctx context.Context, prefix string, mustContain string) (pids []int, err error) {
+	pids, err = findPidsByPrefix(ctx, prefix, mustContain)
 	if len(pids) != 0 {
 		var proc *os.Process
 		for _, pid := range pids {
@@ -2519,7 +2543,7 @@ func findAndKillProcess(ctx context.Context, prefix string) (pids []int, err err
 	return
 }
 
-func findPidsByPrefix(ctx context.Context, prefix string) (pids []int, err error) {
+func findPidsByPrefix(ctx context.Context, prefix string, mustContain string) (pids []int, err error) {
 	cmd := exec.CommandContext(ctx, "ps", "-e", "-o", "pid,args")
 	psOutput, err := cmd.Output()
 	if err != nil {
@@ -2542,7 +2566,7 @@ func findPidsByPrefix(ctx context.Context, prefix string) (pids []int, err error
 			commandName = commandName + " " + strings.Join(fields[2:], " ")
 		}
 
-		if strings.HasPrefix(commandName, prefix) {
+		if strings.HasPrefix(commandName, prefix) && (mustContain == "" || strings.Contains(commandName, mustContain)) {
 			log.Println(commandName)
 			pid, err = strconv.Atoi(pidStr)
 			if err != nil {
