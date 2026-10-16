@@ -758,7 +758,7 @@ func (s ActiveMachines) Less(i, j int) bool {
 	}
 	if isPreservedI {
 		// both machines have preserve-expiry-time set, in which case deletion priority goes as
-		// - machine whose auto-preserve annotation was removed as part of stop preservation
+		// - machine whose preserve annotation was removed as part of stop preservation
 		// - machine with auto-preservation annotation
 		// - machine with manual-preservation annotation
 		valI, okI := s[i].Annotations[machineutils.PreserveMachineAnnotationKey]
