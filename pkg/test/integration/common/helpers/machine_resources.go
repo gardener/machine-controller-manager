@@ -22,14 +22,18 @@ import (
 
 const (
 	gnaSecretNameLabelKey = "worker.gardener.cloud/gardener-node-agent-secret-name"
-	// McdName is the name of the test machine deployment
-	McdName = "test-machine-deployment"
-	// McdReplicaCount is the number of replicas for the test machine deployment
-	McdReplicaCount = 3
+
 	// McName is the name of the test machine
 	McName = "test-machine"
 	// NodeDeleteMcName is the name of the test machine used for the node deletion test
 	NodeDeleteMcName = "node-delete-test-machine"
+	// SuspensionMcName is the name of the test machine used for the instance deletion suspension test
+	SuspensionMcName = "suspension-test-machine"
+
+	// McdName is the name of the test machine deployment
+	McdName = "test-machine-deployment"
+	// McdReplicaCount is the number of replicas for the test machine deployment
+	McdReplicaCount = 3
 	// InPlaceMcdNameHappyPath is the name of the MCD used for the happy path inplace update test
 	InPlaceMcdNameHappyPath = "test-mcd-inplace-happy"
 	// InPlaceMcdNameFailure is the name of the MCD used for the inplace update failure test
@@ -38,12 +42,14 @@ const (
 	InPlaceMcdNameTimeout = "test-mcd-inplace-timeout"
 	// InPlaceMcdNameManual is the name of the MCD used for the manual orchestration inplace update test
 	InPlaceMcdNameManual = "test-mcd-inplace-manual"
-	// SuspensionMcName is the name of the test machine used for the instance deletion suspension test
-	SuspensionMcName = "suspension-test-machine"
 )
 
 var (
 	testLabels = map[string]string{"test-label": "test-machine"}
+
+	// Add all test machine and machine deployment names here. Helps in cleaning up all test resources.
+	TestMcNames  = []string{McName, NodeDeleteMcName, SuspensionMcName}
+	TestMcdNames = []string{McdName, InPlaceMcdNameHappyPath, InPlaceMcdNameFailure, InPlaceMcdNameTimeout, InPlaceMcdNameManual}
 )
 
 // CreateMachines creates test-machines using machineclass "test-mc"

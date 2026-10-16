@@ -708,6 +708,7 @@ func (c *IntegrationTestFramework) ControllerTests() {
 	// Testcase #01 | Machine
 	ginkgo.Describe("machine resource", func() {
 		var initialNodes int16
+		testNodeCount := int16(len(helpers.TestMcNames)) //#nosec G115 (CWE-190) -- Test only
 		ginkgo.Context("creation", func() {
 			ginkgo.It("should not lead to any errors and add 3 more nodes in target cluster", func() {
 				// In case of existing deployments creating nodes when starting simulated
@@ -719,27 +720,27 @@ func (c *IntegrationTestFramework) ControllerTests() {
 				// Probe nodes currently available in target cluster
 				initialNodes = c.TargetCluster.GetNumberOfNodes()
 				ginkgo.By("Checking for errors")
-				gomega.Expect(c.ControlCluster.CreateMachines([]string{helpers.McName, helpers.NodeDeleteMcName, helpers.SuspensionMcName}, controlClusterNamespace, gnaSecretNameLabelValue)).To(gomega.BeNil())
+				gomega.Expect(c.ControlCluster.CreateMachines(helpers.TestMcNames, controlClusterNamespace, gnaSecretNameLabelValue)).To(gomega.BeNil())
 
-				ginkgo.By("Waiting until number of ready nodes is 3 more than initial nodes")
+				ginkgo.By(fmt.Sprintf("Waiting until number of ready nodes is %d more than initial nodes", testNodeCount))
 				gomega.Eventually(
 					c.TargetCluster.GetNumberOfNodes,
 					c.timeout,
 					c.pollingInterval).
-					Should(gomega.BeNumerically("==", initialNodes+3))
+					Should(gomega.BeNumerically("==", initialNodes+testNodeCount))
 
 				gomega.Eventually(
 					c.TargetCluster.GetNumberOfReadyNodes,
 					c.timeout,
 					c.pollingInterval).
-					Should(gomega.BeNumerically("==", initialNodes+3))
+					Should(gomega.BeNumerically("==", initialNodes+testNodeCount))
 
 				// Wait for machine to be running
 				gomega.Eventually(
 					c.ControlCluster.AreMachinesRunning,
 					c.timeout,
 					c.pollingInterval).
-					WithArguments(ctx, []string{helpers.McName, helpers.NodeDeleteMcName, helpers.SuspensionMcName}, controlClusterNamespace).
+					WithArguments(ctx, helpers.TestMcNames, controlClusterNamespace).
 					Should(gomega.BeTrue())
 			})
 		})
@@ -768,17 +769,18 @@ func (c *IntegrationTestFramework) ControllerTests() {
 							WithArguments(ctx, helpers.McName, controlClusterNamespace).
 							Should(gomega.BeTrue())
 
-						ginkgo.By("Waiting until number of ready nodes is equal to number of initial nodes+2")
+						// Wait until the number of ready nodes reflects the deletion of one machine(machine deletion results in node deletion)
+						ginkgo.By(fmt.Sprintf("Waiting until number of ready nodes is equal to number of initial nodes+%d", testNodeCount-1))
 						gomega.Eventually(
 							c.TargetCluster.GetNumberOfNodes,
 							c.timeout,
 							c.pollingInterval).
-							Should(gomega.BeNumerically("==", initialNodes+2))
+							Should(gomega.BeNumerically("==", initialNodes+testNodeCount-1))
 						gomega.Eventually(
 							c.TargetCluster.GetNumberOfReadyNodes,
 							c.timeout,
 							c.pollingInterval).
-							Should(gomega.BeNumerically("==", initialNodes+2))
+							Should(gomega.BeNumerically("==", initialNodes+testNodeCount-1))
 					}
 
 				})
@@ -1682,7 +1684,7 @@ func (c *IntegrationTestFramework) ControllerTests() {
 				err := c.ControlCluster.CreateOrUpdateMcd(ctx, mcd, controlClusterNamespace)
 				gomega.Expect(err).To(gomega.BeNil())
 
-				ginkgo.By("wait for atleast two machine to start running")
+				ginkgo.By("wait for atleast two machines to start running")
 				var runningMachines []v1alpha1.Machine
 				gomega.Eventually(
 					func() int {
@@ -2255,24 +2257,10 @@ func (c *IntegrationTestFramework) ControllerTests() {
 
 	// Testcase #05 | Orphaned Resources
 	ginkgo.Describe("orphaned resources", ginkgo.Ordered, func() {
-		// Ensure the test machine deployment is deleted before querying the cloud provider for orphans.
+		// Ensure the test resources are cleaned up before querying the cloud provider for orphans.
 		ginkgo.BeforeAll(func() {
-			ginkgo.By("Ensuring the test machine deployment is deleted")
-			err := c.ControlCluster.McmClient.
-				MachineV1alpha1().
-				MachineDeployments(controlClusterNamespace).
-				Delete(ctx, helpers.McdName, metav1.DeleteOptions{})
-			if err != nil && !apierrors.IsNotFound(err) {
-				gomega.Expect(err).NotTo(gomega.HaveOccurred())
-			}
-
-			ginkgo.By("Waiting until the test machine deployment is deleted")
-			gomega.Eventually(
-				c.ControlCluster.IsMachineDeploymentDeleted,
-				c.timeout,
-				c.pollingInterval).
-				WithArguments(ctx, helpers.McdName, controlClusterNamespace).
-				Should(gomega.BeTrue())
+			ginkgo.By("Ensuring the test resources are cleaned up")
+			c.cleanTestResources(ctx, 900)
 		})
 		ginkgo.Context("when the hyperscaler resources are queried", func() {
 			ginkgo.It("should have been deleted", func() {
@@ -2377,9 +2365,11 @@ func (c *IntegrationTestFramework) Cleanup() {
 }
 
 func (c *IntegrationTestFramework) cleanTestResources(ctx context.Context, timeout int64) {
-	// Check and delete machinedeployment resource
-	if err := c.cleanMachineDeployment(ctx, helpers.McdName, timeout); err != nil {
-		log.Println(err.Error())
+	// Check and delete machinedeployment resources
+	for _, machineDeploymentName := range helpers.TestMcdNames {
+		if err := c.cleanMachineDeployment(ctx, machineDeploymentName, timeout); err != nil {
+			log.Println(err.Error())
+		}
 	}
 
 	ginkgo.By("Removing termination hooks from machines")
@@ -2387,7 +2377,7 @@ func (c *IntegrationTestFramework) cleanTestResources(ctx context.Context, timeo
 		log.Println(err.Error())
 	}
 
-	for _, machineName := range []string{helpers.McName, helpers.NodeDeleteMcName, helpers.SuspensionMcName} {
+	for _, machineName := range helpers.TestMcNames {
 		// Check and delete machine resource
 		if err := c.cleanMachine(ctx, machineName, timeout); err != nil {
 			log.Println(err.Error())
