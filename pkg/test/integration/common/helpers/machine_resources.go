@@ -47,8 +47,11 @@ const (
 var (
 	testLabels = map[string]string{"test-label": "test-machine"}
 
-	// Add all test machine and machine deployment names here. Helps in cleaning up all test resources.
-	TestMcNames  = []string{McName, NodeDeleteMcName, SuspensionMcName}
+	// TestMcNames is the list of all test machine names. Add new test machine names here so they
+	// are cleaned up along with the other test resources.
+	TestMcNames = []string{McName, NodeDeleteMcName, SuspensionMcName}
+	// TestMcdNames is the list of all test machine deployment names. Add new test machine deployment
+	// names here so they are cleaned up along with the other test resources.
 	TestMcdNames = []string{McdName, InPlaceMcdNameHappyPath, InPlaceMcdNameFailure, InPlaceMcdNameTimeout, InPlaceMcdNameManual}
 )
 
