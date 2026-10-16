@@ -1,12 +1,12 @@
 {{- define "gvList" -}}
-{{- $groupVersions := . -}}
+  {{- $groupVersions := . -}}
 <p>Packages:</p>
 <ul>
-{{- range $groupVersions }}
+  {{- range $groupVersions }}
 <li>
 <a href="#{{ .GroupVersionString | replace "/" "%2f" }}">{{ .GroupVersionString }}</a>
 </li>
-{{- end }}
+  {{- end }}
 </ul>
 {{ range $groupVersions }}
 {{ template "gvDetails" . }}

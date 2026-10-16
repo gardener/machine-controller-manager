@@ -1,7 +1,7 @@
 {{- define "type" -}}
-{{- $args := . -}}
-{{- $gv := index $args 0 -}}
-{{- $type := index $args 1 -}}
+  {{- $args := . -}}
+  {{- $gv := index $args 0 -}}
+  {{- $type := index $args 1 -}}
 <h3 id="{{ $type.Name | lower }}">{{ $type.Name }}
 </h3>
 {{ if $type.IsAlias }}
@@ -11,12 +11,12 @@
 {{ if $type.References }}
 <p>
 (<em>Appears on:</em>
-{{- $first := true -}}
-{{- range $type.SortedReferences -}}
-{{- if not $first -}}, {{ end -}}
-{{- $first = false -}}
+  {{- $first := true -}}
+  {{- range $type.SortedReferences -}}
+    {{- if not $first -}}, {{ end -}}
+    {{- $first = false -}}
 <a href="#{{ .Name | lower }}">{{ .Name }}</a>
-{{- end -}}
+  {{- end -}}
 )
 </p>
 {{ end }}

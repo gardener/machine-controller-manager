@@ -1,27 +1,27 @@
 {{- define "gvDetails" -}}
-{{- $gv := . -}}
+  {{- $gv := . -}}
 <h2 id="{{ $gv.GroupVersionString }}">{{ $gv.GroupVersionString }}</h2>
 <p>
 {{ $gv.Doc | regexReplaceAll "(?m)^SPDX-[^\n]*" "" | trim }}
 </p>
-{{- $rootTypes := list -}}
-{{- range $gv.SortedTypes -}}
-  {{- $hasMetadata := false -}}
-  {{- range .Members }}{{ if eq .Name "metadata" }}{{- $hasMetadata = true -}}{{ end }}{{- end -}}
-  {{- if $hasMetadata -}}
-    {{- $rootTypes = append $rootTypes . -}}
+  {{- $rootTypes := list -}}
+  {{- range $gv.SortedTypes -}}
+    {{- $hasMetadata := false -}}
+    {{- range .Members }}{{ if eq .Name "metadata" }}{{- $hasMetadata = true -}}{{ end }}{{- end -}}
+    {{- if $hasMetadata -}}
+      {{- $rootTypes = append $rootTypes . -}}
+    {{- end -}}
   {{- end -}}
-{{- end -}}
-{{- if $rootTypes }}
+  {{- if $rootTypes }}
 Resource Types:
 <ul>
-{{- range $rootTypes }}
+    {{- range $rootTypes }}
 <li>
 <a href="#{{ .Name | lower }}">{{ .Name }}</a>
 </li>
-{{- end }}
+    {{- end }}
 </ul>
-{{- end }}
+  {{- end }}
 {{ range $gv.SortedTypes }}
 {{ template "type" (list $gv .) }}
 {{ end }}
