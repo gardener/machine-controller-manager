@@ -27,6 +27,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"slices"
 	"sort"
 	"sync"
 	"time"
@@ -939,7 +940,7 @@ func (c *controller) manageAutoPreservationOfFailedMachines(ctx context.Context,
 		if err != nil {
 			return nil, err
 		}
-		return append(append(remaining, autoPreservationCandidates...), updatedMachines...), nil
+		return slices.Concat(remaining, autoPreservationCandidates, updatedMachines), nil
 	}
 
 	sort.Slice(autoPreservationCandidates, func(i, j int) bool {
@@ -982,7 +983,7 @@ func (c *controller) manageAutoPreservationOfFailedMachines(ctx context.Context,
 		autoPreservationCapacityRemaining--
 	}
 
-	return append(remaining, append(autoPreservationCandidates, autoPreservedMachines...)...), nil
+	return slices.Concat(remaining, autoPreservationCandidates, autoPreservedMachines), nil
 }
 
 func (c *controller) stopAutoPreservationForMachines(ctx context.Context, autoPreservedMachines []*v1alpha1.Machine, numToStop int) ([]*v1alpha1.Machine, error) {

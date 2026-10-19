@@ -36,7 +36,7 @@ const (
 	LabelValueNodeUpdateFailed = "failed"
 )
 
-var (
+const (
 	// DefaultMachinePreserveTimeout is the default time for which the machine is preserved
 	// when [MachineConfiguration.MachinePreserveTimeout] is not specified.
 	DefaultMachinePreserveTimeout = 96 * time.Hour

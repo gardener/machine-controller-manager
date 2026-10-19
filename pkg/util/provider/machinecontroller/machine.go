@@ -306,9 +306,8 @@ func (c *controller) reconcileClusterMachine(ctx context.Context, machine *v1alp
 	if err != nil {
 		if apierrors.IsConflict(err) {
 			return machineutils.ConflictRetry, err
-		} else {
-			return machineutils.ShortRetry, err
 		}
+		return machineutils.ShortRetry, err
 	}
 
 	if machine.Spec.ProviderID == "" || machine.Status.CurrentStatus.Phase == "" || machine.Status.CurrentStatus.Phase == v1alpha1.MachineCrashLoopBackOff {
@@ -683,18 +682,18 @@ func (c *controller) initializeMachine(ctx context.Context, machine *v1alpha1.Ma
 		}
 		klog.Errorf("error occurred while initializing VM instance for machine %q: %s", machine.Name, err)
 		lastUpdateTime := metav1.Now()
-		currentStatus := v1alpha1.CurrentStatus{
+		machineCurrentStatus := v1alpha1.CurrentStatus{
 			Phase:          c.getCreateFailurePhase(machine),
 			LastUpdateTime: lastUpdateTime,
 		}
-		if currentStatus.Phase == v1alpha1.MachineFailed {
+		if machineCurrentStatus.Phase == v1alpha1.MachineFailed {
 			// check if preservation is needed for the failed machine
 			node, err := c.nodeLister.Get(machine.Labels[v1alpha1.NodeLabelKey])
 			if err != nil {
 				klog.V(3).Infof("node %q not found.", machine.Labels[v1alpha1.NodeLabelKey])
 			}
 			if val, shouldHandlePreservation := machineutils.DeterminePreservationAction(machine, node); shouldHandlePreservation && val == machineutils.PreserveMachineAnnotationValueWhenFailed {
-				currentStatus.PreserveExpiryTime = &metav1.Time{Time: metav1.Now().Add(c.getEffectiveMachinePreserveTimeout(machine).Duration)}
+				machineCurrentStatus.PreserveExpiryTime = &metav1.Time{Time: metav1.Now().Add(c.getEffectiveMachinePreserveTimeout(machine).Duration)}
 			}
 		}
 		updateRetryPeriod, updateErr := c.machineStatusUpdate(
@@ -707,7 +706,7 @@ func (c *controller) initializeMachine(ctx context.Context, machine *v1alpha1.Ma
 				Type:           v1alpha1.MachineOperationCreate,
 				LastUpdateTime: lastUpdateTime,
 			},
-			currentStatus,
+			machineCurrentStatus,
 			machine.Status.LastKnownState,
 		)
 		if updateErr != nil {
@@ -844,7 +843,10 @@ func (c *controller) manageMachinePreservation(ctx context.Context, machine *v1a
 
 	preserveAnnotationValue, shouldHandlePreservation := machineutils.DeterminePreservationAction(machine, node)
 	if !shouldHandlePreservation {
-		return machine, nil
+		// We clear the error here to prevent preservation logic from interfering with non-preservation-bound machines.
+		clone = machine
+		err = nil
+		return
 	}
 
 	clone = machine.DeepCopy()
