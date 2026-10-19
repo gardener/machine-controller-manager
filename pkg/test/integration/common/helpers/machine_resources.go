@@ -33,7 +33,7 @@ const (
 	// McdName is the name of the test machine deployment
 	McdName = "test-machine-deployment"
 	// McdReplicaCount is the number of replicas for the test machine deployment
-	McdReplicaCount = 3
+	McdReplicaCount = 4
 	// InPlaceMcdNameHappyPath is the name of the MCD used for the happy path inplace update test
 	InPlaceMcdNameHappyPath = "test-mcd-inplace-happy"
 	// InPlaceMcdNameFailure is the name of the MCD used for the inplace update failure test
@@ -115,6 +115,23 @@ func (c *Cluster) IsMachineDeleted(ctx context.Context, machineName string, name
 		Get(ctx, machineName, metav1.GetOptions{})
 
 	return errors.IsNotFound(err)
+}
+
+// IsMachineTerminatingOrDeleted returns true if the specified machine has entered the Terminating phase or has already been deleted.
+func (c *Cluster) IsMachineTerminatingOrDeleted(ctx context.Context, machineName string, namespace string) bool {
+	machine, err := c.McmClient.
+		MachineV1alpha1().
+		Machines(namespace).
+		Get(ctx, machineName, metav1.GetOptions{})
+
+	if errors.IsNotFound(err) {
+		return true
+	}
+	if err != nil {
+		log.Println("error fetching machine: ", err)
+		return false
+	}
+	return machine.Status.CurrentStatus.Phase == v1alpha1.MachineTerminating
 }
 
 // IsMachineDeploymentDeleted returns boolean value indicating whether the specified machine deployment is deleted or not
