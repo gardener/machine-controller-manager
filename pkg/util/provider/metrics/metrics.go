@@ -272,15 +272,21 @@ func getDeploymentLabels(machine *v1alpha1.Machine) prometheus.Labels {
 
 // addPlacementLabels adds metric labels related to placement, currently instance_type and zone to the given prometheus metricLabels.
 func addPlacementLabels(metricLabels prometheus.Labels, machine *v1alpha1.Machine, machineClass *v1alpha1.MachineClass) {
-	if machine == nil || machineClass == nil {
-		return
-	}
-	if machineClass.NodeTemplate == nil {
+	instanceType := ""
+	zone := ""
+
+	if machineClass != nil && machineClass.NodeTemplate != nil && machineClass.NodeTemplate.InstanceType != "" {
+		instanceType = machineClass.NodeTemplate.InstanceType
+	} else if machineClass.NodeTemplate == nil {
 		klog.Warningf("MachineClass %q does not have NodeTemplate", machineClass.Name)
-		return
 	}
-	instanceType := machineClass.NodeTemplate.InstanceType
-	zone := machine.Spec.NodeTemplateSpec.Labels[corev1.LabelTopologyZone]
+
+	if machine != nil && machine.Spec.NodeTemplateSpec.Labels != nil {
+		if z, ok := machine.Spec.NodeTemplateSpec.Labels[corev1.LabelTopologyZone]; ok && z != "" {
+			zone = z
+		}
+	}
+
 	metricLabels["instance_type"] = instanceType
 	metricLabels["zone"] = zone
 }
