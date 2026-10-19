@@ -88,7 +88,7 @@ var (
 		Subsystem: machineSubsystem,
 		Name:      "drain_duration_seconds",
 		Help:      "Duration in seconds to drain a Machine of a MachineDeployment.",
-	}, []string{"namespace", "machine_deployment"})
+	}, []string{"namespace", "machine_deployment", "instance_type", "zone"})
 
 	// MachineDeleteDurationSeconds is the Prometheus gauge metric representing the time duration
 	// in seconds to delete a Machine for a MachineDeployment.
