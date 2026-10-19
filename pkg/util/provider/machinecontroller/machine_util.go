@@ -2633,19 +2633,6 @@ func shouldPreservedNodeBeDrained(existingCondition *v1.NodeCondition, machinePh
 	return false
 }
 
-// SetMachineCurrentStatusToFailed sets the [v1alpha1.CurrentStatus.Phase] to `Failed`
-// and also conditionally sets the [v1alpha1.CurrentStatus.PreserveExpiryTime]
-func SetMachineCurrentStatusToFailed(machine *v1alpha1.Machine, node *v1.Node, preserveTimeout time.Duration) v1alpha1.CurrentStatus {
-	machineCurrentStatus := v1alpha1.CurrentStatus{
-		Phase:          v1alpha1.MachineFailed,
-		LastUpdateTime: metav1.Time{Time: time.Now()},
-	}
-	if val, shouldHandlePreservation := machineutils.DeterminePreservationAction(machine, node); shouldHandlePreservation && val == machineutils.PreserveMachineAnnotationValueWhenFailed {
-		machineCurrentStatus.PreserveExpiryTime = &metav1.Time{Time: metav1.Now().Add(preserveTimeout)}
-	}
-	return machineCurrentStatus
-}
-
 // clearMachinePreserveExpiryTime clears the PreserveExpiryTime on the machine object's Status.CurrentStatus
 func (c *controller) clearMachinePreserveExpiryTime(ctx context.Context, machine *v1alpha1.Machine) (*v1alpha1.Machine, error) {
 	if machine.Status.CurrentStatus.PreserveExpiryTime == nil {
