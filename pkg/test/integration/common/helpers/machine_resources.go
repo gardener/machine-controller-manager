@@ -22,14 +22,18 @@ import (
 
 const (
 	gnaSecretNameLabelKey = "worker.gardener.cloud/gardener-node-agent-secret-name"
-	// McdName is the name of the test machine deployment
-	McdName = "test-machine-deployment"
-	// McdReplicaCount is the number of replicas for the test machine deployment
-	McdReplicaCount = 3
+
 	// McName is the name of the test machine
 	McName = "test-machine"
 	// NodeDeleteMcName is the name of the test machine used for the node deletion test
 	NodeDeleteMcName = "node-delete-test-machine"
+	// SuspensionMcName is the name of the test machine used for the instance deletion suspension test
+	SuspensionMcName = "suspension-test-machine"
+
+	// McdName is the name of the test machine deployment
+	McdName = "test-machine-deployment"
+	// McdReplicaCount is the number of replicas for the test machine deployment
+	McdReplicaCount = 4
 	// InPlaceMcdNameHappyPath is the name of the MCD used for the happy path inplace update test
 	InPlaceMcdNameHappyPath = "test-mcd-inplace-happy"
 	// InPlaceMcdNameFailure is the name of the MCD used for the inplace update failure test
@@ -38,12 +42,17 @@ const (
 	InPlaceMcdNameTimeout = "test-mcd-inplace-timeout"
 	// InPlaceMcdNameManual is the name of the MCD used for the manual orchestration inplace update test
 	InPlaceMcdNameManual = "test-mcd-inplace-manual"
-	// SuspensionMcName is the name of the test machine used for the instance deletion suspension test
-	SuspensionMcName = "suspension-test-machine"
 )
 
 var (
 	testLabels = map[string]string{"test-label": "test-machine"}
+
+	// TestMcNames is the list of all test machine names. Add new test machine names here so they
+	// are cleaned up along with the other test resources.
+	TestMcNames = []string{McName, NodeDeleteMcName, SuspensionMcName}
+	// TestMcdNames is the list of all test machine deployment names. Add new test machine deployment
+	// names here so they are cleaned up along with the other test resources.
+	TestMcdNames = []string{McdName, InPlaceMcdNameHappyPath, InPlaceMcdNameFailure, InPlaceMcdNameTimeout, InPlaceMcdNameManual}
 )
 
 // CreateMachines creates test-machines using machineclass "test-mc"
@@ -106,6 +115,23 @@ func (c *Cluster) IsMachineDeleted(ctx context.Context, machineName string, name
 		Get(ctx, machineName, metav1.GetOptions{})
 
 	return errors.IsNotFound(err)
+}
+
+// IsMachineTerminatingOrDeleted returns true if the specified machine has entered the Terminating phase or has already been deleted.
+func (c *Cluster) IsMachineTerminatingOrDeleted(ctx context.Context, machineName string, namespace string) bool {
+	machine, err := c.McmClient.
+		MachineV1alpha1().
+		Machines(namespace).
+		Get(ctx, machineName, metav1.GetOptions{})
+
+	if errors.IsNotFound(err) {
+		return true
+	}
+	if err != nil {
+		log.Println("error fetching machine: ", err)
+		return false
+	}
+	return machine.Status.CurrentStatus.Phase == v1alpha1.MachineTerminating
 }
 
 // IsMachineDeploymentDeleted returns boolean value indicating whether the specified machine deployment is deleted or not
