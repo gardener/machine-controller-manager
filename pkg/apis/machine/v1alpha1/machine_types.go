@@ -245,6 +245,13 @@ const (
 )
 
 const (
+	// ConditionMachineJoined is a node condition type set on Machine status conditions
+	// to indicate whether the machine has successfully joined the cluster for the first time
+	// after creation. Status True means the initial join succeeded; Status False means it failed.
+	ConditionMachineJoined corev1.NodeConditionType = "MachineJoined"
+)
+
+const (
 	// NodePreserved is a node condition type for preservation of machines to allow end-user to know that a node is preserved
 	NodePreserved corev1.NodeConditionType = "Preserved"
 
