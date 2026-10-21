@@ -1424,38 +1424,38 @@ func MergeStringMaps[T any](oldMap map[string]T, newMaps ...map[string]T) map[st
 	return out
 }
 
-// GetEffectiveCreationTimeoutOnMachineDeployment gets the effective creation timeout as a [metav1.Duration] for this MachineDeployment object, first checking
+// GetEffectiveCreationTimeout gets the effective creation timeout as a [metav1.Duration] for this MachineDeployment object, first checking
 // the [v1alpha1.AnnotationKeyMachineEffectiveCreationTimeout], then falling back to machine deployment spec template and then falling back
 // to [v1alpha1.DefaultCreationTimeout]
-func GetEffectiveCreationTimeoutOnMachineDeployment(mcd *v1alpha1.MachineDeployment) (duration metav1.Duration, err error) {
+func GetEffectiveCreationTimeout(mcd *v1alpha1.MachineDeployment) (duration metav1.Duration, err error) {
 	duration, err = annotations.GetMachineEffectiveCreationTimeout(mcd)
 	if err != nil || duration.Duration != 0 {
 		return
 	}
-	return GetSpecCreationTimeoutOnMachineDeploymentOrDefault(mcd, constants.DefaultMachineCreationTimeout), nil
+	return GetSpecCreationTimeoutOrDefault(mcd, constants.DefaultMachineCreationTimeout), nil
 }
 
-// GetSpecCreationTimeoutOnMachineDeploymentOrDefault gets the creation timeout from the MachineDeployment's spec template
+// GetSpecCreationTimeoutOrDefault gets the creation timeout from the MachineDeployment's spec template
 // if set, otherwise returns defVal.
-func GetSpecCreationTimeoutOnMachineDeploymentOrDefault(mcd *v1alpha1.MachineDeployment, defVal time.Duration) metav1.Duration {
-	if mcd.Spec.Template.Spec.MachineConfiguration != nil && mcd.Spec.Template.Spec.MachineCreationTimeout != nil {
+func GetSpecCreationTimeoutOrDefault(mcd *v1alpha1.MachineDeployment, defVal time.Duration) metav1.Duration {
+	if mcd.Spec.Template.Spec.MachineConfiguration != nil && mcd.Spec.Template.Spec.MachineCreationTimeout != nil && mcd.Spec.Template.Spec.MachineCreationTimeout.Duration > 0 {
 		return metav1.Duration{Duration: mcd.Spec.Template.Spec.MachineCreationTimeout.Duration}
 	}
 	return metav1.Duration{Duration: defVal}
 }
 
-// GetReplaceCycleCountThresholdOnMachineDeploymentOrDefault returns the MachineReplaceCycleCountThreshold from the MachineDeployment's
+// GetReplaceCycleCountThresholdOrDefault returns the MachineReplaceCycleCountThreshold from the MachineDeployment's
 // MachineConfiguration if set, otherwise returns defVal.
-func GetReplaceCycleCountThresholdOnMachineDeploymentOrDefault(mcd *v1alpha1.MachineDeployment, defVal int32) int32 {
+func GetReplaceCycleCountThresholdOrDefault(mcd *v1alpha1.MachineDeployment, defVal int32) int32 {
 	if mcd.Spec.Template.Spec.MachineConfiguration != nil && mcd.Spec.Template.Spec.MachineConfiguration.MachineReplaceCycleCountThreshold != nil {
 		return *mcd.Spec.Template.Spec.MachineConfiguration.MachineReplaceCycleCountThreshold
 	}
 	return defVal
 }
 
-// GetCreationTimeoutGrowthPercentOnMachineDeploymentOrDefault returns the MachineCreationTimeoutGrowthPercent from the MachineDeployment's
+// GetCreationTimeoutGrowthPercentOrDefault returns the MachineCreationTimeoutGrowthPercent from the MachineDeployment's
 // MachineConfiguration if set, otherwise returns defVal.
-func GetCreationTimeoutGrowthPercentOnMachineDeploymentOrDefault(mcd *v1alpha1.MachineDeployment, defVal int32) int32 {
+func GetCreationTimeoutGrowthPercentOrDefault(mcd *v1alpha1.MachineDeployment, defVal int32) int32 {
 	if mcd.Spec.Template.Spec.MachineConfiguration != nil && mcd.Spec.Template.Spec.MachineConfiguration.MachineCreationTimeoutGrowthPercent != nil {
 		return *mcd.Spec.Template.Spec.MachineConfiguration.MachineCreationTimeoutGrowthPercent
 	}

@@ -916,7 +916,7 @@ func (c *controller) reconcileMachineHealth(ctx context.Context, machine *v1alph
 	} else {
 		populatedConditions, removedConditions, isChanged := nodeops.NodeConditionsHaveChanged(machine.Status.Conditions, node.Status.Conditions)
 		if isChanged {
-			clone.Status.Conditions = nodeops.ReplacePreservingPureMachineConditions(clone.Status.Conditions, node.Status.Conditions)
+			clone.Status.Conditions = nodeops.ReplacePreservingMachineOnlyConditions(clone.Status.Conditions, node.Status.Conditions)
 			klog.V(3).Infof("Conditions of node %q backing machine %q with providerID %q have changed.\nAdded/Updated Conditions:\n\n%s\nRemoved Conditions:\n\n%s\n", getNodeName(machine), machine.Name, getProviderID(machine), getFormattedNodeConditions(populatedConditions), getFormattedNodeConditions(removedConditions))
 			cloneDirty = true
 		}
@@ -942,7 +942,7 @@ func (c *controller) reconcileMachineHealth(ctx context.Context, machine *v1alph
 						}
 						klog.V(2).Infof("Machine %q joined the cluster in %q", machine.Name, joinDuration)
 						metrics.UpdateMetricsForMachineDurations(machine, machineClass, metrics.MachineDurations{Join: joinDuration})
-						clone.Status.Conditions = nodeops.CloneAndAddCondition(clone.Status.Conditions, v1.NodeCondition{
+						clone.Status.Conditions, _ = nodeops.CloneAndAddCondition(clone.Status.Conditions, v1.NodeCondition{
 							Type:               v1alpha1.ConditionMachineJoined,
 							Status:             v1.ConditionTrue,
 							LastHeartbeatTime:  updateTime,
@@ -1104,7 +1104,7 @@ func (c *controller) reconcileMachineHealth(ctx context.Context, machine *v1alph
 				klog.Error(description)
 
 				updateTime := metav1.Now()
-				clone.Status.Conditions = nodeops.CloneAndAddCondition(clone.Status.Conditions, v1.NodeCondition{
+				clone.Status.Conditions, _ = nodeops.CloneAndAddCondition(clone.Status.Conditions, v1.NodeCondition{
 					Type:               v1alpha1.ConditionMachineJoined,
 					Status:             v1.ConditionFalse,
 					LastHeartbeatTime:  updateTime,

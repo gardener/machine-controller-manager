@@ -12,7 +12,7 @@ The problem is that a single static value cannot adapt to observed provisioning 
 ## Design
 
 MCM automatically maintains an `effective-creation-timeout` annotation on each `MachineDeployment`.
-The effective timeout starts at the `MachineDeployment` configured spec value (or global default) and is adjusted up or down by the MCM controller based on observed machine join behaviour.
+The effective timeout starts at `MachineDeployment.Spec.Template.Spec.MachineCreationTimeout` (or the `--machine-creation-timeout` flag default) and is adjusted up or down by the MCM controller based on observed machine join behaviour.
 
 When a new `Machine` is created, the `effective-creation-timeout` annotation is propagated from the `MachineDeployment` onto the `Machine` object (via `getMachinesAnnotationSet` in the MachineSet controller, [#1104](https://github.com/gardener/machine-controller-manager/pull/1104)). The machine controller reads this annotation to determine how long a `Pending` machine has before it is transitioned to the `Failed` phase and subsequently replaced. Specifically:
 
@@ -37,13 +37,13 @@ Join and failure activity is detected via `Machine.Status.Conditions`:
 
 ### Adjustment logic
 
-On every `MachineDeployment` reconcile, `checkAndAdjustMachineEffectiveCreationTimeout` scans all machines belonging to the MachineDeployment and counts, within the current failure window (`windowStartMark = replaceCycleCountLastAppliedAt`):
+On every `MachineDeployment` reconcile, `checkAndAdjustMachineEffectiveCreationTimeout` scans all machines belonging to the MachineDeployment and counts, within the current failure window (`windowStartMark = replaceCycleCountLastAppliedAt`, `windowEndMark = windowStartMark + currentEffectiveCreationTimeout`):
 
 - `numFailedJoinInWindow`: machines with a `FailedJoin` condition transition after `windowStartMark`
 - `numJoinedInWindow`: machines with a successful `MachineJoined` condition transition after `windowStartMark`
 - `maxJoinDurationInWindow`: maximum observed join duration across in-window joiners
 
-Four outcomes are possible for each reconcile:
+Three outcomes are possible for each reconcile:
 
 **1. Machines are failing repeatedly (timeout growth)**
 
@@ -85,7 +85,7 @@ Both the growth percent and the replace-cycle-count threshold can be configured 
 
 | Parameter | CLI flag | `MachineConfiguration` field | Default |
 |---|---|---|---|
-| Growth percent per step | `--machine-creation-timeout-growth-percent` | `creationTimeoutGrowthPercent` | `50` (i.e. 1.5× factor) |
+| Growth percent per step | `--machine-creation-timeout-growth-percent` | `creationTimeoutGrowthPercent` | `50` (i.e. 1.5× factor); set to `0` to disable adaptive growth |
 | Replace-cycle count threshold | `--machine-replace-cycle-count-threshold` | `replaceCycleCountThreshold` | `2` |
 
 ### Defaults

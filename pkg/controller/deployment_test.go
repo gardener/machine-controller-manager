@@ -2795,7 +2795,7 @@ var _ = Describe("machineDeployment", func() {
 				expectedFailed, expectedJoined int,
 				checkMaxJoinDuration func(metav1.Duration),
 			) {
-				numFailed, numJoined, maxJoinDurationInWindow := getNumFailedJoinedAndMaxJoinDurationSince(buildMachines(), windowStartMark)
+				numFailed, numJoined, maxJoinDurationInWindow := getMachineJoinWindowStats(buildMachines(), windowStartMark)
 				Expect(numFailed).To(Equal(expectedFailed))
 				Expect(numJoined).To(Equal(expectedJoined))
 				checkMaxJoinDuration(maxJoinDurationInWindow)
@@ -2861,32 +2861,32 @@ var _ = Describe("machineDeployment", func() {
 
 	Describe("#increaseEffectiveCreationTimeout", func() {
 		const specTimeout = 20 * time.Minute
-		const factor = 1.5
-		maxTimeout := computeMaxCreationTimeout(metav1.Duration{Duration: specTimeout}, factor, constants.DefaultMaxCreationTimeoutGrowthCount).Duration
+		const growthPercent int32 = 50
+		maxTimeout := computeMaxCreationTimeout(metav1.Duration{Duration: specTimeout}, growthPercent, constants.DefaultMaxCreationTimeoutGrowthCount).Duration
 
 		DescribeTable("should grow or clamp the timeout",
-			func(curr time.Duration, growthFactor float64, maxDur time.Duration, expected time.Duration) {
+			func(curr time.Duration, pct int32, maxDur time.Duration, expected time.Duration) {
 				result := increaseEffectiveCreationTimeout(
 					metav1.Duration{Duration: curr},
-					growthFactor,
+					pct,
 					metav1.Duration{Duration: maxDur},
 				)
 				Expect(result.Duration).To(Equal(expected))
 			},
-			Entry("grows 20m by factor 1.5 to 30m",
-				specTimeout, factor, maxTimeout,
+			Entry("grows 20m by 50% to 30m",
+				specTimeout, growthPercent, maxTimeout,
 				30*time.Minute,
 			),
 			Entry("clamps to max when growth would exceed it",
-				maxTimeout, factor, maxTimeout,
+				maxTimeout, growthPercent, maxTimeout,
 				maxTimeout,
 			),
-			Entry("returns current when factor <= 1.0",
-				specTimeout, 1.0, maxTimeout,
+			Entry("returns current unchanged when growthPercent is 0 (adaptive growth disabled)",
+				specTimeout, int32(0), maxTimeout,
 				specTimeout,
 			),
 			Entry("returns current when current duration is zero",
-				time.Duration(0), factor, maxTimeout,
+				time.Duration(0), growthPercent, maxTimeout,
 				time.Duration(0),
 			),
 		)
@@ -2898,14 +2898,9 @@ var _ = Describe("machineDeployment", func() {
 			now time.Time
 		)
 
-		// defaultGrowthFactor converts the default growth percent constant to the float64 factor used internally.
-		defaultGrowthFactor := func() float64 {
-			return 1.0 + float64(constants.DefaultCreationTimeoutGrowthPercent)/100.0
-		}
-
 		// getMaxCreationTimeout computes the default max creation timeout ceiling for a given spec timeout.
 		getMaxCreationTimeout := func(specTimeout time.Duration) time.Duration {
-			return computeMaxCreationTimeout(metav1.Duration{Duration: specTimeout}, defaultGrowthFactor(), constants.DefaultMaxCreationTimeoutGrowthCount).Duration
+			return computeMaxCreationTimeout(metav1.Duration{Duration: specTimeout}, constants.DefaultCreationTimeoutGrowthPercent, constants.DefaultMaxCreationTimeoutGrowthCount).Duration
 		}
 
 		BeforeEach(func() {

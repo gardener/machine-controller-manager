@@ -111,7 +111,7 @@ type MachineConfiguration struct {
 
 	// MachineCreationTimeoutGrowthPercent is the percentage by which the effective-creation-timeout is grown when
 	// machines repeatedly fail to join the cluster (e.g. 50 means grow by 50%, equivalent to a 1.5× factor).
-	// Must be > 0. Overrides the global --machine-creation-timeout-growth-percent flag.
+	// Set to 0 to disable adaptive timeout growth. Must be >= 0. Overrides the global --machine-creation-timeout-growth-percent flag.
 	MachineCreationTimeoutGrowthPercent *int32
 
 	// MachineReplaceCycleCountThreshold is the number of consecutive replace cycles with failed machine joins after

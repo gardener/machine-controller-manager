@@ -33,7 +33,6 @@ import (
 	"time"
 
 	"github.com/gardener/machine-controller-manager/pkg/apis/constants"
-	"github.com/gardener/machine-controller-manager/pkg/util/nodeops"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/machinecodes/codes"
 
 	v1 "k8s.io/api/core/v1"
@@ -582,6 +581,7 @@ func (c *controller) reconcileClusterMachineDeployment(key string) error {
 	}
 
 	if adjusted, err := c.checkAndAdjustMachineEffectiveCreationTimeout(ctx, d, machineMap); adjusted {
+		c.enqueueRateLimited(d)
 		return nil
 	} else if err != nil {
 		klog.Warningf("could not check and adjust %q: %v", v1alpha1.AnnotationKeyMachineEffectiveCreationTimeout, err)
@@ -822,16 +822,17 @@ func (c *controller) checkAndAdjustMachineEffectiveCreationTimeout(ctx context.C
 	if err != nil {
 		return
 	}
-	replaceCycleCountThreshold := GetReplaceCycleCountThresholdOnMachineDeploymentOrDefault(mcd, c.safetyOptions.MachineReplaceCycleCountThreshold)
-	creationTimeoutGrowthPercent := GetCreationTimeoutGrowthPercentOnMachineDeploymentOrDefault(mcd, c.safetyOptions.MachineCreationTimeoutGrowthPercent)
-	creationTimeoutGrowthFactor := 1.0 + float64(creationTimeoutGrowthPercent)/100.0
+	replaceCycleCountThreshold := GetReplaceCycleCountThresholdOrDefault(mcd, c.safetyOptions.MachineReplaceCycleCountThreshold)
+	creationTimeoutGrowthPercent := GetCreationTimeoutGrowthPercentOrDefault(mcd, c.safetyOptions.MachineCreationTimeoutGrowthPercent)
+	specCreationTimeout := GetSpecCreationTimeoutOrDefault(mcd, constants.DefaultMachineCreationTimeout)
+	maxCreationTimeout := computeMaxCreationTimeout(specCreationTimeout, creationTimeoutGrowthPercent, constants.DefaultMaxCreationTimeoutGrowthCount)
 	windowStartMark := oldInfo.replaceCycleCountLastAppliedAt.Time
 	now := metav1.Now()
-	numFailedJoinInWindow, numJoinedInWindow, maxJoinDurationInWindow := getNumFailedJoinedAndMaxJoinDurationSince(flattenMachineMap(machineMap), windowStartMark)
-	klog.V(4).Infof("For MachineDeployment %q, numFailedJoinInWindow=%d,numJoinedInWindow=%d,maxJoinDurationInWindow=%s, replaceCount=%d, replaceCycleCountLastAppliedAt: %s",
-		mcd.Name, numFailedJoinInWindow, numJoinedInWindow, maxJoinDurationInWindow, oldInfo.replaceCycleCount, oldInfo.replaceCycleCountLastAppliedAt.Time.Format(time.RFC3339))
-	specCreationTimeout := GetSpecCreationTimeoutOnMachineDeploymentOrDefault(mcd, constants.DefaultMachineCreationTimeout)
-	maxCreationTimeout := computeMaxCreationTimeout(specCreationTimeout, creationTimeoutGrowthFactor, constants.DefaultMaxCreationTimeoutGrowthCount)
+
+	numFailedJoinInWindow, numJoinedInWindow, maxJoinDurationInWindow := getMachineJoinWindowStats(flattenMachineMap(machineMap), windowStartMark)
+	klog.V(4).Infof("For MachineDeployment %q, numFailedJoinInWindow=%d, numJoinedInWindow=%d, maxJoinDurationInWindow=%s, replaceCount=%d, replaceCycleCountLastAppliedAt=%s",
+		mcd.Name, numFailedJoinInWindow, numJoinedInWindow, maxJoinDurationInWindow,
+		oldInfo.replaceCycleCount, oldInfo.replaceCycleCountLastAppliedAt.Time.Format(time.RFC3339))
 	newInfo := oldInfo
 	if numFailedJoinInWindow == 0 && oldInfo.isMaxTimeoutElapsed(now, maxCreationTimeout) {
 		// No failures and a full max-timeout window has elapsed since the timeout was last applied; clear all adjust annotations so the timeout resets to the spec timeout.
@@ -842,7 +843,7 @@ func (c *controller) checkAndAdjustMachineEffectiveCreationTimeout(ctx context.C
 		newInfo.replaceCycleCount++
 		newInfo.replaceCycleCountLastAppliedAt = now
 		if newInfo.replaceCycleCount >= replaceCycleCountThreshold {
-			newInfo.effectiveCreationTimeout = increaseEffectiveCreationTimeout(oldInfo.effectiveCreationTimeout, creationTimeoutGrowthFactor, maxCreationTimeout)
+			newInfo.effectiveCreationTimeout = increaseEffectiveCreationTimeout(oldInfo.effectiveCreationTimeout, creationTimeoutGrowthPercent, maxCreationTimeout)
 			newInfo.effectiveCreationTimeoutLastAppliedAt = now
 			newInfo.replaceCycleCount = 0 // reset replace-cycle-count after you grow effective-creation-timeout
 			klog.V(3).Infof("For MachineDeployment %q, adjust threshold breached (numFailedJoinInWindow:%d, numJoinedInWindow:%d, replaceCycleCountLastAppliedAt: %s, older replaceCycleCountLastAppliedAt: %s)",
@@ -894,23 +895,31 @@ func diffCreationTimeoutAnnotations(oldInfo, newInfo creationTimeoutAdjustInfo) 
 		}
 		return
 	}
+	// replaceCycleCount changed: write both the count and the timestamp.
 	if oldInfo.replaceCycleCount != newInfo.replaceCycleCount {
 		countStr := strconv.FormatInt(int64(newInfo.replaceCycleCount), 10)
 		lastAppliedAt := newInfo.replaceCycleCountLastAppliedAt.Time.Format(time.RFC3339)
 		modifiedAnnotations[v1alpha1.AnnotationKeyMachineReplaceCycleCount] = countStr
 		modifiedAnnotations[v1alpha1.AnnotationKeyMachineReplaceCycleCountLastAppliedAt] = lastAppliedAt
 	}
+	// effectiveCreationTimeout changed: write both the duration and the timestamp.
 	if oldInfo.effectiveCreationTimeout.Duration != newInfo.effectiveCreationTimeout.Duration {
 		durationStr := newInfo.effectiveCreationTimeout.Duration.String()
 		lastAppliedAt := newInfo.effectiveCreationTimeoutLastAppliedAt.Time.Format(time.RFC3339)
 		modifiedAnnotations[v1alpha1.AnnotationKeyMachineEffectiveCreationTimeout] = durationStr
+		modifiedAnnotations[v1alpha1.AnnotationKeyMachineEffectiveCreationTimeoutLastAppliedAt] = lastAppliedAt
+	} else if !newInfo.effectiveCreationTimeoutLastAppliedAt.Equal(&oldInfo.effectiveCreationTimeoutLastAppliedAt) {
+		// Duration unchanged but timestamp refreshed (grow attempted beyond cap of maxCreationTimeout)
+		// write only the timestamp so the idle window is anchored to the most recent grow attempt, not the first time the cap
+		// was reached.
+		lastAppliedAt := newInfo.effectiveCreationTimeoutLastAppliedAt.Time.Format(time.RFC3339)
 		modifiedAnnotations[v1alpha1.AnnotationKeyMachineEffectiveCreationTimeoutLastAppliedAt] = lastAppliedAt
 	}
 	return
 }
 
 func getCreationTimeoutAdjustInfo(mcd *v1alpha1.MachineDeployment) (adjustInfo creationTimeoutAdjustInfo, err error) {
-	adjustInfo.effectiveCreationTimeout, err = GetEffectiveCreationTimeoutOnMachineDeployment(mcd)
+	adjustInfo.effectiveCreationTimeout, err = GetEffectiveCreationTimeout(mcd)
 	if err != nil {
 		klog.Warningf("Failed to get effective-creation-timeout for MachineDeployment %q: %v", mcd.Name, err)
 		return
@@ -944,11 +953,11 @@ func flattenMachineMap(machineMap map[types.UID]*v1alpha1.MachineList) []v1alpha
 	return machines
 }
 
-// getNumFailedJoinedAndMaxJoinDurationSince returns the number of machines that failed to join and the number
+// getMachineJoinWindowStats returns the number of machines that failed to join and the number
 // that successfully joined since windowStartMark, along with the maximum join duration of the successful ones.
-func getNumFailedJoinedAndMaxJoinDurationSince(machines []v1alpha1.Machine, windowStartMark time.Time) (numFailedInWindow int, numJoinedInWindow int, maxJoinDurationInWindow metav1.Duration) {
+func getMachineJoinWindowStats(machines []v1alpha1.Machine, windowStartMark time.Time) (numFailedInWindow int, numJoinedInWindow int, maxJoinDurationInWindow metav1.Duration) {
 	for _, m := range machines {
-		machineJoinedCond := nodeops.FilterNodeConditionOfType(m.Status.Conditions, v1alpha1.ConditionMachineJoined)
+		machineJoinedCond := machineutils.GetMachineCondition(&m, v1alpha1.ConditionMachineJoined)
 		if machineJoinedCond == nil {
 			continue
 		}
@@ -970,7 +979,8 @@ func getNumFailedJoinedAndMaxJoinDurationSince(machines []v1alpha1.Machine, wind
 }
 
 // computeMaxCreationTimeout returns the ceiling timeout: `specTimeout * (1 + growthPercent/100)^maxGrowthCount`.
-func computeMaxCreationTimeout(specTimeout metav1.Duration, growthFactor float64, maxGrowthCount int) metav1.Duration {
+func computeMaxCreationTimeout(specTimeout metav1.Duration, growthPercent int32, maxGrowthCount int) metav1.Duration {
+	growthFactor := 1.0 + float64(growthPercent)/100.0
 	maxTimeout := specTimeout.Duration
 	for range maxGrowthCount {
 		maxTimeout = time.Duration(float64(maxTimeout) * growthFactor)
@@ -978,14 +988,16 @@ func computeMaxCreationTimeout(specTimeout metav1.Duration, growthFactor float64
 	return metav1.Duration{Duration: maxTimeout.Round(time.Second)}
 }
 
-// increaseEffectiveCreationTimeout increases `currTimeout` by `growthFactor` (derived from growthPercent as `1 + growthPercent/100`), capped at `maxCreationTimeout`.
-// Returns `currTimeout` unchanged if the cap is already reached or invalid values are specified.
-func increaseEffectiveCreationTimeout(currTimeout metav1.Duration, growthFactor float64, maxCreationTimeout metav1.Duration) metav1.Duration {
+// increaseEffectiveCreationTimeout increases `currTimeout` by the factor derived from `growthPercent`
+// (i.e. `1 + growthPercent/100`), capped at `maxCreationTimeout`. Returns `maxCreationTimeout` if `currTimeout` is
+// already at or above the cap. Returns `currTimeout` unchanged if invalid values are specified.
+func increaseEffectiveCreationTimeout(currTimeout metav1.Duration, growthPercent int32, maxCreationTimeout metav1.Duration) metav1.Duration {
+	growthFactor := 1.0 + float64(growthPercent)/100.0
 	if growthFactor <= 1.0 || currTimeout.Duration <= 0 || maxCreationTimeout.Duration <= 0 {
 		return currTimeout
 	}
 	if currTimeout.Duration >= maxCreationTimeout.Duration {
-		return currTimeout
+		return maxCreationTimeout
 	}
 	newDuration := time.Duration(float64(currTimeout.Duration) * growthFactor).Round(time.Second)
 	if newDuration > maxCreationTimeout.Duration {

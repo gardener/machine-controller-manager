@@ -1184,7 +1184,7 @@ This is intended to be used only for in-place updates.</p>
 <em>(Optional)</em>
 <p>MachineCreationTimeoutGrowthPercent is the percentage by which the effective-creation-timeout is grown when
 machines repeatedly fail to join the cluster (e.g. 50 means grow by 50%, equivalent to a 1.5× factor).
-Must be &gt; 0. Overrides the global &ndash;machine-creation-timeout-growth-percent flag.</p>
+Set to 0 to disable adaptive timeout growth. Must be &gt;= 0. Overrides the global &ndash;machine-creation-timeout-growth-percent flag.</p>
 </td>
 </tr>
 <tr>

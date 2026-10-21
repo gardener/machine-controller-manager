@@ -51,7 +51,12 @@ func AddOrUpdateCondition(node *v1.Node, condition v1.NodeCondition) *v1.Node {
 
 // GetCondition returns a condition matching the type from the node's status
 func GetCondition(node *v1.Node, conditionType v1.NodeConditionType) *v1.NodeCondition {
-	return FilterNodeConditionOfType(node.Status.Conditions, conditionType)
+	for _, c := range node.Status.Conditions {
+		if c.Type == conditionType {
+			return &c
+		}
+	}
+	return nil
 }
 
 // GetNodeCondition get the nodes condition matching the specified type
@@ -104,23 +109,15 @@ func UpdateNodeConditions(ctx context.Context, c clientset.Interface, nodeName s
 	return updatedNode, nil
 }
 
-// FilterNodeConditionOfType filters conditions and returns the NodeCondition belonging to the given conditionType or nil if not present.
-func FilterNodeConditionOfType(conditions []v1.NodeCondition, conditionType v1.NodeConditionType) *v1.NodeCondition {
-	for _, c := range conditions {
-		if c.Type == conditionType {
-			return &c
-		}
-	}
-	return nil
-}
-
-// IsPureMachineCondition returns true for condition types that are set by MCM and machine specific and not sourced from the node.
-func IsPureMachineCondition(condType v1.NodeConditionType) bool {
+// IsMachineOnlyCondition returns true for condition types that are set by MCM, are machine-specific and not sourced from the node.
+func IsMachineOnlyCondition(condType v1.NodeConditionType) bool {
 	return condType == v1alpha1.ConditionMachineJoined
 }
 
 // NodeConditionsHaveChanged compares two node status.conditions to see if any of the statuses have changed.
-// Ignores pure machine conditions (see [IsPureMachineCondition]).
+// Ignores machine-only conditions (see [IsMachineOnlyCondition]).
+// A Status change is considered a change for all condition types; for [v1alpha1.NodeInPlaceUpdate]
+// a Reason change is also considered a change.
 func NodeConditionsHaveChanged(oldConditions []v1.NodeCondition, newConditions []v1.NodeCondition) ([]v1.NodeCondition, []v1.NodeCondition, bool) {
 	var (
 		oldConditionsByType      = make(map[v1.NodeConditionType]v1.NodeCondition, len(oldConditions))
@@ -130,13 +127,13 @@ func NodeConditionsHaveChanged(oldConditions []v1.NodeCondition, newConditions [
 	)
 
 	for _, c := range oldConditions {
-		if IsPureMachineCondition(c.Type) {
+		if IsMachineOnlyCondition(c.Type) {
 			continue
 		}
 		oldConditionsByType[c.Type] = c
 	}
 	for _, c := range newConditions {
-		if IsPureMachineCondition(c.Type) {
+		if IsMachineOnlyCondition(c.Type) {
 			continue
 		}
 		newConditionsByType[c.Type] = c
@@ -152,7 +149,7 @@ func NodeConditionsHaveChanged(oldConditions []v1.NodeCondition, newConditions [
 
 	// checking for any deleted condition
 	for _, c := range oldConditions {
-		if IsPureMachineCondition(c.Type) {
+		if IsMachineOnlyCondition(c.Type) {
 			continue
 		}
 		if _, exists := newConditionsByType[c.Type]; !exists {
@@ -163,14 +160,14 @@ func NodeConditionsHaveChanged(oldConditions []v1.NodeCondition, newConditions [
 	return addedOrUpdatedConditions, removedConditions, len(addedOrUpdatedConditions) != 0 || len(removedConditions) != 0
 }
 
-// ReplacePreservingPureMachineConditions replaces existing with newConditions, re-inserting any
-// pure machine conditions (see [IsPureMachineCondition]) from existing so they are not lost when newConditions
+// ReplacePreservingMachineOnlyConditions replaces existing with newConditions, re-inserting any
+// machine-only conditions (see [IsMachineOnlyCondition]) from existing so they are not lost when newConditions
 // originates from an external source (e.g. a node) that is unaware of MCM-internal condition types.
-func ReplacePreservingPureMachineConditions(existing, newConditions []v1.NodeCondition) []v1.NodeCondition {
+func ReplacePreservingMachineOnlyConditions(existing, newConditions []v1.NodeCondition) []v1.NodeCondition {
 	result := newConditions
 	for _, c := range existing {
-		if IsPureMachineCondition(c.Type) {
-			result = CloneAndAddCondition(result, c)
+		if IsMachineOnlyCondition(c.Type) {
+			result, _ = CloneAndAddCondition(result, c)
 		}
 	}
 	return result

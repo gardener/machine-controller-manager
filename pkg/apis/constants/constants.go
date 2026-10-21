@@ -22,6 +22,6 @@ const (
 	// by failures following which the effective-creation-timeout is grown.
 	DefaultMachineReplaceCycleCountThreshold = 2
 	// DefaultSuccessJoinCountThreshold is the minimum number of machines that must have joined within the current
-	// effective-creation-timeout window before the timeout is shrunk to the average join duration of those machines.
+	// effective-creation-timeout window before the timeout is shrunk to the maximum of join duration of those machines or DefaultMachineCreationTimeout.
 	DefaultSuccessJoinCountThreshold = 2
 )

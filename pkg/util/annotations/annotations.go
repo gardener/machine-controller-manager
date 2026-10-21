@@ -134,7 +134,7 @@ func GetMachineReplaceCycleCount(object runtime.Object) (cycleCount int32, err e
 }
 
 // GetMachineReplaceCycleCountLastAppliedAt gets the value of the annotation [v1alpha1.AnnotationKeyMachineReplaceCycleCountLastAppliedAt]
-// as a [metav1.Time] if present using the layout [time.RFC3339]. Returns nil if no annotation value is present.
+// as a [metav1.Time] if present using the layout [time.RFC3339].
 func GetMachineReplaceCycleCountLastAppliedAt(object runtime.Object) (appliedAt metav1.Time, err error) {
 	replacementLastAppliedAtStr, ok, err := getAnnotationValue(object, v1alpha1.AnnotationKeyMachineReplaceCycleCountLastAppliedAt)
 	if err != nil || !ok {

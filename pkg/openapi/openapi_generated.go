@@ -724,7 +724,7 @@ func schema_pkg_apis_machine_v1alpha1_MachineConfiguration(ref common.ReferenceC
 					},
 					"creationTimeoutGrowthPercent": {
 						SchemaProps: spec.SchemaProps{
-							Description: "MachineCreationTimeoutGrowthPercent is the percentage by which the effective-creation-timeout is grown when machines repeatedly fail to join the cluster (e.g. 50 means grow by 50%, equivalent to a 1.5× factor). Must be > 0. Overrides the global --machine-creation-timeout-growth-percent flag.",
+							Description: "MachineCreationTimeoutGrowthPercent is the percentage by which the effective-creation-timeout is grown when machines repeatedly fail to join the cluster (e.g. 50 means grow by 50%, equivalent to a 1.5× factor). Set to 0 to disable adaptive timeout growth. Must be >= 0. Overrides the global --machine-creation-timeout-growth-percent flag.",
 							Type:        []string{"integer"},
 							Format:      "int32",
 						},
@@ -1558,7 +1558,7 @@ func schema_pkg_apis_machine_v1alpha1_MachineSpec(ref common.ReferenceCallback) 
 					},
 					"creationTimeoutGrowthPercent": {
 						SchemaProps: spec.SchemaProps{
-							Description: "MachineCreationTimeoutGrowthPercent is the percentage by which the effective-creation-timeout is grown when machines repeatedly fail to join the cluster (e.g. 50 means grow by 50%, equivalent to a 1.5× factor). Must be > 0. Overrides the global --machine-creation-timeout-growth-percent flag.",
+							Description: "MachineCreationTimeoutGrowthPercent is the percentage by which the effective-creation-timeout is grown when machines repeatedly fail to join the cluster (e.g. 50 means grow by 50%, equivalent to a 1.5× factor). Set to 0 to disable adaptive timeout growth. Must be >= 0. Overrides the global --machine-creation-timeout-growth-percent flag.",
 							Type:        []string{"integer"},
 							Format:      "int32",
 						},
