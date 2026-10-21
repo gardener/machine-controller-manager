@@ -275,16 +275,16 @@ func addPlacementLabels(metricLabels prometheus.Labels, machine *v1alpha1.Machin
 	instanceType := ""
 	zone := ""
 
-	if machineClass != nil && machineClass.NodeTemplate != nil && machineClass.NodeTemplate.InstanceType != "" {
-		instanceType = machineClass.NodeTemplate.InstanceType
-	} else if machineClass.NodeTemplate == nil {
-		klog.Warningf("MachineClass %q does not have NodeTemplate", machineClass.Name)
+	if machineClass != nil {
+		if machineClass.NodeTemplate != nil {
+			instanceType = machineClass.NodeTemplate.InstanceType
+		} else {
+			klog.Warningf("MachineClass %q does not have NodeTemplate", machineClass.Name)
+		}
 	}
 
-	if machine != nil && machine.Spec.NodeTemplateSpec.Labels != nil {
-		if z, ok := machine.Spec.NodeTemplateSpec.Labels[corev1.LabelTopologyZone]; ok && z != "" {
-			zone = z
-		}
+	if machine != nil {
+		zone = machine.Spec.NodeTemplateSpec.Labels[corev1.LabelTopologyZone]
 	}
 
 	metricLabels["instance_type"] = instanceType
