@@ -1902,6 +1902,29 @@ NodeTemplate contains subfields to track all node resources and other node info 
 
 <tr>
 <td>
+<code>capacity</code></br>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#resourcelist-v1-core">ResourceList</a>
+</em>
+</td>
+<td>
+<p>Capacity contains subfields to track all node resources required to scale nodegroup from zero</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>virtualCapacity</code></br>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#resourcelist-v1-core">ResourceList</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>VirtualCapacity represents the expected Node 'virtual' capacity ie comprising virtual extended resources.</p>
+</td>
+</tr>
+<tr>
+<td>
 <code>instanceType</code></br>
 <em>
 string
