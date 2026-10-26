@@ -33,7 +33,7 @@ const (
 	// McdName is the name of the test machine deployment
 	McdName = "test-machine-deployment"
 	// McdReplicaCount is the number of replicas for the test machine deployment
-	McdReplicaCount = 4
+	McdReplicaCount = 3
 	// InPlaceMcdNameHappyPath is the name of the MCD used for the happy path inplace update test
 	InPlaceMcdNameHappyPath = "test-mcd-inplace-happy"
 	// InPlaceMcdNameFailure is the name of the MCD used for the inplace update failure test
