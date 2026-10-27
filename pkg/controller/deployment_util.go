@@ -514,7 +514,7 @@ func copyMachineDeploymentConfigToMachineSet(deployment *v1alpha1.MachineDeploym
 	if isConfigChanged {
 		klog.V(2).Infof("Observed a change in Config of Machine Deployment %s. Changing Config from %+v to \n %+v.", deployment.Name, is.Spec.Template.Spec.MachineConfiguration, deployment.Spec.Template.Spec.MachineConfiguration)
 
-		is.Spec.Template.Spec.MachineConfiguration = deployment.Spec.Template.Spec.MachineConfiguration.DeepCopy()
+		is.Spec.Template.Spec.MachineConfiguration = *deployment.Spec.Template.Spec.MachineConfiguration.DeepCopy()
 	}
 	return isConfigChanged
 }
@@ -889,7 +889,7 @@ func EqualIgnoreHash(template1, template2 *v1alpha1.MachineTemplateSpec) bool {
 	// We also ignore their labels, nodeTemplates & class.Kind while comparing.
 	t1Copy.Labels, t2Copy.Labels = nil, nil
 	t1Copy.Spec.NodeTemplateSpec, t2Copy.Spec.NodeTemplateSpec = v1alpha1.NodeTemplateSpec{}, v1alpha1.NodeTemplateSpec{}
-	t1Copy.Spec.MachineConfiguration, t2Copy.Spec.MachineConfiguration = nil, nil
+	t1Copy.Spec.MachineConfiguration, t2Copy.Spec.MachineConfiguration = v1alpha1.MachineConfiguration{}, v1alpha1.MachineConfiguration{}
 	t1Copy.Spec.Class.Kind, t2Copy.Spec.Class.Kind = "", ""
 	return apiequality.Semantic.DeepEqual(t1Copy, t2Copy)
 }

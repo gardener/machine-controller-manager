@@ -1658,6 +1658,102 @@ string
 <p>NodeTemplateSpec describes the data a node should have when created from a template</p>
 </td>
 </tr>
+<tr>
+<td>
+<code>drainTimeout</code></br>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#duration-v1-meta">Duration</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>MachineDraintimeout is the timeout after which machine is forcefully deleted.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>healthTimeout</code></br>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#duration-v1-meta">Duration</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>MachineHealthTimeout is the timeout after which machine is declared unhealhty/failed.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>creationTimeout</code></br>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#duration-v1-meta">Duration</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>MachineCreationTimeout is the timeout after which machinie creation is declared failed.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>inPlaceUpdateTimeout</code></br>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#duration-v1-meta">Duration</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>MachineInPlaceUpdateTimeout is the timeout after which in-place update is declared failed.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>machinePreserveTimeout</code></br>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.34/#duration-v1-meta">Duration</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>MachinePreserveTimeout is the timeout after which the machine preservation is stopped</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>disableHealthTimeout</code></br>
+<em>
+boolean
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>DisableHealthTimeout if set to true, health timeout will be ignored. Leading to machine never being declared failed.<br />This is intended to be used only for in-place updates.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>maxEvictRetries</code></br>
+<em>
+integer
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>MaxEvictRetries is the number of retries that will be attempted while draining the node.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>nodeConditions</code></br>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>NodeConditions are the set of conditions if set to true for MachineHealthTimeOut, machine will be declared failed.</p>
+</td>
+</tr>
 
 </tbody>
 </table>
