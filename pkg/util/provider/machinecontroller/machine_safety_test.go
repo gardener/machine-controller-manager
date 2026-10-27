@@ -680,7 +680,7 @@ var _ = Describe("safety_logic", func() {
 					err:   nil,
 				},
 			}),
-			Entry("Don't annotate node object when creation time is less than machineCreationTimeout (19mins old)", &data{
+			Entry("Don't annotate node object when creation time is less than machineCreationTimeout (15mins old)", &data{
 				setup: setup{
 					node: &corev1.Node{
 						TypeMeta: metav1.TypeMeta{
@@ -692,7 +692,7 @@ var _ = Describe("safety_logic", func() {
 							Annotations: map[string]string{
 								"anno1": "value1",
 							},
-							CreationTimestamp: metav1.NewTime(metav1.Now().Add(-19 * time.Minute)),
+							CreationTimestamp: metav1.NewTime(metav1.Now().Add(-15 * time.Minute)),
 						},
 					},
 				},
