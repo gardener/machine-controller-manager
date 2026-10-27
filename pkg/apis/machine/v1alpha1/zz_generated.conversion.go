@@ -907,7 +907,7 @@ func autoConvert_v1alpha1_MachineSetStatus_To_machine_MachineSetStatus(in *Machi
 	if err := Convert_v1alpha1_LastOperation_To_machine_LastOperation(&in.LastOperation, &out.LastOperation, s); err != nil {
 		return err
 	}
-	out.FailedMachines = (*[]machine.MachineSummary)(unsafe.Pointer(in.FailedMachines))
+	out.FailedMachines = *(*[]machine.MachineSummary)(unsafe.Pointer(&in.FailedMachines))
 	out.AutoPreserveFailedMachineCount = in.AutoPreserveFailedMachineCount
 	return nil
 }
@@ -928,7 +928,7 @@ func autoConvert_machine_MachineSetStatus_To_v1alpha1_MachineSetStatus(in *machi
 	if err := Convert_machine_LastOperation_To_v1alpha1_LastOperation(&in.LastOperation, &out.LastOperation, s); err != nil {
 		return err
 	}
-	out.FailedMachines = (*[]MachineSummary)(unsafe.Pointer(in.FailedMachines))
+	out.FailedMachines = *(*[]MachineSummary)(unsafe.Pointer(&in.FailedMachines))
 	out.AutoPreserveFailedMachineCount = in.AutoPreserveFailedMachineCount
 	return nil
 }
@@ -946,7 +946,9 @@ func autoConvert_v1alpha1_MachineSpec_To_machine_MachineSpec(in *MachineSpec, ou
 	if err := Convert_v1alpha1_NodeTemplateSpec_To_machine_NodeTemplateSpec(&in.NodeTemplateSpec, &out.NodeTemplateSpec, s); err != nil {
 		return err
 	}
-	out.MachineConfiguration = (*machine.MachineConfiguration)(unsafe.Pointer(in.MachineConfiguration))
+	if err := Convert_v1alpha1_MachineConfiguration_To_machine_MachineConfiguration(&in.MachineConfiguration, &out.MachineConfiguration, s); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -963,7 +965,9 @@ func autoConvert_machine_MachineSpec_To_v1alpha1_MachineSpec(in *machine.Machine
 	if err := Convert_machine_NodeTemplateSpec_To_v1alpha1_NodeTemplateSpec(&in.NodeTemplateSpec, &out.NodeTemplateSpec, s); err != nil {
 		return err
 	}
-	out.MachineConfiguration = (*MachineConfiguration)(unsafe.Pointer(in.MachineConfiguration))
+	if err := Convert_machine_MachineConfiguration_To_v1alpha1_MachineConfiguration(&in.MachineConfiguration, &out.MachineConfiguration, s); err != nil {
+		return err
+	}
 	return nil
 }
 

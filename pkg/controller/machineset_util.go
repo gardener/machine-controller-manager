@@ -187,7 +187,7 @@ func copyMachineSetConfigToMachines(machineset *v1alpha1.MachineSet, machine *v1
 	isConfigChanged = !(apiequality.Semantic.DeepEqual(machineSetConfigCopy, machineConfigCopy))
 
 	if isConfigChanged {
-		machine.Spec.MachineConfiguration = machineset.Spec.Template.Spec.MachineConfiguration
+		machine.Spec.MachineConfiguration = *machineset.Spec.Template.Spec.MachineConfiguration.DeepCopy()
 	}
 	return isConfigChanged
 }

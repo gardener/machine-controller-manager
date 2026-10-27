@@ -62,7 +62,7 @@ type MachineSpec struct {
 	NodeTemplateSpec NodeTemplateSpec
 
 	// Configuration for the machine-controller.
-	*MachineConfiguration
+	MachineConfiguration
 }
 
 // NodeTemplateSpec describes the data a node should have when created from a template
@@ -418,7 +418,7 @@ type MachineSetStatus struct {
 	LastOperation LastOperation
 
 	// FailedMachines has summary of machines on which lastOperation Failed
-	FailedMachines *[]MachineSummary
+	FailedMachines []MachineSummary
 
 	// AutoPreserveFailedMachineCount has a count of the number of failed machines in the machineset that are currently auto-preserved
 	AutoPreserveFailedMachineCount int32
