@@ -1576,7 +1576,7 @@ integer
 <td>
 <code>failedMachines</code></br>
 <em>
-<a href="#machinesummary">MachineSummary</a>
+<a href="#machinesummary">MachineSummary</a> array
 </em>
 </td>
 <td>
