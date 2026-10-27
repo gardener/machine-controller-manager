@@ -2585,7 +2585,7 @@ var _ = Describe("machineset", func() {
 			Expect(updated.Annotations[machineutils.PreserveMachineAnnotationKey]).To(BeEmpty())
 		})
 
-		It("should remove annotation and clear PreserveExpiryTime from all auto-preserved machines when numToStop >= count", func() {
+		It("should remove annotation but not clear PreserveExpiryTime from all auto-preserved machines when numToStop >= count", func() {
 			stop := make(chan struct{})
 			defer close(stop)
 

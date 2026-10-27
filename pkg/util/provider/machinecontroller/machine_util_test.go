@@ -4086,7 +4086,7 @@ var _ = Describe("machine_util", func() {
 				c, trackers := createController(stop, testNamespace, controlMachineObjects, nil, targetCoreObjects, nil, false)
 				defer trackers.Stop()
 				waitForCacheSync(stop, c)
-				_, err := c.preserveMachine(context.TODO(), machine, node, tc.setup.preserveValue)
+				_, node, err := c.preserveMachine(context.TODO(), machine, node, tc.setup.preserveValue)
 				if tc.expect.err == nil {
 					Expect(err).To(BeNil())
 				} else {
@@ -4511,7 +4511,7 @@ var _ = Describe("machine_util", func() {
 				c, trackers := createController(stop, testNamespace, controlMachineObjects, nil, targetCoreObjects, nil, false)
 				defer trackers.Stop()
 				waitForCacheSync(stop, c)
-				_, err := c.stopPreservationIfActive(context.TODO(), machine, node, tc.setup.removePreserveAnnotation)
+				_, node, err := c.stopPreservationIfActive(context.TODO(), machine, node, tc.setup.removePreserveAnnotation)
 				if tc.expect.err != nil {
 					Expect(err).To(HaveOccurred())
 					Expect(err.Error()).To(Equal(tc.expect.err.Error()))
