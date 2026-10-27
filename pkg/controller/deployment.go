@@ -853,7 +853,7 @@ func (c *controller) checkAndAdjustMachineEffectiveCreationTimeout(ctx context.C
 				mcd.Name, numFailedJoinInWindow, numJoinedInWindow, newInfo.replaceCycleCount, newInfo.replaceCycleCountLastAppliedAt.Format(time.RFC3339))
 		}
 	} else if numJoinedInWindow >= constants.DefaultSuccessJoinCountThreshold && oldInfo.isEffectiveCreationTimeoutWindowElapsed(now) {
-		// Machines are joining healthily; thus shrink the timeout back towards the observed average, floored at the spec timeout.
+		// Machines are joining healthily; thus shrink the timeout back towards the observed max join duration, floored at the spec timeout.
 		newInfo.effectiveCreationTimeout.Duration = max(specCreationTimeout.Duration, maxJoinDurationInWindow.Duration)
 		newInfo.effectiveCreationTimeoutLastAppliedAt = now
 	}
