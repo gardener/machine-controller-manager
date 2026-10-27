@@ -631,11 +631,7 @@ func (in *MachineSpec) DeepCopyInto(out *MachineSpec) {
 	*out = *in
 	out.Class = in.Class
 	in.NodeTemplateSpec.DeepCopyInto(&out.NodeTemplateSpec)
-	if in.MachineConfiguration != nil {
-		in, out := &in.MachineConfiguration, &out.MachineConfiguration
-		*out = new(MachineConfiguration)
-		(*in).DeepCopyInto(*out)
-	}
+	in.MachineConfiguration.DeepCopyInto(&out.MachineConfiguration)
 	return
 }
 
