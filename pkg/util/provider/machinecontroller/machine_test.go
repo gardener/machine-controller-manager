@@ -4804,6 +4804,23 @@ var _ = Describe("machine", func() {
 					},
 				}
 			}()),
+			Entry("when node has preserve=now annotation and preservation times out, stopPreservationIfActive should clear node's annotation and updatePreserveAnnotationOnMachine should clear machine's lastApplied annotation", testCase{
+				setup: setup{
+					nodeAnnotationValue: machineutils.PreserveMachineAnnotationValueNow,
+					nodeAnnotated:       true,
+					laNodePreserveValue: machineutils.PreserveMachineAnnotationValueNow,
+					nodeName:            "node-1",
+					machinePhase:        v1alpha1.MachineRunning,
+					preserveExpiryTime:  &metav1.Time{Time: metav1.Now().Add(-1 * time.Minute)},
+				},
+				expect: expect{
+					preserveExpiryTimeIsSet: false,
+					nodeCondition:           &corev1.NodeCondition{Type: v1alpha1.NodePreserved, Status: corev1.ConditionFalse},
+					machineAnnotationValue:  "",
+					laNodePreserveValue:     "",
+					err:                     nil,
+				},
+			}),
 		)
 
 		DescribeTable("when machine is not preservation-bound, should return early without modifying the machine",
