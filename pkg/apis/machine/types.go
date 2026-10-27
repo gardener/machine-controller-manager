@@ -62,7 +62,7 @@ type MachineSpec struct {
 	NodeTemplateSpec NodeTemplateSpec
 
 	// Configuration for the machine-controller.
-	*MachineConfiguration
+	MachineConfiguration
 }
 
 // NodeTemplateSpec describes the data a node should have when created from a template
