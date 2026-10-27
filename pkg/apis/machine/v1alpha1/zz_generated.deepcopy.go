@@ -575,13 +575,9 @@ func (in *MachineSetStatus) DeepCopyInto(out *MachineSetStatus) {
 	in.LastOperation.DeepCopyInto(&out.LastOperation)
 	if in.FailedMachines != nil {
 		in, out := &in.FailedMachines, &out.FailedMachines
-		*out = new([]MachineSummary)
-		if **in != nil {
-			in, out := *in, *out
-			*out = make([]MachineSummary, len(*in))
-			for i := range *in {
-				(*in)[i].DeepCopyInto(&(*out)[i])
-			}
+		*out = make([]MachineSummary, len(*in))
+		for i := range *in {
+			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
 	}
 	return
