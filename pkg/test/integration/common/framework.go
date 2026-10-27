@@ -1347,13 +1347,13 @@ func (c *IntegrationTestFramework) ControllerTests() {
 				ginkgo.By(fmt.Sprintf("wait for only one machine to be deleted while the other one stays preserved (%s, %s)", runningMachines[0].Name, runningMachines[1].Name))
 				var isOnlyMachine0Deleted, isOnlyMachine1Deleted bool
 				gomega.Eventually(func() bool {
-					isOnlyMachine0Deleted = c.ControlCluster.IsMachineDeleted(
+					isOnlyMachine0Deleted = c.ControlCluster.IsMachineTerminatingOrDeleted(
 						ctx, runningMachines[0].Name, controlClusterNamespace,
 					) && c.ControlCluster.AreMachinesFailedAndPreserved(
 						ctx, controlClusterNamespace, []string{runningMachines[1].Name},
 					)
 
-					isOnlyMachine1Deleted = c.ControlCluster.IsMachineDeleted(
+					isOnlyMachine1Deleted = c.ControlCluster.IsMachineTerminatingOrDeleted(
 						ctx, runningMachines[1].Name, controlClusterNamespace,
 					) && c.ControlCluster.AreMachinesFailedAndPreserved(
 						ctx, controlClusterNamespace, []string{runningMachines[0].Name},
