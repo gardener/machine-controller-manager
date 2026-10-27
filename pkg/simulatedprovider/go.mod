@@ -3,7 +3,7 @@ module github.com/gardener/machine-controller-manager/pkg/simulatedprovider
 // simulatedprovider is its own module to prevent the main MCM project
 // from having a dependency on 'e2e-framework' package.
 
-go 1.26.2
+go 1.26.10
 
 require (
 	github.com/gardener/machine-controller-manager v0.0.0

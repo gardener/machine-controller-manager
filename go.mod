@@ -1,6 +1,6 @@
 module github.com/gardener/machine-controller-manager
 
-go 1.26.2
+go 1.26.10
 
 require (
 	github.com/Masterminds/semver/v3 v3.4.0
