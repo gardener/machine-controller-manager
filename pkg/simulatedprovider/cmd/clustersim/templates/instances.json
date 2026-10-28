@@ -1,0 +1,9249 @@
+[
+  {
+    "architecture": "amd64",
+    "cpu": "2",
+    "gpu": "0",
+    "memory": "8Gi",
+    "name": "m5.large"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "8",
+    "gpu": "0",
+    "memory": "16Gi",
+    "name": "a1.2xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "16",
+    "gpu": "0",
+    "memory": "32Gi",
+    "name": "a1.4xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "2",
+    "gpu": "0",
+    "memory": "4Gi",
+    "name": "a1.large"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "16",
+    "gpu": "0",
+    "memory": "32Gi",
+    "name": "a1.metal"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "4",
+    "gpu": "0",
+    "memory": "8Gi",
+    "name": "a1.xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "8",
+    "gpu": "0",
+    "memory": "7Gi",
+    "name": "c1.xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "8",
+    "gpu": "0",
+    "memory": "15Gi",
+    "name": "c3.2xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "16",
+    "gpu": "0",
+    "memory": "30Gi",
+    "name": "c3.4xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "32",
+    "gpu": "0",
+    "memory": "60Gi",
+    "name": "c3.8xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "4",
+    "gpu": "0",
+    "memory": "7Gi",
+    "name": "c3.xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "8",
+    "gpu": "0",
+    "memory": "15Gi",
+    "name": "c4.2xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "16",
+    "gpu": "0",
+    "memory": "30Gi",
+    "name": "c4.4xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "36",
+    "gpu": "0",
+    "memory": "60Gi",
+    "name": "c4.8xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "4",
+    "gpu": "0",
+    "memory": "7Gi",
+    "name": "c4.xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "48",
+    "gpu": "0",
+    "memory": "96Gi",
+    "name": "c5.12xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "72",
+    "gpu": "0",
+    "memory": "144Gi",
+    "name": "c5.18xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "96",
+    "gpu": "0",
+    "memory": "192Gi",
+    "name": "c5.24xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "8",
+    "gpu": "0",
+    "memory": "16Gi",
+    "name": "c5.2xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "16",
+    "gpu": "0",
+    "memory": "32Gi",
+    "name": "c5.4xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "36",
+    "gpu": "0",
+    "memory": "72Gi",
+    "name": "c5.9xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "2",
+    "gpu": "0",
+    "memory": "4Gi",
+    "name": "c5.large"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "96",
+    "gpu": "0",
+    "memory": "192Gi",
+    "name": "c5.metal"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "4",
+    "gpu": "0",
+    "memory": "8Gi",
+    "name": "c5.xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "48",
+    "gpu": "0",
+    "memory": "96Gi",
+    "name": "c5a.12xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "64",
+    "gpu": "0",
+    "memory": "128Gi",
+    "name": "c5a.16xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "96",
+    "gpu": "0",
+    "memory": "192Gi",
+    "name": "c5a.24xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "8",
+    "gpu": "0",
+    "memory": "16Gi",
+    "name": "c5a.2xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "16",
+    "gpu": "0",
+    "memory": "32Gi",
+    "name": "c5a.4xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "32",
+    "gpu": "0",
+    "memory": "64Gi",
+    "name": "c5a.8xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "2",
+    "gpu": "0",
+    "memory": "4Gi",
+    "name": "c5a.large"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "4",
+    "gpu": "0",
+    "memory": "8Gi",
+    "name": "c5a.xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "48",
+    "gpu": "0",
+    "memory": "96Gi",
+    "name": "c5ad.12xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "64",
+    "gpu": "0",
+    "memory": "128Gi",
+    "name": "c5ad.16xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "96",
+    "gpu": "0",
+    "memory": "192Gi",
+    "name": "c5ad.24xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "8",
+    "gpu": "0",
+    "memory": "16Gi",
+    "name": "c5ad.2xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "16",
+    "gpu": "0",
+    "memory": "32Gi",
+    "name": "c5ad.4xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "32",
+    "gpu": "0",
+    "memory": "64Gi",
+    "name": "c5ad.8xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "2",
+    "gpu": "0",
+    "memory": "4Gi",
+    "name": "c5ad.large"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "4",
+    "gpu": "0",
+    "memory": "8Gi",
+    "name": "c5ad.xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "48",
+    "gpu": "0",
+    "memory": "96Gi",
+    "name": "c5d.12xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "72",
+    "gpu": "0",
+    "memory": "144Gi",
+    "name": "c5d.18xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "96",
+    "gpu": "0",
+    "memory": "192Gi",
+    "name": "c5d.24xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "8",
+    "gpu": "0",
+    "memory": "16Gi",
+    "name": "c5d.2xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "16",
+    "gpu": "0",
+    "memory": "32Gi",
+    "name": "c5d.4xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "36",
+    "gpu": "0",
+    "memory": "72Gi",
+    "name": "c5d.9xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "2",
+    "gpu": "0",
+    "memory": "4Gi",
+    "name": "c5d.large"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "96",
+    "gpu": "0",
+    "memory": "192Gi",
+    "name": "c5d.metal"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "4",
+    "gpu": "0",
+    "memory": "8Gi",
+    "name": "c5d.xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "72",
+    "gpu": "0",
+    "memory": "192Gi",
+    "name": "c5n.18xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "8",
+    "gpu": "0",
+    "memory": "21Gi",
+    "name": "c5n.2xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "16",
+    "gpu": "0",
+    "memory": "42Gi",
+    "name": "c5n.4xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "36",
+    "gpu": "0",
+    "memory": "96Gi",
+    "name": "c5n.9xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "2",
+    "gpu": "0",
+    "memory": "5Gi",
+    "name": "c5n.large"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "72",
+    "gpu": "0",
+    "memory": "192Gi",
+    "name": "c5n.metal"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "4",
+    "gpu": "0",
+    "memory": "10Gi",
+    "name": "c5n.xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "48",
+    "gpu": "0",
+    "memory": "96Gi",
+    "name": "c6a.12xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "64",
+    "gpu": "0",
+    "memory": "128Gi",
+    "name": "c6a.16xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "96",
+    "gpu": "0",
+    "memory": "192Gi",
+    "name": "c6a.24xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "8",
+    "gpu": "0",
+    "memory": "16Gi",
+    "name": "c6a.2xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "128",
+    "gpu": "0",
+    "memory": "256Gi",
+    "name": "c6a.32xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "192",
+    "gpu": "0",
+    "memory": "384Gi",
+    "name": "c6a.48xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "16",
+    "gpu": "0",
+    "memory": "32Gi",
+    "name": "c6a.4xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "32",
+    "gpu": "0",
+    "memory": "64Gi",
+    "name": "c6a.8xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "2",
+    "gpu": "0",
+    "memory": "4Gi",
+    "name": "c6a.large"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "192",
+    "gpu": "0",
+    "memory": "384Gi",
+    "name": "c6a.metal"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "4",
+    "gpu": "0",
+    "memory": "8Gi",
+    "name": "c6a.xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "48",
+    "gpu": "0",
+    "memory": "96Gi",
+    "name": "c6g.12xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "64",
+    "gpu": "0",
+    "memory": "128Gi",
+    "name": "c6g.16xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "8",
+    "gpu": "0",
+    "memory": "16Gi",
+    "name": "c6g.2xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "16",
+    "gpu": "0",
+    "memory": "32Gi",
+    "name": "c6g.4xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "32",
+    "gpu": "0",
+    "memory": "64Gi",
+    "name": "c6g.8xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "2",
+    "gpu": "0",
+    "memory": "4Gi",
+    "name": "c6g.large"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "64",
+    "gpu": "0",
+    "memory": "128Gi",
+    "name": "c6g.metal"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "4",
+    "gpu": "0",
+    "memory": "8Gi",
+    "name": "c6g.xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "48",
+    "gpu": "0",
+    "memory": "96Gi",
+    "name": "c6gd.12xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "64",
+    "gpu": "0",
+    "memory": "128Gi",
+    "name": "c6gd.16xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "8",
+    "gpu": "0",
+    "memory": "16Gi",
+    "name": "c6gd.2xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "16",
+    "gpu": "0",
+    "memory": "32Gi",
+    "name": "c6gd.4xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "32",
+    "gpu": "0",
+    "memory": "64Gi",
+    "name": "c6gd.8xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "2",
+    "gpu": "0",
+    "memory": "4Gi",
+    "name": "c6gd.large"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "64",
+    "gpu": "0",
+    "memory": "128Gi",
+    "name": "c6gd.metal"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "4",
+    "gpu": "0",
+    "memory": "8Gi",
+    "name": "c6gd.xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "48",
+    "gpu": "0",
+    "memory": "96Gi",
+    "name": "c6gn.12xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "64",
+    "gpu": "0",
+    "memory": "128Gi",
+    "name": "c6gn.16xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "8",
+    "gpu": "0",
+    "memory": "16Gi",
+    "name": "c6gn.2xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "16",
+    "gpu": "0",
+    "memory": "32Gi",
+    "name": "c6gn.4xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "32",
+    "gpu": "0",
+    "memory": "64Gi",
+    "name": "c6gn.8xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "2",
+    "gpu": "0",
+    "memory": "4Gi",
+    "name": "c6gn.large"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "4",
+    "gpu": "0",
+    "memory": "8Gi",
+    "name": "c6gn.xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "48",
+    "gpu": "0",
+    "memory": "96Gi",
+    "name": "c6i.12xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "64",
+    "gpu": "0",
+    "memory": "128Gi",
+    "name": "c6i.16xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "96",
+    "gpu": "0",
+    "memory": "192Gi",
+    "name": "c6i.24xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "8",
+    "gpu": "0",
+    "memory": "16Gi",
+    "name": "c6i.2xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "128",
+    "gpu": "0",
+    "memory": "256Gi",
+    "name": "c6i.32xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "16",
+    "gpu": "0",
+    "memory": "32Gi",
+    "name": "c6i.4xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "32",
+    "gpu": "0",
+    "memory": "64Gi",
+    "name": "c6i.8xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "2",
+    "gpu": "0",
+    "memory": "4Gi",
+    "name": "c6i.large"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "128",
+    "gpu": "0",
+    "memory": "256Gi",
+    "name": "c6i.metal"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "4",
+    "gpu": "0",
+    "memory": "8Gi",
+    "name": "c6i.xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "48",
+    "gpu": "0",
+    "memory": "96Gi",
+    "name": "c6id.12xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "64",
+    "gpu": "0",
+    "memory": "128Gi",
+    "name": "c6id.16xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "96",
+    "gpu": "0",
+    "memory": "192Gi",
+    "name": "c6id.24xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "8",
+    "gpu": "0",
+    "memory": "16Gi",
+    "name": "c6id.2xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "128",
+    "gpu": "0",
+    "memory": "256Gi",
+    "name": "c6id.32xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "16",
+    "gpu": "0",
+    "memory": "32Gi",
+    "name": "c6id.4xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "32",
+    "gpu": "0",
+    "memory": "64Gi",
+    "name": "c6id.8xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "2",
+    "gpu": "0",
+    "memory": "4Gi",
+    "name": "c6id.large"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "128",
+    "gpu": "0",
+    "memory": "256Gi",
+    "name": "c6id.metal"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "4",
+    "gpu": "0",
+    "memory": "8Gi",
+    "name": "c6id.xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "48",
+    "gpu": "0",
+    "memory": "96Gi",
+    "name": "c6in.12xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "64",
+    "gpu": "0",
+    "memory": "128Gi",
+    "name": "c6in.16xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "96",
+    "gpu": "0",
+    "memory": "192Gi",
+    "name": "c6in.24xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "8",
+    "gpu": "0",
+    "memory": "16Gi",
+    "name": "c6in.2xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "128",
+    "gpu": "0",
+    "memory": "256Gi",
+    "name": "c6in.32xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "16",
+    "gpu": "0",
+    "memory": "32Gi",
+    "name": "c6in.4xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "32",
+    "gpu": "0",
+    "memory": "64Gi",
+    "name": "c6in.8xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "2",
+    "gpu": "0",
+    "memory": "4Gi",
+    "name": "c6in.large"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "128",
+    "gpu": "0",
+    "memory": "256Gi",
+    "name": "c6in.metal"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "4",
+    "gpu": "0",
+    "memory": "8Gi",
+    "name": "c6in.xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "48",
+    "gpu": "0",
+    "memory": "96Gi",
+    "name": "c7a.12xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "64",
+    "gpu": "0",
+    "memory": "128Gi",
+    "name": "c7a.16xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "96",
+    "gpu": "0",
+    "memory": "192Gi",
+    "name": "c7a.24xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "8",
+    "gpu": "0",
+    "memory": "16Gi",
+    "name": "c7a.2xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "128",
+    "gpu": "0",
+    "memory": "256Gi",
+    "name": "c7a.32xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "192",
+    "gpu": "0",
+    "memory": "384Gi",
+    "name": "c7a.48xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "16",
+    "gpu": "0",
+    "memory": "32Gi",
+    "name": "c7a.4xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "32",
+    "gpu": "0",
+    "memory": "64Gi",
+    "name": "c7a.8xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "2",
+    "gpu": "0",
+    "memory": "4Gi",
+    "name": "c7a.large"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "192",
+    "gpu": "0",
+    "memory": "384Gi",
+    "name": "c7a.metal-48xl"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "4",
+    "gpu": "0",
+    "memory": "8Gi",
+    "name": "c7a.xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "48",
+    "gpu": "0",
+    "memory": "96Gi",
+    "name": "c7g.12xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "64",
+    "gpu": "0",
+    "memory": "128Gi",
+    "name": "c7g.16xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "8",
+    "gpu": "0",
+    "memory": "16Gi",
+    "name": "c7g.2xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "16",
+    "gpu": "0",
+    "memory": "32Gi",
+    "name": "c7g.4xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "32",
+    "gpu": "0",
+    "memory": "64Gi",
+    "name": "c7g.8xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "2",
+    "gpu": "0",
+    "memory": "4Gi",
+    "name": "c7g.large"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "64",
+    "gpu": "0",
+    "memory": "128Gi",
+    "name": "c7g.metal"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "4",
+    "gpu": "0",
+    "memory": "8Gi",
+    "name": "c7g.xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "48",
+    "gpu": "0",
+    "memory": "96Gi",
+    "name": "c7gd.12xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "64",
+    "gpu": "0",
+    "memory": "128Gi",
+    "name": "c7gd.16xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "8",
+    "gpu": "0",
+    "memory": "16Gi",
+    "name": "c7gd.2xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "16",
+    "gpu": "0",
+    "memory": "32Gi",
+    "name": "c7gd.4xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "32",
+    "gpu": "0",
+    "memory": "64Gi",
+    "name": "c7gd.8xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "2",
+    "gpu": "0",
+    "memory": "4Gi",
+    "name": "c7gd.large"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "64",
+    "gpu": "0",
+    "memory": "128Gi",
+    "name": "c7gd.metal"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "4",
+    "gpu": "0",
+    "memory": "8Gi",
+    "name": "c7gd.xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "48",
+    "gpu": "0",
+    "memory": "96Gi",
+    "name": "c7gn.12xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "64",
+    "gpu": "0",
+    "memory": "128Gi",
+    "name": "c7gn.16xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "8",
+    "gpu": "0",
+    "memory": "16Gi",
+    "name": "c7gn.2xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "16",
+    "gpu": "0",
+    "memory": "32Gi",
+    "name": "c7gn.4xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "32",
+    "gpu": "0",
+    "memory": "64Gi",
+    "name": "c7gn.8xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "2",
+    "gpu": "0",
+    "memory": "4Gi",
+    "name": "c7gn.large"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "64",
+    "gpu": "0",
+    "memory": "128Gi",
+    "name": "c7gn.metal"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "4",
+    "gpu": "0",
+    "memory": "8Gi",
+    "name": "c7gn.xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "48",
+    "gpu": "0",
+    "memory": "96Gi",
+    "name": "c7i-flex.12xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "64",
+    "gpu": "0",
+    "memory": "128Gi",
+    "name": "c7i-flex.16xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "8",
+    "gpu": "0",
+    "memory": "16Gi",
+    "name": "c7i-flex.2xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "16",
+    "gpu": "0",
+    "memory": "32Gi",
+    "name": "c7i-flex.4xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "32",
+    "gpu": "0",
+    "memory": "64Gi",
+    "name": "c7i-flex.8xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "2",
+    "gpu": "0",
+    "memory": "4Gi",
+    "name": "c7i-flex.large"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "4",
+    "gpu": "0",
+    "memory": "8Gi",
+    "name": "c7i-flex.xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "48",
+    "gpu": "0",
+    "memory": "96Gi",
+    "name": "c7i.12xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "64",
+    "gpu": "0",
+    "memory": "128Gi",
+    "name": "c7i.16xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "96",
+    "gpu": "0",
+    "memory": "192Gi",
+    "name": "c7i.24xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "8",
+    "gpu": "0",
+    "memory": "16Gi",
+    "name": "c7i.2xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "192",
+    "gpu": "0",
+    "memory": "384Gi",
+    "name": "c7i.48xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "16",
+    "gpu": "0",
+    "memory": "32Gi",
+    "name": "c7i.4xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "32",
+    "gpu": "0",
+    "memory": "64Gi",
+    "name": "c7i.8xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "2",
+    "gpu": "0",
+    "memory": "4Gi",
+    "name": "c7i.large"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "96",
+    "gpu": "0",
+    "memory": "192Gi",
+    "name": "c7i.metal-24xl"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "192",
+    "gpu": "0",
+    "memory": "384Gi",
+    "name": "c7i.metal-48xl"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "4",
+    "gpu": "0",
+    "memory": "8Gi",
+    "name": "c7i.xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "48",
+    "gpu": "0",
+    "memory": "96Gi",
+    "name": "c8a.12xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "64",
+    "gpu": "0",
+    "memory": "128Gi",
+    "name": "c8a.16xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "96",
+    "gpu": "0",
+    "memory": "192Gi",
+    "name": "c8a.24xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "8",
+    "gpu": "0",
+    "memory": "16Gi",
+    "name": "c8a.2xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "192",
+    "gpu": "0",
+    "memory": "384Gi",
+    "name": "c8a.48xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "16",
+    "gpu": "0",
+    "memory": "32Gi",
+    "name": "c8a.4xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "32",
+    "gpu": "0",
+    "memory": "64Gi",
+    "name": "c8a.8xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "2",
+    "gpu": "0",
+    "memory": "4Gi",
+    "name": "c8a.large"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "96",
+    "gpu": "0",
+    "memory": "192Gi",
+    "name": "c8a.metal-24xl"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "192",
+    "gpu": "0",
+    "memory": "384Gi",
+    "name": "c8a.metal-48xl"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "4",
+    "gpu": "0",
+    "memory": "8Gi",
+    "name": "c8a.xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "48",
+    "gpu": "0",
+    "memory": "96Gi",
+    "name": "c8g.12xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "64",
+    "gpu": "0",
+    "memory": "128Gi",
+    "name": "c8g.16xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "96",
+    "gpu": "0",
+    "memory": "192Gi",
+    "name": "c8g.24xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "8",
+    "gpu": "0",
+    "memory": "16Gi",
+    "name": "c8g.2xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "192",
+    "gpu": "0",
+    "memory": "384Gi",
+    "name": "c8g.48xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "16",
+    "gpu": "0",
+    "memory": "32Gi",
+    "name": "c8g.4xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "32",
+    "gpu": "0",
+    "memory": "64Gi",
+    "name": "c8g.8xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "2",
+    "gpu": "0",
+    "memory": "4Gi",
+    "name": "c8g.large"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "96",
+    "gpu": "0",
+    "memory": "192Gi",
+    "name": "c8g.metal-24xl"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "192",
+    "gpu": "0",
+    "memory": "384Gi",
+    "name": "c8g.metal-48xl"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "4",
+    "gpu": "0",
+    "memory": "8Gi",
+    "name": "c8g.xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "48",
+    "gpu": "0",
+    "memory": "96Gi",
+    "name": "c8gb.12xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "64",
+    "gpu": "0",
+    "memory": "128Gi",
+    "name": "c8gb.16xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "96",
+    "gpu": "0",
+    "memory": "192Gi",
+    "name": "c8gb.24xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "8",
+    "gpu": "0",
+    "memory": "16Gi",
+    "name": "c8gb.2xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "192",
+    "gpu": "0",
+    "memory": "384Gi",
+    "name": "c8gb.48xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "16",
+    "gpu": "0",
+    "memory": "32Gi",
+    "name": "c8gb.4xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "32",
+    "gpu": "0",
+    "memory": "64Gi",
+    "name": "c8gb.8xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "2",
+    "gpu": "0",
+    "memory": "4Gi",
+    "name": "c8gb.large"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "96",
+    "gpu": "0",
+    "memory": "192Gi",
+    "name": "c8gb.metal-24xl"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "192",
+    "gpu": "0",
+    "memory": "384Gi",
+    "name": "c8gb.metal-48xl"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "4",
+    "gpu": "0",
+    "memory": "8Gi",
+    "name": "c8gb.xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "48",
+    "gpu": "0",
+    "memory": "96Gi",
+    "name": "c8gd.12xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "64",
+    "gpu": "0",
+    "memory": "128Gi",
+    "name": "c8gd.16xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "96",
+    "gpu": "0",
+    "memory": "192Gi",
+    "name": "c8gd.24xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "8",
+    "gpu": "0",
+    "memory": "16Gi",
+    "name": "c8gd.2xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "192",
+    "gpu": "0",
+    "memory": "384Gi",
+    "name": "c8gd.48xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "16",
+    "gpu": "0",
+    "memory": "32Gi",
+    "name": "c8gd.4xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "32",
+    "gpu": "0",
+    "memory": "64Gi",
+    "name": "c8gd.8xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "2",
+    "gpu": "0",
+    "memory": "4Gi",
+    "name": "c8gd.large"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "96",
+    "gpu": "0",
+    "memory": "192Gi",
+    "name": "c8gd.metal-24xl"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "192",
+    "gpu": "0",
+    "memory": "384Gi",
+    "name": "c8gd.metal-48xl"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "4",
+    "gpu": "0",
+    "memory": "8Gi",
+    "name": "c8gd.xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "48",
+    "gpu": "0",
+    "memory": "96Gi",
+    "name": "c8gn.12xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "64",
+    "gpu": "0",
+    "memory": "128Gi",
+    "name": "c8gn.16xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "96",
+    "gpu": "0",
+    "memory": "192Gi",
+    "name": "c8gn.24xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "8",
+    "gpu": "0",
+    "memory": "16Gi",
+    "name": "c8gn.2xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "192",
+    "gpu": "0",
+    "memory": "384Gi",
+    "name": "c8gn.48xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "16",
+    "gpu": "0",
+    "memory": "32Gi",
+    "name": "c8gn.4xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "32",
+    "gpu": "0",
+    "memory": "64Gi",
+    "name": "c8gn.8xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "2",
+    "gpu": "0",
+    "memory": "4Gi",
+    "name": "c8gn.large"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "96",
+    "gpu": "0",
+    "memory": "192Gi",
+    "name": "c8gn.metal-24xl"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "192",
+    "gpu": "0",
+    "memory": "384Gi",
+    "name": "c8gn.metal-48xl"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "4",
+    "gpu": "0",
+    "memory": "8Gi",
+    "name": "c8gn.xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "48",
+    "gpu": "0",
+    "memory": "96Gi",
+    "name": "c8i-flex.12xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "64",
+    "gpu": "0",
+    "memory": "128Gi",
+    "name": "c8i-flex.16xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "8",
+    "gpu": "0",
+    "memory": "16Gi",
+    "name": "c8i-flex.2xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "16",
+    "gpu": "0",
+    "memory": "32Gi",
+    "name": "c8i-flex.4xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "32",
+    "gpu": "0",
+    "memory": "64Gi",
+    "name": "c8i-flex.8xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "2",
+    "gpu": "0",
+    "memory": "4Gi",
+    "name": "c8i-flex.large"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "4",
+    "gpu": "0",
+    "memory": "8Gi",
+    "name": "c8i-flex.xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "48",
+    "gpu": "0",
+    "memory": "96Gi",
+    "name": "c8i.12xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "64",
+    "gpu": "0",
+    "memory": "128Gi",
+    "name": "c8i.16xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "96",
+    "gpu": "0",
+    "memory": "192Gi",
+    "name": "c8i.24xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "8",
+    "gpu": "0",
+    "memory": "16Gi",
+    "name": "c8i.2xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "128",
+    "gpu": "0",
+    "memory": "256Gi",
+    "name": "c8i.32xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "192",
+    "gpu": "0",
+    "memory": "384Gi",
+    "name": "c8i.48xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "16",
+    "gpu": "0",
+    "memory": "32Gi",
+    "name": "c8i.4xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "32",
+    "gpu": "0",
+    "memory": "64Gi",
+    "name": "c8i.8xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "384",
+    "gpu": "0",
+    "memory": "768Gi",
+    "name": "c8i.96xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "2",
+    "gpu": "0",
+    "memory": "4Gi",
+    "name": "c8i.large"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "192",
+    "gpu": "0",
+    "memory": "384Gi",
+    "name": "c8i.metal-48xl"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "384",
+    "gpu": "0",
+    "memory": "768Gi",
+    "name": "c8i.metal-96xl"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "4",
+    "gpu": "0",
+    "memory": "8Gi",
+    "name": "c8i.xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "48",
+    "gpu": "0",
+    "memory": "96Gi",
+    "name": "c8ib.12xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "64",
+    "gpu": "0",
+    "memory": "128Gi",
+    "name": "c8ib.16xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "96",
+    "gpu": "0",
+    "memory": "192Gi",
+    "name": "c8ib.24xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "8",
+    "gpu": "0",
+    "memory": "16Gi",
+    "name": "c8ib.2xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "128",
+    "gpu": "0",
+    "memory": "256Gi",
+    "name": "c8ib.32xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "192",
+    "gpu": "0",
+    "memory": "384Gi",
+    "name": "c8ib.48xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "16",
+    "gpu": "0",
+    "memory": "32Gi",
+    "name": "c8ib.4xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "32",
+    "gpu": "0",
+    "memory": "64Gi",
+    "name": "c8ib.8xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "384",
+    "gpu": "0",
+    "memory": "768Gi",
+    "name": "c8ib.96xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "2",
+    "gpu": "0",
+    "memory": "4Gi",
+    "name": "c8ib.large"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "192",
+    "gpu": "0",
+    "memory": "384Gi",
+    "name": "c8ib.metal-48xl"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "384",
+    "gpu": "0",
+    "memory": "768Gi",
+    "name": "c8ib.metal-96xl"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "4",
+    "gpu": "0",
+    "memory": "8Gi",
+    "name": "c8ib.xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "48",
+    "gpu": "0",
+    "memory": "96Gi",
+    "name": "c8id.12xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "64",
+    "gpu": "0",
+    "memory": "128Gi",
+    "name": "c8id.16xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "96",
+    "gpu": "0",
+    "memory": "192Gi",
+    "name": "c8id.24xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "8",
+    "gpu": "0",
+    "memory": "16Gi",
+    "name": "c8id.2xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "128",
+    "gpu": "0",
+    "memory": "256Gi",
+    "name": "c8id.32xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "192",
+    "gpu": "0",
+    "memory": "384Gi",
+    "name": "c8id.48xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "16",
+    "gpu": "0",
+    "memory": "32Gi",
+    "name": "c8id.4xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "32",
+    "gpu": "0",
+    "memory": "64Gi",
+    "name": "c8id.8xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "384",
+    "gpu": "0",
+    "memory": "768Gi",
+    "name": "c8id.96xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "2",
+    "gpu": "0",
+    "memory": "4Gi",
+    "name": "c8id.large"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "192",
+    "gpu": "0",
+    "memory": "384Gi",
+    "name": "c8id.metal-48xl"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "384",
+    "gpu": "0",
+    "memory": "768Gi",
+    "name": "c8id.metal-96xl"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "4",
+    "gpu": "0",
+    "memory": "8Gi",
+    "name": "c8id.xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "48",
+    "gpu": "0",
+    "memory": "96Gi",
+    "name": "c8in.12xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "64",
+    "gpu": "0",
+    "memory": "128Gi",
+    "name": "c8in.16xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "96",
+    "gpu": "0",
+    "memory": "192Gi",
+    "name": "c8in.24xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "8",
+    "gpu": "0",
+    "memory": "16Gi",
+    "name": "c8in.2xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "128",
+    "gpu": "0",
+    "memory": "256Gi",
+    "name": "c8in.32xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "192",
+    "gpu": "0",
+    "memory": "384Gi",
+    "name": "c8in.48xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "16",
+    "gpu": "0",
+    "memory": "32Gi",
+    "name": "c8in.4xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "32",
+    "gpu": "0",
+    "memory": "64Gi",
+    "name": "c8in.8xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "384",
+    "gpu": "0",
+    "memory": "768Gi",
+    "name": "c8in.96xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "2",
+    "gpu": "0",
+    "memory": "4Gi",
+    "name": "c8in.large"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "192",
+    "gpu": "0",
+    "memory": "384Gi",
+    "name": "c8in.metal-48xl"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "384",
+    "gpu": "0",
+    "memory": "768Gi",
+    "name": "c8in.metal-96xl"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "4",
+    "gpu": "0",
+    "memory": "8Gi",
+    "name": "c8in.xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "48",
+    "gpu": "0",
+    "memory": "96Gi",
+    "name": "c8ine.12xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "8",
+    "gpu": "0",
+    "memory": "16Gi",
+    "name": "c8ine.2xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "16",
+    "gpu": "0",
+    "memory": "32Gi",
+    "name": "c8ine.4xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "32",
+    "gpu": "0",
+    "memory": "64Gi",
+    "name": "c8ine.8xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "2",
+    "gpu": "0",
+    "memory": "4Gi",
+    "name": "c8ine.large"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "4",
+    "gpu": "0",
+    "memory": "8Gi",
+    "name": "c8ine.xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "48",
+    "gpu": "0",
+    "memory": "96Gi",
+    "name": "c9g.12xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "64",
+    "gpu": "0",
+    "memory": "128Gi",
+    "name": "c9g.16xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "96",
+    "gpu": "0",
+    "memory": "192Gi",
+    "name": "c9g.24xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "8",
+    "gpu": "0",
+    "memory": "16Gi",
+    "name": "c9g.2xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "192",
+    "gpu": "0",
+    "memory": "384Gi",
+    "name": "c9g.48xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "16",
+    "gpu": "0",
+    "memory": "32Gi",
+    "name": "c9g.4xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "32",
+    "gpu": "0",
+    "memory": "64Gi",
+    "name": "c9g.8xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "2",
+    "gpu": "0",
+    "memory": "4Gi",
+    "name": "c9g.large"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "192",
+    "gpu": "0",
+    "memory": "384Gi",
+    "name": "c9g.metal-48xl"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "4",
+    "gpu": "0",
+    "memory": "8Gi",
+    "name": "c9g.xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "48",
+    "gpu": "0",
+    "memory": "96Gi",
+    "name": "c9gd.12xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "64",
+    "gpu": "0",
+    "memory": "128Gi",
+    "name": "c9gd.16xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "96",
+    "gpu": "0",
+    "memory": "192Gi",
+    "name": "c9gd.24xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "8",
+    "gpu": "0",
+    "memory": "16Gi",
+    "name": "c9gd.2xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "192",
+    "gpu": "0",
+    "memory": "384Gi",
+    "name": "c9gd.48xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "16",
+    "gpu": "0",
+    "memory": "32Gi",
+    "name": "c9gd.4xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "32",
+    "gpu": "0",
+    "memory": "64Gi",
+    "name": "c9gd.8xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "2",
+    "gpu": "0",
+    "memory": "4Gi",
+    "name": "c9gd.large"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "192",
+    "gpu": "0",
+    "memory": "384Gi",
+    "name": "c9gd.metal-48xl"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "4",
+    "gpu": "0",
+    "memory": "8Gi",
+    "name": "c9gd.xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "8",
+    "gpu": "0",
+    "memory": "61Gi",
+    "name": "d2.2xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "16",
+    "gpu": "0",
+    "memory": "122Gi",
+    "name": "d2.4xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "36",
+    "gpu": "0",
+    "memory": "244Gi",
+    "name": "d2.8xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "4",
+    "gpu": "0",
+    "memory": "30Gi",
+    "name": "d2.xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "8",
+    "gpu": "0",
+    "memory": "64Gi",
+    "name": "d3.2xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "16",
+    "gpu": "0",
+    "memory": "128Gi",
+    "name": "d3.4xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "32",
+    "gpu": "0",
+    "memory": "256Gi",
+    "name": "d3.8xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "4",
+    "gpu": "0",
+    "memory": "32Gi",
+    "name": "d3.xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "48",
+    "gpu": "0",
+    "memory": "192Gi",
+    "name": "d3en.12xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "8",
+    "gpu": "0",
+    "memory": "32Gi",
+    "name": "d3en.2xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "16",
+    "gpu": "0",
+    "memory": "64Gi",
+    "name": "d3en.4xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "24",
+    "gpu": "0",
+    "memory": "96Gi",
+    "name": "d3en.6xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "32",
+    "gpu": "0",
+    "memory": "128Gi",
+    "name": "d3en.8xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "4",
+    "gpu": "0",
+    "memory": "16Gi",
+    "name": "d3en.xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "96",
+    "gpu": "0",
+    "memory": "768Gi",
+    "name": "dl2q.24xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "48",
+    "gpu": "0",
+    "memory": "512Gi",
+    "name": "f2.12xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "192",
+    "gpu": "0",
+    "memory": "2Ti",
+    "name": "f2.48xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "24",
+    "gpu": "0",
+    "memory": "256Gi",
+    "name": "f2.6xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "64",
+    "gpu": "4",
+    "memory": "256Gi",
+    "name": "g4ad.16xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "8",
+    "gpu": "1",
+    "memory": "32Gi",
+    "name": "g4ad.2xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "16",
+    "gpu": "1",
+    "memory": "64Gi",
+    "name": "g4ad.4xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "32",
+    "gpu": "2",
+    "memory": "128Gi",
+    "name": "g4ad.8xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "4",
+    "gpu": "1",
+    "memory": "16Gi",
+    "name": "g4ad.xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "48",
+    "gpu": "4",
+    "memory": "192Gi",
+    "name": "g4dn.12xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "64",
+    "gpu": "1",
+    "memory": "256Gi",
+    "name": "g4dn.16xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "8",
+    "gpu": "1",
+    "memory": "32Gi",
+    "name": "g4dn.2xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "16",
+    "gpu": "1",
+    "memory": "64Gi",
+    "name": "g4dn.4xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "32",
+    "gpu": "1",
+    "memory": "128Gi",
+    "name": "g4dn.8xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "96",
+    "gpu": "8",
+    "memory": "384Gi",
+    "name": "g4dn.metal"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "4",
+    "gpu": "1",
+    "memory": "16Gi",
+    "name": "g4dn.xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "48",
+    "gpu": "4",
+    "memory": "192Gi",
+    "name": "g5.12xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "64",
+    "gpu": "1",
+    "memory": "256Gi",
+    "name": "g5.16xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "96",
+    "gpu": "4",
+    "memory": "384Gi",
+    "name": "g5.24xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "8",
+    "gpu": "1",
+    "memory": "32Gi",
+    "name": "g5.2xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "192",
+    "gpu": "8",
+    "memory": "768Gi",
+    "name": "g5.48xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "16",
+    "gpu": "1",
+    "memory": "64Gi",
+    "name": "g5.4xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "32",
+    "gpu": "1",
+    "memory": "128Gi",
+    "name": "g5.8xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "4",
+    "gpu": "1",
+    "memory": "16Gi",
+    "name": "g5.xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "64",
+    "gpu": "2",
+    "memory": "128Gi",
+    "name": "g5g.16xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "8",
+    "gpu": "1",
+    "memory": "16Gi",
+    "name": "g5g.2xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "16",
+    "gpu": "1",
+    "memory": "32Gi",
+    "name": "g5g.4xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "32",
+    "gpu": "1",
+    "memory": "64Gi",
+    "name": "g5g.8xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "64",
+    "gpu": "2",
+    "memory": "128Gi",
+    "name": "g5g.metal"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "4",
+    "gpu": "1",
+    "memory": "8Gi",
+    "name": "g5g.xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "48",
+    "gpu": "4",
+    "memory": "192Gi",
+    "name": "g6.12xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "64",
+    "gpu": "1",
+    "memory": "256Gi",
+    "name": "g6.16xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "96",
+    "gpu": "4",
+    "memory": "384Gi",
+    "name": "g6.24xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "8",
+    "gpu": "1",
+    "memory": "32Gi",
+    "name": "g6.2xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "192",
+    "gpu": "8",
+    "memory": "768Gi",
+    "name": "g6.48xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "16",
+    "gpu": "1",
+    "memory": "64Gi",
+    "name": "g6.4xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "32",
+    "gpu": "1",
+    "memory": "128Gi",
+    "name": "g6.8xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "4",
+    "gpu": "1",
+    "memory": "16Gi",
+    "name": "g6.xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "48",
+    "gpu": "4",
+    "memory": "384Gi",
+    "name": "g6e.12xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "64",
+    "gpu": "1",
+    "memory": "512Gi",
+    "name": "g6e.16xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "96",
+    "gpu": "4",
+    "memory": "768Gi",
+    "name": "g6e.24xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "8",
+    "gpu": "1",
+    "memory": "64Gi",
+    "name": "g6e.2xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "192",
+    "gpu": "8",
+    "memory": "1536Gi",
+    "name": "g6e.48xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "16",
+    "gpu": "1",
+    "memory": "128Gi",
+    "name": "g6e.4xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "32",
+    "gpu": "1",
+    "memory": "256Gi",
+    "name": "g6e.8xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "4",
+    "gpu": "1",
+    "memory": "32Gi",
+    "name": "g6e.xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "8",
+    "gpu": "0",
+    "memory": "32Gi",
+    "name": "g6f.2xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "16",
+    "gpu": "0",
+    "memory": "64Gi",
+    "name": "g6f.4xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "2",
+    "gpu": "0",
+    "memory": "8Gi",
+    "name": "g6f.large"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "4",
+    "gpu": "0",
+    "memory": "16Gi",
+    "name": "g6f.xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "48",
+    "gpu": "2",
+    "memory": "192Gi",
+    "name": "g7.12xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "96",
+    "gpu": "4",
+    "memory": "384Gi",
+    "name": "g7.24xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "8",
+    "gpu": "1",
+    "memory": "32Gi",
+    "name": "g7.2xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "192",
+    "gpu": "8",
+    "memory": "768Gi",
+    "name": "g7.48xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "16",
+    "gpu": "1",
+    "memory": "64Gi",
+    "name": "g7.4xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "32",
+    "gpu": "1",
+    "memory": "128Gi",
+    "name": "g7.8xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "48",
+    "gpu": "2",
+    "memory": "512Gi",
+    "name": "g7e.12xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "96",
+    "gpu": "4",
+    "memory": "1Ti",
+    "name": "g7e.24xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "8",
+    "gpu": "1",
+    "memory": "64Gi",
+    "name": "g7e.2xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "192",
+    "gpu": "8",
+    "memory": "2Ti",
+    "name": "g7e.48xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "16",
+    "gpu": "1",
+    "memory": "128Gi",
+    "name": "g7e.4xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "32",
+    "gpu": "1",
+    "memory": "256Gi",
+    "name": "g7e.8xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "16",
+    "gpu": "1",
+    "memory": "128Gi",
+    "name": "gr6.4xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "32",
+    "gpu": "1",
+    "memory": "256Gi",
+    "name": "gr6.8xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "16",
+    "gpu": "0",
+    "memory": "128Gi",
+    "name": "gr6f.4xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "64",
+    "gpu": "0",
+    "memory": "256Gi",
+    "name": "h1.16xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "8",
+    "gpu": "0",
+    "memory": "32Gi",
+    "name": "h1.2xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "16",
+    "gpu": "0",
+    "memory": "64Gi",
+    "name": "h1.4xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "32",
+    "gpu": "0",
+    "memory": "128Gi",
+    "name": "h1.8xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "96",
+    "gpu": "0",
+    "memory": "384Gi",
+    "name": "hpc6a.48xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "64",
+    "gpu": "0",
+    "memory": "1Ti",
+    "name": "hpc6id.32xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "24",
+    "gpu": "0",
+    "memory": "768Gi",
+    "name": "hpc7a.12xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "48",
+    "gpu": "0",
+    "memory": "768Gi",
+    "name": "hpc7a.24xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "96",
+    "gpu": "0",
+    "memory": "768Gi",
+    "name": "hpc7a.48xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "192",
+    "gpu": "0",
+    "memory": "768Gi",
+    "name": "hpc7a.96xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "64",
+    "gpu": "0",
+    "memory": "128Gi",
+    "name": "hpc7g.16xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "16",
+    "gpu": "0",
+    "memory": "128Gi",
+    "name": "hpc7g.4xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "32",
+    "gpu": "0",
+    "memory": "128Gi",
+    "name": "hpc7g.8xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "192",
+    "gpu": "0",
+    "memory": "768Gi",
+    "name": "hpc8a.96xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "8",
+    "gpu": "0",
+    "memory": "61Gi",
+    "name": "i2.2xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "16",
+    "gpu": "0",
+    "memory": "122Gi",
+    "name": "i2.4xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "32",
+    "gpu": "0",
+    "memory": "244Gi",
+    "name": "i2.8xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "4",
+    "gpu": "0",
+    "memory": "30Gi",
+    "name": "i2.xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "64",
+    "gpu": "0",
+    "memory": "488Gi",
+    "name": "i3.16xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "8",
+    "gpu": "0",
+    "memory": "61Gi",
+    "name": "i3.2xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "16",
+    "gpu": "0",
+    "memory": "122Gi",
+    "name": "i3.4xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "32",
+    "gpu": "0",
+    "memory": "244Gi",
+    "name": "i3.8xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "2",
+    "gpu": "0",
+    "memory": "15Gi",
+    "name": "i3.large"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "4",
+    "gpu": "0",
+    "memory": "30Gi",
+    "name": "i3.xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "48",
+    "gpu": "0",
+    "memory": "384Gi",
+    "name": "i3en.12xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "96",
+    "gpu": "0",
+    "memory": "768Gi",
+    "name": "i3en.24xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "8",
+    "gpu": "0",
+    "memory": "64Gi",
+    "name": "i3en.2xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "12",
+    "gpu": "0",
+    "memory": "96Gi",
+    "name": "i3en.3xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "24",
+    "gpu": "0",
+    "memory": "192Gi",
+    "name": "i3en.6xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "2",
+    "gpu": "0",
+    "memory": "16Gi",
+    "name": "i3en.large"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "96",
+    "gpu": "0",
+    "memory": "768Gi",
+    "name": "i3en.metal"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "4",
+    "gpu": "0",
+    "memory": "32Gi",
+    "name": "i3en.xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "64",
+    "gpu": "0",
+    "memory": "512Gi",
+    "name": "i4g.16xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "8",
+    "gpu": "0",
+    "memory": "64Gi",
+    "name": "i4g.2xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "16",
+    "gpu": "0",
+    "memory": "128Gi",
+    "name": "i4g.4xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "32",
+    "gpu": "0",
+    "memory": "256Gi",
+    "name": "i4g.8xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "2",
+    "gpu": "0",
+    "memory": "16Gi",
+    "name": "i4g.large"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "4",
+    "gpu": "0",
+    "memory": "32Gi",
+    "name": "i4g.xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "48",
+    "gpu": "0",
+    "memory": "384Gi",
+    "name": "i4i.12xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "64",
+    "gpu": "0",
+    "memory": "512Gi",
+    "name": "i4i.16xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "96",
+    "gpu": "0",
+    "memory": "768Gi",
+    "name": "i4i.24xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "8",
+    "gpu": "0",
+    "memory": "64Gi",
+    "name": "i4i.2xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "128",
+    "gpu": "0",
+    "memory": "1Ti",
+    "name": "i4i.32xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "16",
+    "gpu": "0",
+    "memory": "128Gi",
+    "name": "i4i.4xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "32",
+    "gpu": "0",
+    "memory": "256Gi",
+    "name": "i4i.8xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "2",
+    "gpu": "0",
+    "memory": "16Gi",
+    "name": "i4i.large"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "128",
+    "gpu": "0",
+    "memory": "1Ti",
+    "name": "i4i.metal"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "4",
+    "gpu": "0",
+    "memory": "32Gi",
+    "name": "i4i.xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "48",
+    "gpu": "0",
+    "memory": "384Gi",
+    "name": "i7i.12xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "64",
+    "gpu": "0",
+    "memory": "512Gi",
+    "name": "i7i.16xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "96",
+    "gpu": "0",
+    "memory": "768Gi",
+    "name": "i7i.24xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "8",
+    "gpu": "0",
+    "memory": "64Gi",
+    "name": "i7i.2xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "192",
+    "gpu": "0",
+    "memory": "1536Gi",
+    "name": "i7i.48xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "16",
+    "gpu": "0",
+    "memory": "128Gi",
+    "name": "i7i.4xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "32",
+    "gpu": "0",
+    "memory": "256Gi",
+    "name": "i7i.8xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "2",
+    "gpu": "0",
+    "memory": "16Gi",
+    "name": "i7i.large"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "96",
+    "gpu": "0",
+    "memory": "768Gi",
+    "name": "i7i.metal-24xl"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "192",
+    "gpu": "0",
+    "memory": "1536Gi",
+    "name": "i7i.metal-48xl"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "4",
+    "gpu": "0",
+    "memory": "32Gi",
+    "name": "i7i.xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "48",
+    "gpu": "0",
+    "memory": "384Gi",
+    "name": "i7ie.12xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "72",
+    "gpu": "0",
+    "memory": "576Gi",
+    "name": "i7ie.18xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "96",
+    "gpu": "0",
+    "memory": "768Gi",
+    "name": "i7ie.24xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "8",
+    "gpu": "0",
+    "memory": "64Gi",
+    "name": "i7ie.2xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "12",
+    "gpu": "0",
+    "memory": "96Gi",
+    "name": "i7ie.3xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "192",
+    "gpu": "0",
+    "memory": "1536Gi",
+    "name": "i7ie.48xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "24",
+    "gpu": "0",
+    "memory": "192Gi",
+    "name": "i7ie.6xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "2",
+    "gpu": "0",
+    "memory": "16Gi",
+    "name": "i7ie.large"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "96",
+    "gpu": "0",
+    "memory": "768Gi",
+    "name": "i7ie.metal-24xl"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "192",
+    "gpu": "0",
+    "memory": "1536Gi",
+    "name": "i7ie.metal-48xl"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "4",
+    "gpu": "0",
+    "memory": "32Gi",
+    "name": "i7ie.xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "48",
+    "gpu": "0",
+    "memory": "384Gi",
+    "name": "i8g.12xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "64",
+    "gpu": "0",
+    "memory": "512Gi",
+    "name": "i8g.16xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "96",
+    "gpu": "0",
+    "memory": "768Gi",
+    "name": "i8g.24xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "8",
+    "gpu": "0",
+    "memory": "64Gi",
+    "name": "i8g.2xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "192",
+    "gpu": "0",
+    "memory": "1536Gi",
+    "name": "i8g.48xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "16",
+    "gpu": "0",
+    "memory": "128Gi",
+    "name": "i8g.4xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "32",
+    "gpu": "0",
+    "memory": "256Gi",
+    "name": "i8g.8xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "2",
+    "gpu": "0",
+    "memory": "16Gi",
+    "name": "i8g.large"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "96",
+    "gpu": "0",
+    "memory": "768Gi",
+    "name": "i8g.metal-24xl"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "192",
+    "gpu": "0",
+    "memory": "1536Gi",
+    "name": "i8g.metal-48xl"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "4",
+    "gpu": "0",
+    "memory": "32Gi",
+    "name": "i8g.xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "48",
+    "gpu": "0",
+    "memory": "384Gi",
+    "name": "i8ge.12xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "72",
+    "gpu": "0",
+    "memory": "576Gi",
+    "name": "i8ge.18xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "96",
+    "gpu": "0",
+    "memory": "768Gi",
+    "name": "i8ge.24xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "8",
+    "gpu": "0",
+    "memory": "64Gi",
+    "name": "i8ge.2xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "12",
+    "gpu": "0",
+    "memory": "96Gi",
+    "name": "i8ge.3xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "192",
+    "gpu": "0",
+    "memory": "1536Gi",
+    "name": "i8ge.48xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "24",
+    "gpu": "0",
+    "memory": "192Gi",
+    "name": "i8ge.6xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "2",
+    "gpu": "0",
+    "memory": "16Gi",
+    "name": "i8ge.large"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "96",
+    "gpu": "0",
+    "memory": "768Gi",
+    "name": "i8ge.metal-24xl"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "192",
+    "gpu": "0",
+    "memory": "1536Gi",
+    "name": "i8ge.metal-48xl"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "4",
+    "gpu": "0",
+    "memory": "32Gi",
+    "name": "i8ge.xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "64",
+    "gpu": "0",
+    "memory": "256Gi",
+    "name": "im4gn.16xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "8",
+    "gpu": "0",
+    "memory": "32Gi",
+    "name": "im4gn.2xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "16",
+    "gpu": "0",
+    "memory": "64Gi",
+    "name": "im4gn.4xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "32",
+    "gpu": "0",
+    "memory": "128Gi",
+    "name": "im4gn.8xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "2",
+    "gpu": "0",
+    "memory": "8Gi",
+    "name": "im4gn.large"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "4",
+    "gpu": "0",
+    "memory": "16Gi",
+    "name": "im4gn.xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "96",
+    "gpu": "0",
+    "memory": "192Gi",
+    "name": "inf1.24xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "8",
+    "gpu": "0",
+    "memory": "16Gi",
+    "name": "inf1.2xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "24",
+    "gpu": "0",
+    "memory": "48Gi",
+    "name": "inf1.6xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "4",
+    "gpu": "0",
+    "memory": "8Gi",
+    "name": "inf1.xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "96",
+    "gpu": "0",
+    "memory": "384Gi",
+    "name": "inf2.24xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "192",
+    "gpu": "0",
+    "memory": "768Gi",
+    "name": "inf2.48xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "32",
+    "gpu": "0",
+    "memory": "128Gi",
+    "name": "inf2.8xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "4",
+    "gpu": "0",
+    "memory": "16Gi",
+    "name": "inf2.xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "8",
+    "gpu": "0",
+    "memory": "48Gi",
+    "name": "is4gen.2xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "16",
+    "gpu": "0",
+    "memory": "96Gi",
+    "name": "is4gen.4xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "32",
+    "gpu": "0",
+    "memory": "192Gi",
+    "name": "is4gen.8xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "2",
+    "gpu": "0",
+    "memory": "12Gi",
+    "name": "is4gen.large"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "4",
+    "gpu": "0",
+    "memory": "24Gi",
+    "name": "is4gen.xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "2",
+    "gpu": "0",
+    "memory": "7Gi",
+    "name": "m1.large"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "4",
+    "gpu": "0",
+    "memory": "15Gi",
+    "name": "m1.xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "4",
+    "gpu": "0",
+    "memory": "34Gi",
+    "name": "m2.2xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "8",
+    "gpu": "0",
+    "memory": "68Gi",
+    "name": "m2.4xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "2",
+    "gpu": "0",
+    "memory": "17Gi",
+    "name": "m2.xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "8",
+    "gpu": "0",
+    "memory": "30Gi",
+    "name": "m3.2xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "2",
+    "gpu": "0",
+    "memory": "7Gi",
+    "name": "m3.large"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "4",
+    "gpu": "0",
+    "memory": "15Gi",
+    "name": "m3.xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "40",
+    "gpu": "0",
+    "memory": "160Gi",
+    "name": "m4.10xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "64",
+    "gpu": "0",
+    "memory": "256Gi",
+    "name": "m4.16xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "8",
+    "gpu": "0",
+    "memory": "32Gi",
+    "name": "m4.2xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "16",
+    "gpu": "0",
+    "memory": "64Gi",
+    "name": "m4.4xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "2",
+    "gpu": "0",
+    "memory": "8Gi",
+    "name": "m4.large"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "4",
+    "gpu": "0",
+    "memory": "16Gi",
+    "name": "m4.xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "48",
+    "gpu": "0",
+    "memory": "192Gi",
+    "name": "m5.12xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "64",
+    "gpu": "0",
+    "memory": "256Gi",
+    "name": "m5.16xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "96",
+    "gpu": "0",
+    "memory": "384Gi",
+    "name": "m5.24xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "8",
+    "gpu": "0",
+    "memory": "32Gi",
+    "name": "m5.2xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "16",
+    "gpu": "0",
+    "memory": "64Gi",
+    "name": "m5.4xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "32",
+    "gpu": "0",
+    "memory": "128Gi",
+    "name": "m5.8xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "96",
+    "gpu": "0",
+    "memory": "384Gi",
+    "name": "m5.metal"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "4",
+    "gpu": "0",
+    "memory": "16Gi",
+    "name": "m5.xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "48",
+    "gpu": "0",
+    "memory": "192Gi",
+    "name": "m5a.12xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "64",
+    "gpu": "0",
+    "memory": "256Gi",
+    "name": "m5a.16xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "96",
+    "gpu": "0",
+    "memory": "384Gi",
+    "name": "m5a.24xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "8",
+    "gpu": "0",
+    "memory": "32Gi",
+    "name": "m5a.2xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "16",
+    "gpu": "0",
+    "memory": "64Gi",
+    "name": "m5a.4xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "32",
+    "gpu": "0",
+    "memory": "128Gi",
+    "name": "m5a.8xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "2",
+    "gpu": "0",
+    "memory": "8Gi",
+    "name": "m5a.large"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "4",
+    "gpu": "0",
+    "memory": "16Gi",
+    "name": "m5a.xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "48",
+    "gpu": "0",
+    "memory": "192Gi",
+    "name": "m5ad.12xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "64",
+    "gpu": "0",
+    "memory": "256Gi",
+    "name": "m5ad.16xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "96",
+    "gpu": "0",
+    "memory": "384Gi",
+    "name": "m5ad.24xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "8",
+    "gpu": "0",
+    "memory": "32Gi",
+    "name": "m5ad.2xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "16",
+    "gpu": "0",
+    "memory": "64Gi",
+    "name": "m5ad.4xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "32",
+    "gpu": "0",
+    "memory": "128Gi",
+    "name": "m5ad.8xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "2",
+    "gpu": "0",
+    "memory": "8Gi",
+    "name": "m5ad.large"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "4",
+    "gpu": "0",
+    "memory": "16Gi",
+    "name": "m5ad.xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "48",
+    "gpu": "0",
+    "memory": "192Gi",
+    "name": "m5d.12xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "64",
+    "gpu": "0",
+    "memory": "256Gi",
+    "name": "m5d.16xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "96",
+    "gpu": "0",
+    "memory": "384Gi",
+    "name": "m5d.24xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "8",
+    "gpu": "0",
+    "memory": "32Gi",
+    "name": "m5d.2xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "16",
+    "gpu": "0",
+    "memory": "64Gi",
+    "name": "m5d.4xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "32",
+    "gpu": "0",
+    "memory": "128Gi",
+    "name": "m5d.8xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "2",
+    "gpu": "0",
+    "memory": "8Gi",
+    "name": "m5d.large"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "96",
+    "gpu": "0",
+    "memory": "384Gi",
+    "name": "m5d.metal"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "4",
+    "gpu": "0",
+    "memory": "16Gi",
+    "name": "m5d.xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "48",
+    "gpu": "0",
+    "memory": "192Gi",
+    "name": "m5dn.12xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "64",
+    "gpu": "0",
+    "memory": "256Gi",
+    "name": "m5dn.16xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "96",
+    "gpu": "0",
+    "memory": "384Gi",
+    "name": "m5dn.24xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "8",
+    "gpu": "0",
+    "memory": "32Gi",
+    "name": "m5dn.2xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "16",
+    "gpu": "0",
+    "memory": "64Gi",
+    "name": "m5dn.4xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "32",
+    "gpu": "0",
+    "memory": "128Gi",
+    "name": "m5dn.8xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "2",
+    "gpu": "0",
+    "memory": "8Gi",
+    "name": "m5dn.large"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "96",
+    "gpu": "0",
+    "memory": "384Gi",
+    "name": "m5dn.metal"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "4",
+    "gpu": "0",
+    "memory": "16Gi",
+    "name": "m5dn.xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "48",
+    "gpu": "0",
+    "memory": "192Gi",
+    "name": "m5n.12xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "64",
+    "gpu": "0",
+    "memory": "256Gi",
+    "name": "m5n.16xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "96",
+    "gpu": "0",
+    "memory": "384Gi",
+    "name": "m5n.24xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "8",
+    "gpu": "0",
+    "memory": "32Gi",
+    "name": "m5n.2xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "16",
+    "gpu": "0",
+    "memory": "64Gi",
+    "name": "m5n.4xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "32",
+    "gpu": "0",
+    "memory": "128Gi",
+    "name": "m5n.8xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "2",
+    "gpu": "0",
+    "memory": "8Gi",
+    "name": "m5n.large"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "96",
+    "gpu": "0",
+    "memory": "384Gi",
+    "name": "m5n.metal"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "4",
+    "gpu": "0",
+    "memory": "16Gi",
+    "name": "m5n.xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "48",
+    "gpu": "0",
+    "memory": "192Gi",
+    "name": "m5zn.12xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "8",
+    "gpu": "0",
+    "memory": "32Gi",
+    "name": "m5zn.2xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "12",
+    "gpu": "0",
+    "memory": "48Gi",
+    "name": "m5zn.3xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "24",
+    "gpu": "0",
+    "memory": "96Gi",
+    "name": "m5zn.6xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "2",
+    "gpu": "0",
+    "memory": "8Gi",
+    "name": "m5zn.large"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "48",
+    "gpu": "0",
+    "memory": "192Gi",
+    "name": "m5zn.metal"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "4",
+    "gpu": "0",
+    "memory": "16Gi",
+    "name": "m5zn.xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "48",
+    "gpu": "0",
+    "memory": "192Gi",
+    "name": "m6a.12xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "64",
+    "gpu": "0",
+    "memory": "256Gi",
+    "name": "m6a.16xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "96",
+    "gpu": "0",
+    "memory": "384Gi",
+    "name": "m6a.24xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "8",
+    "gpu": "0",
+    "memory": "32Gi",
+    "name": "m6a.2xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "128",
+    "gpu": "0",
+    "memory": "512Gi",
+    "name": "m6a.32xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "192",
+    "gpu": "0",
+    "memory": "768Gi",
+    "name": "m6a.48xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "16",
+    "gpu": "0",
+    "memory": "64Gi",
+    "name": "m6a.4xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "32",
+    "gpu": "0",
+    "memory": "128Gi",
+    "name": "m6a.8xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "2",
+    "gpu": "0",
+    "memory": "8Gi",
+    "name": "m6a.large"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "192",
+    "gpu": "0",
+    "memory": "768Gi",
+    "name": "m6a.metal"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "4",
+    "gpu": "0",
+    "memory": "16Gi",
+    "name": "m6a.xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "48",
+    "gpu": "0",
+    "memory": "192Gi",
+    "name": "m6g.12xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "64",
+    "gpu": "0",
+    "memory": "256Gi",
+    "name": "m6g.16xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "8",
+    "gpu": "0",
+    "memory": "32Gi",
+    "name": "m6g.2xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "16",
+    "gpu": "0",
+    "memory": "64Gi",
+    "name": "m6g.4xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "32",
+    "gpu": "0",
+    "memory": "128Gi",
+    "name": "m6g.8xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "2",
+    "gpu": "0",
+    "memory": "8Gi",
+    "name": "m6g.large"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "64",
+    "gpu": "0",
+    "memory": "256Gi",
+    "name": "m6g.metal"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "4",
+    "gpu": "0",
+    "memory": "16Gi",
+    "name": "m6g.xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "48",
+    "gpu": "0",
+    "memory": "192Gi",
+    "name": "m6gd.12xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "64",
+    "gpu": "0",
+    "memory": "256Gi",
+    "name": "m6gd.16xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "8",
+    "gpu": "0",
+    "memory": "32Gi",
+    "name": "m6gd.2xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "16",
+    "gpu": "0",
+    "memory": "64Gi",
+    "name": "m6gd.4xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "32",
+    "gpu": "0",
+    "memory": "128Gi",
+    "name": "m6gd.8xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "2",
+    "gpu": "0",
+    "memory": "8Gi",
+    "name": "m6gd.large"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "64",
+    "gpu": "0",
+    "memory": "256Gi",
+    "name": "m6gd.metal"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "4",
+    "gpu": "0",
+    "memory": "16Gi",
+    "name": "m6gd.xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "48",
+    "gpu": "0",
+    "memory": "192Gi",
+    "name": "m6i.12xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "64",
+    "gpu": "0",
+    "memory": "256Gi",
+    "name": "m6i.16xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "96",
+    "gpu": "0",
+    "memory": "384Gi",
+    "name": "m6i.24xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "8",
+    "gpu": "0",
+    "memory": "32Gi",
+    "name": "m6i.2xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "128",
+    "gpu": "0",
+    "memory": "512Gi",
+    "name": "m6i.32xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "16",
+    "gpu": "0",
+    "memory": "64Gi",
+    "name": "m6i.4xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "32",
+    "gpu": "0",
+    "memory": "128Gi",
+    "name": "m6i.8xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "2",
+    "gpu": "0",
+    "memory": "8Gi",
+    "name": "m6i.large"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "128",
+    "gpu": "0",
+    "memory": "512Gi",
+    "name": "m6i.metal"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "4",
+    "gpu": "0",
+    "memory": "16Gi",
+    "name": "m6i.xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "48",
+    "gpu": "0",
+    "memory": "192Gi",
+    "name": "m6id.12xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "64",
+    "gpu": "0",
+    "memory": "256Gi",
+    "name": "m6id.16xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "96",
+    "gpu": "0",
+    "memory": "384Gi",
+    "name": "m6id.24xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "8",
+    "gpu": "0",
+    "memory": "32Gi",
+    "name": "m6id.2xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "128",
+    "gpu": "0",
+    "memory": "512Gi",
+    "name": "m6id.32xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "16",
+    "gpu": "0",
+    "memory": "64Gi",
+    "name": "m6id.4xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "32",
+    "gpu": "0",
+    "memory": "128Gi",
+    "name": "m6id.8xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "2",
+    "gpu": "0",
+    "memory": "8Gi",
+    "name": "m6id.large"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "128",
+    "gpu": "0",
+    "memory": "512Gi",
+    "name": "m6id.metal"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "4",
+    "gpu": "0",
+    "memory": "16Gi",
+    "name": "m6id.xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "48",
+    "gpu": "0",
+    "memory": "192Gi",
+    "name": "m6idn.12xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "64",
+    "gpu": "0",
+    "memory": "256Gi",
+    "name": "m6idn.16xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "96",
+    "gpu": "0",
+    "memory": "384Gi",
+    "name": "m6idn.24xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "8",
+    "gpu": "0",
+    "memory": "32Gi",
+    "name": "m6idn.2xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "128",
+    "gpu": "0",
+    "memory": "512Gi",
+    "name": "m6idn.32xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "16",
+    "gpu": "0",
+    "memory": "64Gi",
+    "name": "m6idn.4xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "32",
+    "gpu": "0",
+    "memory": "128Gi",
+    "name": "m6idn.8xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "2",
+    "gpu": "0",
+    "memory": "8Gi",
+    "name": "m6idn.large"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "128",
+    "gpu": "0",
+    "memory": "512Gi",
+    "name": "m6idn.metal"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "4",
+    "gpu": "0",
+    "memory": "16Gi",
+    "name": "m6idn.xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "48",
+    "gpu": "0",
+    "memory": "192Gi",
+    "name": "m6in.12xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "64",
+    "gpu": "0",
+    "memory": "256Gi",
+    "name": "m6in.16xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "96",
+    "gpu": "0",
+    "memory": "384Gi",
+    "name": "m6in.24xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "8",
+    "gpu": "0",
+    "memory": "32Gi",
+    "name": "m6in.2xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "128",
+    "gpu": "0",
+    "memory": "512Gi",
+    "name": "m6in.32xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "16",
+    "gpu": "0",
+    "memory": "64Gi",
+    "name": "m6in.4xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "32",
+    "gpu": "0",
+    "memory": "128Gi",
+    "name": "m6in.8xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "2",
+    "gpu": "0",
+    "memory": "8Gi",
+    "name": "m6in.large"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "128",
+    "gpu": "0",
+    "memory": "512Gi",
+    "name": "m6in.metal"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "4",
+    "gpu": "0",
+    "memory": "16Gi",
+    "name": "m6in.xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "48",
+    "gpu": "0",
+    "memory": "192Gi",
+    "name": "m7a.12xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "64",
+    "gpu": "0",
+    "memory": "256Gi",
+    "name": "m7a.16xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "96",
+    "gpu": "0",
+    "memory": "384Gi",
+    "name": "m7a.24xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "8",
+    "gpu": "0",
+    "memory": "32Gi",
+    "name": "m7a.2xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "128",
+    "gpu": "0",
+    "memory": "512Gi",
+    "name": "m7a.32xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "192",
+    "gpu": "0",
+    "memory": "768Gi",
+    "name": "m7a.48xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "16",
+    "gpu": "0",
+    "memory": "64Gi",
+    "name": "m7a.4xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "32",
+    "gpu": "0",
+    "memory": "128Gi",
+    "name": "m7a.8xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "2",
+    "gpu": "0",
+    "memory": "8Gi",
+    "name": "m7a.large"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "192",
+    "gpu": "0",
+    "memory": "768Gi",
+    "name": "m7a.metal-48xl"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "4",
+    "gpu": "0",
+    "memory": "16Gi",
+    "name": "m7a.xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "48",
+    "gpu": "0",
+    "memory": "192Gi",
+    "name": "m7g.12xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "64",
+    "gpu": "0",
+    "memory": "256Gi",
+    "name": "m7g.16xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "8",
+    "gpu": "0",
+    "memory": "32Gi",
+    "name": "m7g.2xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "16",
+    "gpu": "0",
+    "memory": "64Gi",
+    "name": "m7g.4xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "32",
+    "gpu": "0",
+    "memory": "128Gi",
+    "name": "m7g.8xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "2",
+    "gpu": "0",
+    "memory": "8Gi",
+    "name": "m7g.large"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "64",
+    "gpu": "0",
+    "memory": "256Gi",
+    "name": "m7g.metal"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "4",
+    "gpu": "0",
+    "memory": "16Gi",
+    "name": "m7g.xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "48",
+    "gpu": "0",
+    "memory": "192Gi",
+    "name": "m7gd.12xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "64",
+    "gpu": "0",
+    "memory": "256Gi",
+    "name": "m7gd.16xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "8",
+    "gpu": "0",
+    "memory": "32Gi",
+    "name": "m7gd.2xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "16",
+    "gpu": "0",
+    "memory": "64Gi",
+    "name": "m7gd.4xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "32",
+    "gpu": "0",
+    "memory": "128Gi",
+    "name": "m7gd.8xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "2",
+    "gpu": "0",
+    "memory": "8Gi",
+    "name": "m7gd.large"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "64",
+    "gpu": "0",
+    "memory": "256Gi",
+    "name": "m7gd.metal"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "4",
+    "gpu": "0",
+    "memory": "16Gi",
+    "name": "m7gd.xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "48",
+    "gpu": "0",
+    "memory": "192Gi",
+    "name": "m7i-flex.12xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "64",
+    "gpu": "0",
+    "memory": "256Gi",
+    "name": "m7i-flex.16xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "8",
+    "gpu": "0",
+    "memory": "32Gi",
+    "name": "m7i-flex.2xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "16",
+    "gpu": "0",
+    "memory": "64Gi",
+    "name": "m7i-flex.4xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "32",
+    "gpu": "0",
+    "memory": "128Gi",
+    "name": "m7i-flex.8xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "2",
+    "gpu": "0",
+    "memory": "8Gi",
+    "name": "m7i-flex.large"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "4",
+    "gpu": "0",
+    "memory": "16Gi",
+    "name": "m7i-flex.xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "48",
+    "gpu": "0",
+    "memory": "192Gi",
+    "name": "m7i.12xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "64",
+    "gpu": "0",
+    "memory": "256Gi",
+    "name": "m7i.16xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "96",
+    "gpu": "0",
+    "memory": "384Gi",
+    "name": "m7i.24xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "8",
+    "gpu": "0",
+    "memory": "32Gi",
+    "name": "m7i.2xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "192",
+    "gpu": "0",
+    "memory": "768Gi",
+    "name": "m7i.48xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "16",
+    "gpu": "0",
+    "memory": "64Gi",
+    "name": "m7i.4xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "32",
+    "gpu": "0",
+    "memory": "128Gi",
+    "name": "m7i.8xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "2",
+    "gpu": "0",
+    "memory": "8Gi",
+    "name": "m7i.large"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "96",
+    "gpu": "0",
+    "memory": "384Gi",
+    "name": "m7i.metal-24xl"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "192",
+    "gpu": "0",
+    "memory": "768Gi",
+    "name": "m7i.metal-48xl"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "4",
+    "gpu": "0",
+    "memory": "16Gi",
+    "name": "m7i.xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "48",
+    "gpu": "0",
+    "memory": "192Gi",
+    "name": "m8a.12xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "64",
+    "gpu": "0",
+    "memory": "256Gi",
+    "name": "m8a.16xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "96",
+    "gpu": "0",
+    "memory": "384Gi",
+    "name": "m8a.24xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "8",
+    "gpu": "0",
+    "memory": "32Gi",
+    "name": "m8a.2xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "192",
+    "gpu": "0",
+    "memory": "768Gi",
+    "name": "m8a.48xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "16",
+    "gpu": "0",
+    "memory": "64Gi",
+    "name": "m8a.4xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "32",
+    "gpu": "0",
+    "memory": "128Gi",
+    "name": "m8a.8xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "2",
+    "gpu": "0",
+    "memory": "8Gi",
+    "name": "m8a.large"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "96",
+    "gpu": "0",
+    "memory": "384Gi",
+    "name": "m8a.metal-24xl"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "192",
+    "gpu": "0",
+    "memory": "768Gi",
+    "name": "m8a.metal-48xl"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "4",
+    "gpu": "0",
+    "memory": "16Gi",
+    "name": "m8a.xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "48",
+    "gpu": "0",
+    "memory": "192Gi",
+    "name": "m8azn.12xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "96",
+    "gpu": "0",
+    "memory": "384Gi",
+    "name": "m8azn.24xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "12",
+    "gpu": "0",
+    "memory": "48Gi",
+    "name": "m8azn.3xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "24",
+    "gpu": "0",
+    "memory": "96Gi",
+    "name": "m8azn.6xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "2",
+    "gpu": "0",
+    "memory": "8Gi",
+    "name": "m8azn.large"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "48",
+    "gpu": "0",
+    "memory": "192Gi",
+    "name": "m8azn.metal-12xl"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "96",
+    "gpu": "0",
+    "memory": "384Gi",
+    "name": "m8azn.metal-24xl"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "4",
+    "gpu": "0",
+    "memory": "16Gi",
+    "name": "m8azn.xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "48",
+    "gpu": "0",
+    "memory": "192Gi",
+    "name": "m8g.12xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "64",
+    "gpu": "0",
+    "memory": "256Gi",
+    "name": "m8g.16xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "96",
+    "gpu": "0",
+    "memory": "384Gi",
+    "name": "m8g.24xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "8",
+    "gpu": "0",
+    "memory": "32Gi",
+    "name": "m8g.2xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "192",
+    "gpu": "0",
+    "memory": "768Gi",
+    "name": "m8g.48xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "16",
+    "gpu": "0",
+    "memory": "64Gi",
+    "name": "m8g.4xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "32",
+    "gpu": "0",
+    "memory": "128Gi",
+    "name": "m8g.8xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "2",
+    "gpu": "0",
+    "memory": "8Gi",
+    "name": "m8g.large"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "96",
+    "gpu": "0",
+    "memory": "384Gi",
+    "name": "m8g.metal-24xl"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "192",
+    "gpu": "0",
+    "memory": "768Gi",
+    "name": "m8g.metal-48xl"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "4",
+    "gpu": "0",
+    "memory": "16Gi",
+    "name": "m8g.xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "48",
+    "gpu": "0",
+    "memory": "192Gi",
+    "name": "m8gb.12xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "64",
+    "gpu": "0",
+    "memory": "256Gi",
+    "name": "m8gb.16xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "96",
+    "gpu": "0",
+    "memory": "384Gi",
+    "name": "m8gb.24xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "8",
+    "gpu": "0",
+    "memory": "32Gi",
+    "name": "m8gb.2xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "192",
+    "gpu": "0",
+    "memory": "768Gi",
+    "name": "m8gb.48xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "16",
+    "gpu": "0",
+    "memory": "64Gi",
+    "name": "m8gb.4xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "32",
+    "gpu": "0",
+    "memory": "128Gi",
+    "name": "m8gb.8xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "2",
+    "gpu": "0",
+    "memory": "8Gi",
+    "name": "m8gb.large"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "96",
+    "gpu": "0",
+    "memory": "384Gi",
+    "name": "m8gb.metal-24xl"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "192",
+    "gpu": "0",
+    "memory": "768Gi",
+    "name": "m8gb.metal-48xl"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "4",
+    "gpu": "0",
+    "memory": "16Gi",
+    "name": "m8gb.xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "48",
+    "gpu": "0",
+    "memory": "192Gi",
+    "name": "m8gd.12xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "64",
+    "gpu": "0",
+    "memory": "256Gi",
+    "name": "m8gd.16xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "96",
+    "gpu": "0",
+    "memory": "384Gi",
+    "name": "m8gd.24xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "8",
+    "gpu": "0",
+    "memory": "32Gi",
+    "name": "m8gd.2xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "192",
+    "gpu": "0",
+    "memory": "768Gi",
+    "name": "m8gd.48xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "16",
+    "gpu": "0",
+    "memory": "64Gi",
+    "name": "m8gd.4xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "32",
+    "gpu": "0",
+    "memory": "128Gi",
+    "name": "m8gd.8xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "2",
+    "gpu": "0",
+    "memory": "8Gi",
+    "name": "m8gd.large"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "96",
+    "gpu": "0",
+    "memory": "384Gi",
+    "name": "m8gd.metal-24xl"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "192",
+    "gpu": "0",
+    "memory": "768Gi",
+    "name": "m8gd.metal-48xl"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "4",
+    "gpu": "0",
+    "memory": "16Gi",
+    "name": "m8gd.xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "48",
+    "gpu": "0",
+    "memory": "192Gi",
+    "name": "m8gn.12xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "64",
+    "gpu": "0",
+    "memory": "256Gi",
+    "name": "m8gn.16xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "96",
+    "gpu": "0",
+    "memory": "384Gi",
+    "name": "m8gn.24xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "8",
+    "gpu": "0",
+    "memory": "32Gi",
+    "name": "m8gn.2xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "192",
+    "gpu": "0",
+    "memory": "768Gi",
+    "name": "m8gn.48xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "16",
+    "gpu": "0",
+    "memory": "64Gi",
+    "name": "m8gn.4xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "32",
+    "gpu": "0",
+    "memory": "128Gi",
+    "name": "m8gn.8xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "2",
+    "gpu": "0",
+    "memory": "8Gi",
+    "name": "m8gn.large"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "96",
+    "gpu": "0",
+    "memory": "384Gi",
+    "name": "m8gn.metal-24xl"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "192",
+    "gpu": "0",
+    "memory": "768Gi",
+    "name": "m8gn.metal-48xl"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "4",
+    "gpu": "0",
+    "memory": "16Gi",
+    "name": "m8gn.xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "48",
+    "gpu": "0",
+    "memory": "192Gi",
+    "name": "m8i-flex.12xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "64",
+    "gpu": "0",
+    "memory": "256Gi",
+    "name": "m8i-flex.16xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "8",
+    "gpu": "0",
+    "memory": "32Gi",
+    "name": "m8i-flex.2xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "16",
+    "gpu": "0",
+    "memory": "64Gi",
+    "name": "m8i-flex.4xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "32",
+    "gpu": "0",
+    "memory": "128Gi",
+    "name": "m8i-flex.8xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "2",
+    "gpu": "0",
+    "memory": "8Gi",
+    "name": "m8i-flex.large"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "4",
+    "gpu": "0",
+    "memory": "16Gi",
+    "name": "m8i-flex.xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "48",
+    "gpu": "0",
+    "memory": "192Gi",
+    "name": "m8i.12xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "64",
+    "gpu": "0",
+    "memory": "256Gi",
+    "name": "m8i.16xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "96",
+    "gpu": "0",
+    "memory": "384Gi",
+    "name": "m8i.24xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "8",
+    "gpu": "0",
+    "memory": "32Gi",
+    "name": "m8i.2xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "128",
+    "gpu": "0",
+    "memory": "512Gi",
+    "name": "m8i.32xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "192",
+    "gpu": "0",
+    "memory": "768Gi",
+    "name": "m8i.48xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "16",
+    "gpu": "0",
+    "memory": "64Gi",
+    "name": "m8i.4xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "32",
+    "gpu": "0",
+    "memory": "128Gi",
+    "name": "m8i.8xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "384",
+    "gpu": "0",
+    "memory": "1536Gi",
+    "name": "m8i.96xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "2",
+    "gpu": "0",
+    "memory": "8Gi",
+    "name": "m8i.large"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "192",
+    "gpu": "0",
+    "memory": "768Gi",
+    "name": "m8i.metal-48xl"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "384",
+    "gpu": "0",
+    "memory": "1536Gi",
+    "name": "m8i.metal-96xl"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "4",
+    "gpu": "0",
+    "memory": "16Gi",
+    "name": "m8i.xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "48",
+    "gpu": "0",
+    "memory": "192Gi",
+    "name": "m8ib.12xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "64",
+    "gpu": "0",
+    "memory": "256Gi",
+    "name": "m8ib.16xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "96",
+    "gpu": "0",
+    "memory": "384Gi",
+    "name": "m8ib.24xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "8",
+    "gpu": "0",
+    "memory": "32Gi",
+    "name": "m8ib.2xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "128",
+    "gpu": "0",
+    "memory": "512Gi",
+    "name": "m8ib.32xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "192",
+    "gpu": "0",
+    "memory": "768Gi",
+    "name": "m8ib.48xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "16",
+    "gpu": "0",
+    "memory": "64Gi",
+    "name": "m8ib.4xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "32",
+    "gpu": "0",
+    "memory": "128Gi",
+    "name": "m8ib.8xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "384",
+    "gpu": "0",
+    "memory": "1536Gi",
+    "name": "m8ib.96xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "2",
+    "gpu": "0",
+    "memory": "8Gi",
+    "name": "m8ib.large"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "192",
+    "gpu": "0",
+    "memory": "768Gi",
+    "name": "m8ib.metal-48xl"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "384",
+    "gpu": "0",
+    "memory": "1536Gi",
+    "name": "m8ib.metal-96xl"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "4",
+    "gpu": "0",
+    "memory": "16Gi",
+    "name": "m8ib.xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "48",
+    "gpu": "0",
+    "memory": "192Gi",
+    "name": "m8id.12xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "64",
+    "gpu": "0",
+    "memory": "256Gi",
+    "name": "m8id.16xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "96",
+    "gpu": "0",
+    "memory": "384Gi",
+    "name": "m8id.24xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "8",
+    "gpu": "0",
+    "memory": "32Gi",
+    "name": "m8id.2xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "128",
+    "gpu": "0",
+    "memory": "512Gi",
+    "name": "m8id.32xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "192",
+    "gpu": "0",
+    "memory": "768Gi",
+    "name": "m8id.48xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "16",
+    "gpu": "0",
+    "memory": "64Gi",
+    "name": "m8id.4xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "32",
+    "gpu": "0",
+    "memory": "128Gi",
+    "name": "m8id.8xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "384",
+    "gpu": "0",
+    "memory": "1536Gi",
+    "name": "m8id.96xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "2",
+    "gpu": "0",
+    "memory": "8Gi",
+    "name": "m8id.large"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "192",
+    "gpu": "0",
+    "memory": "768Gi",
+    "name": "m8id.metal-48xl"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "384",
+    "gpu": "0",
+    "memory": "1536Gi",
+    "name": "m8id.metal-96xl"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "4",
+    "gpu": "0",
+    "memory": "16Gi",
+    "name": "m8id.xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "48",
+    "gpu": "0",
+    "memory": "192Gi",
+    "name": "m8idb.12xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "64",
+    "gpu": "0",
+    "memory": "256Gi",
+    "name": "m8idb.16xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "96",
+    "gpu": "0",
+    "memory": "384Gi",
+    "name": "m8idb.24xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "8",
+    "gpu": "0",
+    "memory": "32Gi",
+    "name": "m8idb.2xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "128",
+    "gpu": "0",
+    "memory": "512Gi",
+    "name": "m8idb.32xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "192",
+    "gpu": "0",
+    "memory": "768Gi",
+    "name": "m8idb.48xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "16",
+    "gpu": "0",
+    "memory": "64Gi",
+    "name": "m8idb.4xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "32",
+    "gpu": "0",
+    "memory": "128Gi",
+    "name": "m8idb.8xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "384",
+    "gpu": "0",
+    "memory": "1536Gi",
+    "name": "m8idb.96xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "2",
+    "gpu": "0",
+    "memory": "8Gi",
+    "name": "m8idb.large"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "192",
+    "gpu": "0",
+    "memory": "768Gi",
+    "name": "m8idb.metal-48xl"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "384",
+    "gpu": "0",
+    "memory": "1536Gi",
+    "name": "m8idb.metal-96xl"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "4",
+    "gpu": "0",
+    "memory": "16Gi",
+    "name": "m8idb.xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "48",
+    "gpu": "0",
+    "memory": "192Gi",
+    "name": "m8idn.12xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "64",
+    "gpu": "0",
+    "memory": "256Gi",
+    "name": "m8idn.16xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "96",
+    "gpu": "0",
+    "memory": "384Gi",
+    "name": "m8idn.24xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "8",
+    "gpu": "0",
+    "memory": "32Gi",
+    "name": "m8idn.2xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "128",
+    "gpu": "0",
+    "memory": "512Gi",
+    "name": "m8idn.32xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "192",
+    "gpu": "0",
+    "memory": "768Gi",
+    "name": "m8idn.48xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "16",
+    "gpu": "0",
+    "memory": "64Gi",
+    "name": "m8idn.4xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "32",
+    "gpu": "0",
+    "memory": "128Gi",
+    "name": "m8idn.8xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "384",
+    "gpu": "0",
+    "memory": "1536Gi",
+    "name": "m8idn.96xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "2",
+    "gpu": "0",
+    "memory": "8Gi",
+    "name": "m8idn.large"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "192",
+    "gpu": "0",
+    "memory": "768Gi",
+    "name": "m8idn.metal-48xl"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "384",
+    "gpu": "0",
+    "memory": "1536Gi",
+    "name": "m8idn.metal-96xl"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "4",
+    "gpu": "0",
+    "memory": "16Gi",
+    "name": "m8idn.xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "48",
+    "gpu": "0",
+    "memory": "192Gi",
+    "name": "m8in.12xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "64",
+    "gpu": "0",
+    "memory": "256Gi",
+    "name": "m8in.16xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "96",
+    "gpu": "0",
+    "memory": "384Gi",
+    "name": "m8in.24xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "8",
+    "gpu": "0",
+    "memory": "32Gi",
+    "name": "m8in.2xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "128",
+    "gpu": "0",
+    "memory": "512Gi",
+    "name": "m8in.32xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "192",
+    "gpu": "0",
+    "memory": "768Gi",
+    "name": "m8in.48xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "16",
+    "gpu": "0",
+    "memory": "64Gi",
+    "name": "m8in.4xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "32",
+    "gpu": "0",
+    "memory": "128Gi",
+    "name": "m8in.8xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "384",
+    "gpu": "0",
+    "memory": "1536Gi",
+    "name": "m8in.96xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "2",
+    "gpu": "0",
+    "memory": "8Gi",
+    "name": "m8in.large"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "192",
+    "gpu": "0",
+    "memory": "768Gi",
+    "name": "m8in.metal-48xl"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "384",
+    "gpu": "0",
+    "memory": "1536Gi",
+    "name": "m8in.metal-96xl"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "4",
+    "gpu": "0",
+    "memory": "16Gi",
+    "name": "m8in.xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "48",
+    "gpu": "0",
+    "memory": "192Gi",
+    "name": "m8ine.12xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "8",
+    "gpu": "0",
+    "memory": "32Gi",
+    "name": "m8ine.2xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "16",
+    "gpu": "0",
+    "memory": "64Gi",
+    "name": "m8ine.4xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "32",
+    "gpu": "0",
+    "memory": "128Gi",
+    "name": "m8ine.8xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "2",
+    "gpu": "0",
+    "memory": "8Gi",
+    "name": "m8ine.large"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "4",
+    "gpu": "0",
+    "memory": "16Gi",
+    "name": "m8ine.xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "48",
+    "gpu": "0",
+    "memory": "192Gi",
+    "name": "m9g.12xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "64",
+    "gpu": "0",
+    "memory": "256Gi",
+    "name": "m9g.16xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "96",
+    "gpu": "0",
+    "memory": "384Gi",
+    "name": "m9g.24xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "8",
+    "gpu": "0",
+    "memory": "32Gi",
+    "name": "m9g.2xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "192",
+    "gpu": "0",
+    "memory": "768Gi",
+    "name": "m9g.48xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "16",
+    "gpu": "0",
+    "memory": "64Gi",
+    "name": "m9g.4xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "32",
+    "gpu": "0",
+    "memory": "128Gi",
+    "name": "m9g.8xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "2",
+    "gpu": "0",
+    "memory": "8Gi",
+    "name": "m9g.large"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "192",
+    "gpu": "0",
+    "memory": "768Gi",
+    "name": "m9g.metal-48xl"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "4",
+    "gpu": "0",
+    "memory": "16Gi",
+    "name": "m9g.xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "48",
+    "gpu": "0",
+    "memory": "192Gi",
+    "name": "m9gd.12xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "64",
+    "gpu": "0",
+    "memory": "256Gi",
+    "name": "m9gd.16xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "96",
+    "gpu": "0",
+    "memory": "384Gi",
+    "name": "m9gd.24xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "8",
+    "gpu": "0",
+    "memory": "32Gi",
+    "name": "m9gd.2xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "192",
+    "gpu": "0",
+    "memory": "768Gi",
+    "name": "m9gd.48xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "16",
+    "gpu": "0",
+    "memory": "64Gi",
+    "name": "m9gd.4xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "32",
+    "gpu": "0",
+    "memory": "128Gi",
+    "name": "m9gd.8xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "2",
+    "gpu": "0",
+    "memory": "8Gi",
+    "name": "m9gd.large"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "192",
+    "gpu": "0",
+    "memory": "768Gi",
+    "name": "m9gd.metal-48xl"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "4",
+    "gpu": "0",
+    "memory": "16Gi",
+    "name": "m9gd.xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "28",
+    "gpu": "0",
+    "memory": "256Gi",
+    "name": "mac-m3ultra.metal"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "10",
+    "gpu": "0",
+    "memory": "24Gi",
+    "name": "mac-m4.metal"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "16",
+    "gpu": "0",
+    "memory": "128Gi",
+    "name": "mac-m4max.metal"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "14",
+    "gpu": "0",
+    "memory": "48Gi",
+    "name": "mac-m4pro.metal"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "12",
+    "gpu": "0",
+    "memory": "32Gi",
+    "name": "mac1.metal"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "20",
+    "gpu": "0",
+    "memory": "128Gi",
+    "name": "mac2-m1ultra.metal"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "8",
+    "gpu": "0",
+    "memory": "24Gi",
+    "name": "mac2-m2.metal"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "12",
+    "gpu": "0",
+    "memory": "32Gi",
+    "name": "mac2-m2pro.metal"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "8",
+    "gpu": "0",
+    "memory": "16Gi",
+    "name": "mac2.metal"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "96",
+    "gpu": "8",
+    "memory": "768Gi",
+    "name": "p3dn.24xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "96",
+    "gpu": "8",
+    "memory": "1152Gi",
+    "name": "p4d.24xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "96",
+    "gpu": "8",
+    "memory": "1152Gi",
+    "name": "p4de.24xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "192",
+    "gpu": "8",
+    "memory": "2Ti",
+    "name": "p5.48xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "16",
+    "gpu": "1",
+    "memory": "256Gi",
+    "name": "p5.4xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "192",
+    "gpu": "8",
+    "memory": "2Ti",
+    "name": "p5e.48xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "192",
+    "gpu": "8",
+    "memory": "2Ti",
+    "name": "p5en.48xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "192",
+    "gpu": "8",
+    "memory": "2Ti",
+    "name": "p6-b200.48xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "192",
+    "gpu": "8",
+    "memory": "4Ti",
+    "name": "p6-b300.48xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "8",
+    "gpu": "0",
+    "memory": "61Gi",
+    "name": "r3.2xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "16",
+    "gpu": "0",
+    "memory": "122Gi",
+    "name": "r3.4xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "32",
+    "gpu": "0",
+    "memory": "244Gi",
+    "name": "r3.8xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "2",
+    "gpu": "0",
+    "memory": "15Gi",
+    "name": "r3.large"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "4",
+    "gpu": "0",
+    "memory": "30Gi",
+    "name": "r3.xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "64",
+    "gpu": "0",
+    "memory": "488Gi",
+    "name": "r4.16xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "8",
+    "gpu": "0",
+    "memory": "61Gi",
+    "name": "r4.2xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "16",
+    "gpu": "0",
+    "memory": "122Gi",
+    "name": "r4.4xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "32",
+    "gpu": "0",
+    "memory": "244Gi",
+    "name": "r4.8xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "2",
+    "gpu": "0",
+    "memory": "15Gi",
+    "name": "r4.large"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "4",
+    "gpu": "0",
+    "memory": "30Gi",
+    "name": "r4.xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "48",
+    "gpu": "0",
+    "memory": "384Gi",
+    "name": "r5.12xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "64",
+    "gpu": "0",
+    "memory": "512Gi",
+    "name": "r5.16xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "96",
+    "gpu": "0",
+    "memory": "768Gi",
+    "name": "r5.24xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "8",
+    "gpu": "0",
+    "memory": "64Gi",
+    "name": "r5.2xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "16",
+    "gpu": "0",
+    "memory": "128Gi",
+    "name": "r5.4xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "32",
+    "gpu": "0",
+    "memory": "256Gi",
+    "name": "r5.8xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "2",
+    "gpu": "0",
+    "memory": "16Gi",
+    "name": "r5.large"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "96",
+    "gpu": "0",
+    "memory": "768Gi",
+    "name": "r5.metal"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "4",
+    "gpu": "0",
+    "memory": "32Gi",
+    "name": "r5.xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "48",
+    "gpu": "0",
+    "memory": "384Gi",
+    "name": "r5a.12xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "64",
+    "gpu": "0",
+    "memory": "512Gi",
+    "name": "r5a.16xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "96",
+    "gpu": "0",
+    "memory": "768Gi",
+    "name": "r5a.24xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "8",
+    "gpu": "0",
+    "memory": "64Gi",
+    "name": "r5a.2xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "16",
+    "gpu": "0",
+    "memory": "128Gi",
+    "name": "r5a.4xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "32",
+    "gpu": "0",
+    "memory": "256Gi",
+    "name": "r5a.8xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "2",
+    "gpu": "0",
+    "memory": "16Gi",
+    "name": "r5a.large"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "4",
+    "gpu": "0",
+    "memory": "32Gi",
+    "name": "r5a.xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "48",
+    "gpu": "0",
+    "memory": "384Gi",
+    "name": "r5ad.12xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "64",
+    "gpu": "0",
+    "memory": "512Gi",
+    "name": "r5ad.16xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "96",
+    "gpu": "0",
+    "memory": "768Gi",
+    "name": "r5ad.24xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "8",
+    "gpu": "0",
+    "memory": "64Gi",
+    "name": "r5ad.2xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "16",
+    "gpu": "0",
+    "memory": "128Gi",
+    "name": "r5ad.4xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "32",
+    "gpu": "0",
+    "memory": "256Gi",
+    "name": "r5ad.8xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "2",
+    "gpu": "0",
+    "memory": "16Gi",
+    "name": "r5ad.large"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "4",
+    "gpu": "0",
+    "memory": "32Gi",
+    "name": "r5ad.xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "48",
+    "gpu": "0",
+    "memory": "384Gi",
+    "name": "r5b.12xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "64",
+    "gpu": "0",
+    "memory": "512Gi",
+    "name": "r5b.16xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "96",
+    "gpu": "0",
+    "memory": "768Gi",
+    "name": "r5b.24xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "8",
+    "gpu": "0",
+    "memory": "64Gi",
+    "name": "r5b.2xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "16",
+    "gpu": "0",
+    "memory": "128Gi",
+    "name": "r5b.4xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "32",
+    "gpu": "0",
+    "memory": "256Gi",
+    "name": "r5b.8xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "2",
+    "gpu": "0",
+    "memory": "16Gi",
+    "name": "r5b.large"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "96",
+    "gpu": "0",
+    "memory": "768Gi",
+    "name": "r5b.metal"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "4",
+    "gpu": "0",
+    "memory": "32Gi",
+    "name": "r5b.xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "48",
+    "gpu": "0",
+    "memory": "384Gi",
+    "name": "r5d.12xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "64",
+    "gpu": "0",
+    "memory": "512Gi",
+    "name": "r5d.16xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "96",
+    "gpu": "0",
+    "memory": "768Gi",
+    "name": "r5d.24xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "8",
+    "gpu": "0",
+    "memory": "64Gi",
+    "name": "r5d.2xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "16",
+    "gpu": "0",
+    "memory": "128Gi",
+    "name": "r5d.4xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "32",
+    "gpu": "0",
+    "memory": "256Gi",
+    "name": "r5d.8xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "2",
+    "gpu": "0",
+    "memory": "16Gi",
+    "name": "r5d.large"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "96",
+    "gpu": "0",
+    "memory": "768Gi",
+    "name": "r5d.metal"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "4",
+    "gpu": "0",
+    "memory": "32Gi",
+    "name": "r5d.xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "48",
+    "gpu": "0",
+    "memory": "384Gi",
+    "name": "r5dn.12xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "64",
+    "gpu": "0",
+    "memory": "512Gi",
+    "name": "r5dn.16xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "96",
+    "gpu": "0",
+    "memory": "768Gi",
+    "name": "r5dn.24xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "8",
+    "gpu": "0",
+    "memory": "64Gi",
+    "name": "r5dn.2xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "16",
+    "gpu": "0",
+    "memory": "128Gi",
+    "name": "r5dn.4xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "32",
+    "gpu": "0",
+    "memory": "256Gi",
+    "name": "r5dn.8xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "2",
+    "gpu": "0",
+    "memory": "16Gi",
+    "name": "r5dn.large"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "96",
+    "gpu": "0",
+    "memory": "768Gi",
+    "name": "r5dn.metal"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "4",
+    "gpu": "0",
+    "memory": "32Gi",
+    "name": "r5dn.xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "48",
+    "gpu": "0",
+    "memory": "384Gi",
+    "name": "r5n.12xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "64",
+    "gpu": "0",
+    "memory": "512Gi",
+    "name": "r5n.16xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "96",
+    "gpu": "0",
+    "memory": "768Gi",
+    "name": "r5n.24xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "8",
+    "gpu": "0",
+    "memory": "64Gi",
+    "name": "r5n.2xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "16",
+    "gpu": "0",
+    "memory": "128Gi",
+    "name": "r5n.4xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "32",
+    "gpu": "0",
+    "memory": "256Gi",
+    "name": "r5n.8xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "2",
+    "gpu": "0",
+    "memory": "16Gi",
+    "name": "r5n.large"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "96",
+    "gpu": "0",
+    "memory": "768Gi",
+    "name": "r5n.metal"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "4",
+    "gpu": "0",
+    "memory": "32Gi",
+    "name": "r5n.xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "48",
+    "gpu": "0",
+    "memory": "384Gi",
+    "name": "r6a.12xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "64",
+    "gpu": "0",
+    "memory": "512Gi",
+    "name": "r6a.16xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "96",
+    "gpu": "0",
+    "memory": "768Gi",
+    "name": "r6a.24xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "8",
+    "gpu": "0",
+    "memory": "64Gi",
+    "name": "r6a.2xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "128",
+    "gpu": "0",
+    "memory": "1Ti",
+    "name": "r6a.32xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "192",
+    "gpu": "0",
+    "memory": "1536Gi",
+    "name": "r6a.48xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "16",
+    "gpu": "0",
+    "memory": "128Gi",
+    "name": "r6a.4xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "32",
+    "gpu": "0",
+    "memory": "256Gi",
+    "name": "r6a.8xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "2",
+    "gpu": "0",
+    "memory": "16Gi",
+    "name": "r6a.large"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "192",
+    "gpu": "0",
+    "memory": "1536Gi",
+    "name": "r6a.metal"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "4",
+    "gpu": "0",
+    "memory": "32Gi",
+    "name": "r6a.xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "48",
+    "gpu": "0",
+    "memory": "384Gi",
+    "name": "r6g.12xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "64",
+    "gpu": "0",
+    "memory": "512Gi",
+    "name": "r6g.16xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "8",
+    "gpu": "0",
+    "memory": "64Gi",
+    "name": "r6g.2xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "16",
+    "gpu": "0",
+    "memory": "128Gi",
+    "name": "r6g.4xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "32",
+    "gpu": "0",
+    "memory": "256Gi",
+    "name": "r6g.8xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "2",
+    "gpu": "0",
+    "memory": "16Gi",
+    "name": "r6g.large"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "64",
+    "gpu": "0",
+    "memory": "512Gi",
+    "name": "r6g.metal"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "4",
+    "gpu": "0",
+    "memory": "32Gi",
+    "name": "r6g.xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "48",
+    "gpu": "0",
+    "memory": "384Gi",
+    "name": "r6gd.12xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "64",
+    "gpu": "0",
+    "memory": "512Gi",
+    "name": "r6gd.16xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "8",
+    "gpu": "0",
+    "memory": "64Gi",
+    "name": "r6gd.2xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "16",
+    "gpu": "0",
+    "memory": "128Gi",
+    "name": "r6gd.4xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "32",
+    "gpu": "0",
+    "memory": "256Gi",
+    "name": "r6gd.8xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "2",
+    "gpu": "0",
+    "memory": "16Gi",
+    "name": "r6gd.large"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "64",
+    "gpu": "0",
+    "memory": "512Gi",
+    "name": "r6gd.metal"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "4",
+    "gpu": "0",
+    "memory": "32Gi",
+    "name": "r6gd.xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "48",
+    "gpu": "0",
+    "memory": "384Gi",
+    "name": "r6i.12xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "64",
+    "gpu": "0",
+    "memory": "512Gi",
+    "name": "r6i.16xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "96",
+    "gpu": "0",
+    "memory": "768Gi",
+    "name": "r6i.24xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "8",
+    "gpu": "0",
+    "memory": "64Gi",
+    "name": "r6i.2xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "128",
+    "gpu": "0",
+    "memory": "1Ti",
+    "name": "r6i.32xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "16",
+    "gpu": "0",
+    "memory": "128Gi",
+    "name": "r6i.4xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "32",
+    "gpu": "0",
+    "memory": "256Gi",
+    "name": "r6i.8xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "2",
+    "gpu": "0",
+    "memory": "16Gi",
+    "name": "r6i.large"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "128",
+    "gpu": "0",
+    "memory": "1Ti",
+    "name": "r6i.metal"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "4",
+    "gpu": "0",
+    "memory": "32Gi",
+    "name": "r6i.xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "48",
+    "gpu": "0",
+    "memory": "384Gi",
+    "name": "r6id.12xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "64",
+    "gpu": "0",
+    "memory": "512Gi",
+    "name": "r6id.16xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "96",
+    "gpu": "0",
+    "memory": "768Gi",
+    "name": "r6id.24xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "8",
+    "gpu": "0",
+    "memory": "64Gi",
+    "name": "r6id.2xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "128",
+    "gpu": "0",
+    "memory": "1Ti",
+    "name": "r6id.32xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "16",
+    "gpu": "0",
+    "memory": "128Gi",
+    "name": "r6id.4xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "32",
+    "gpu": "0",
+    "memory": "256Gi",
+    "name": "r6id.8xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "2",
+    "gpu": "0",
+    "memory": "16Gi",
+    "name": "r6id.large"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "128",
+    "gpu": "0",
+    "memory": "1Ti",
+    "name": "r6id.metal"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "4",
+    "gpu": "0",
+    "memory": "32Gi",
+    "name": "r6id.xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "48",
+    "gpu": "0",
+    "memory": "384Gi",
+    "name": "r6idn.12xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "64",
+    "gpu": "0",
+    "memory": "512Gi",
+    "name": "r6idn.16xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "96",
+    "gpu": "0",
+    "memory": "768Gi",
+    "name": "r6idn.24xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "8",
+    "gpu": "0",
+    "memory": "64Gi",
+    "name": "r6idn.2xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "128",
+    "gpu": "0",
+    "memory": "1Ti",
+    "name": "r6idn.32xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "16",
+    "gpu": "0",
+    "memory": "128Gi",
+    "name": "r6idn.4xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "32",
+    "gpu": "0",
+    "memory": "256Gi",
+    "name": "r6idn.8xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "2",
+    "gpu": "0",
+    "memory": "16Gi",
+    "name": "r6idn.large"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "128",
+    "gpu": "0",
+    "memory": "1Ti",
+    "name": "r6idn.metal"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "4",
+    "gpu": "0",
+    "memory": "32Gi",
+    "name": "r6idn.xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "48",
+    "gpu": "0",
+    "memory": "384Gi",
+    "name": "r6in.12xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "64",
+    "gpu": "0",
+    "memory": "512Gi",
+    "name": "r6in.16xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "96",
+    "gpu": "0",
+    "memory": "768Gi",
+    "name": "r6in.24xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "8",
+    "gpu": "0",
+    "memory": "64Gi",
+    "name": "r6in.2xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "128",
+    "gpu": "0",
+    "memory": "1Ti",
+    "name": "r6in.32xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "16",
+    "gpu": "0",
+    "memory": "128Gi",
+    "name": "r6in.4xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "32",
+    "gpu": "0",
+    "memory": "256Gi",
+    "name": "r6in.8xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "2",
+    "gpu": "0",
+    "memory": "16Gi",
+    "name": "r6in.large"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "128",
+    "gpu": "0",
+    "memory": "1Ti",
+    "name": "r6in.metal"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "4",
+    "gpu": "0",
+    "memory": "32Gi",
+    "name": "r6in.xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "48",
+    "gpu": "0",
+    "memory": "384Gi",
+    "name": "r7a.12xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "64",
+    "gpu": "0",
+    "memory": "512Gi",
+    "name": "r7a.16xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "96",
+    "gpu": "0",
+    "memory": "768Gi",
+    "name": "r7a.24xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "8",
+    "gpu": "0",
+    "memory": "64Gi",
+    "name": "r7a.2xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "128",
+    "gpu": "0",
+    "memory": "1Ti",
+    "name": "r7a.32xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "192",
+    "gpu": "0",
+    "memory": "1536Gi",
+    "name": "r7a.48xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "16",
+    "gpu": "0",
+    "memory": "128Gi",
+    "name": "r7a.4xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "32",
+    "gpu": "0",
+    "memory": "256Gi",
+    "name": "r7a.8xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "2",
+    "gpu": "0",
+    "memory": "16Gi",
+    "name": "r7a.large"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "192",
+    "gpu": "0",
+    "memory": "1536Gi",
+    "name": "r7a.metal-48xl"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "4",
+    "gpu": "0",
+    "memory": "32Gi",
+    "name": "r7a.xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "48",
+    "gpu": "0",
+    "memory": "384Gi",
+    "name": "r7g.12xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "64",
+    "gpu": "0",
+    "memory": "512Gi",
+    "name": "r7g.16xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "8",
+    "gpu": "0",
+    "memory": "64Gi",
+    "name": "r7g.2xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "16",
+    "gpu": "0",
+    "memory": "128Gi",
+    "name": "r7g.4xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "32",
+    "gpu": "0",
+    "memory": "256Gi",
+    "name": "r7g.8xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "2",
+    "gpu": "0",
+    "memory": "16Gi",
+    "name": "r7g.large"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "64",
+    "gpu": "0",
+    "memory": "512Gi",
+    "name": "r7g.metal"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "4",
+    "gpu": "0",
+    "memory": "32Gi",
+    "name": "r7g.xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "48",
+    "gpu": "0",
+    "memory": "384Gi",
+    "name": "r7gd.12xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "64",
+    "gpu": "0",
+    "memory": "512Gi",
+    "name": "r7gd.16xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "8",
+    "gpu": "0",
+    "memory": "64Gi",
+    "name": "r7gd.2xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "16",
+    "gpu": "0",
+    "memory": "128Gi",
+    "name": "r7gd.4xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "32",
+    "gpu": "0",
+    "memory": "256Gi",
+    "name": "r7gd.8xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "2",
+    "gpu": "0",
+    "memory": "16Gi",
+    "name": "r7gd.large"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "64",
+    "gpu": "0",
+    "memory": "512Gi",
+    "name": "r7gd.metal"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "4",
+    "gpu": "0",
+    "memory": "32Gi",
+    "name": "r7gd.xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "48",
+    "gpu": "0",
+    "memory": "384Gi",
+    "name": "r7i.12xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "64",
+    "gpu": "0",
+    "memory": "512Gi",
+    "name": "r7i.16xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "96",
+    "gpu": "0",
+    "memory": "768Gi",
+    "name": "r7i.24xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "8",
+    "gpu": "0",
+    "memory": "64Gi",
+    "name": "r7i.2xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "192",
+    "gpu": "0",
+    "memory": "1536Gi",
+    "name": "r7i.48xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "16",
+    "gpu": "0",
+    "memory": "128Gi",
+    "name": "r7i.4xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "32",
+    "gpu": "0",
+    "memory": "256Gi",
+    "name": "r7i.8xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "2",
+    "gpu": "0",
+    "memory": "16Gi",
+    "name": "r7i.large"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "96",
+    "gpu": "0",
+    "memory": "768Gi",
+    "name": "r7i.metal-24xl"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "192",
+    "gpu": "0",
+    "memory": "1536Gi",
+    "name": "r7i.metal-48xl"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "4",
+    "gpu": "0",
+    "memory": "32Gi",
+    "name": "r7i.xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "48",
+    "gpu": "0",
+    "memory": "384Gi",
+    "name": "r7iz.12xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "64",
+    "gpu": "0",
+    "memory": "512Gi",
+    "name": "r7iz.16xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "8",
+    "gpu": "0",
+    "memory": "64Gi",
+    "name": "r7iz.2xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "128",
+    "gpu": "0",
+    "memory": "1Ti",
+    "name": "r7iz.32xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "16",
+    "gpu": "0",
+    "memory": "128Gi",
+    "name": "r7iz.4xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "32",
+    "gpu": "0",
+    "memory": "256Gi",
+    "name": "r7iz.8xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "2",
+    "gpu": "0",
+    "memory": "16Gi",
+    "name": "r7iz.large"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "64",
+    "gpu": "0",
+    "memory": "512Gi",
+    "name": "r7iz.metal-16xl"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "128",
+    "gpu": "0",
+    "memory": "1Ti",
+    "name": "r7iz.metal-32xl"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "4",
+    "gpu": "0",
+    "memory": "32Gi",
+    "name": "r7iz.xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "48",
+    "gpu": "0",
+    "memory": "384Gi",
+    "name": "r8a.12xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "64",
+    "gpu": "0",
+    "memory": "512Gi",
+    "name": "r8a.16xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "96",
+    "gpu": "0",
+    "memory": "768Gi",
+    "name": "r8a.24xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "8",
+    "gpu": "0",
+    "memory": "64Gi",
+    "name": "r8a.2xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "192",
+    "gpu": "0",
+    "memory": "1536Gi",
+    "name": "r8a.48xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "16",
+    "gpu": "0",
+    "memory": "128Gi",
+    "name": "r8a.4xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "32",
+    "gpu": "0",
+    "memory": "256Gi",
+    "name": "r8a.8xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "2",
+    "gpu": "0",
+    "memory": "16Gi",
+    "name": "r8a.large"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "96",
+    "gpu": "0",
+    "memory": "768Gi",
+    "name": "r8a.metal-24xl"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "192",
+    "gpu": "0",
+    "memory": "1536Gi",
+    "name": "r8a.metal-48xl"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "4",
+    "gpu": "0",
+    "memory": "32Gi",
+    "name": "r8a.xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "48",
+    "gpu": "0",
+    "memory": "384Gi",
+    "name": "r8g.12xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "64",
+    "gpu": "0",
+    "memory": "512Gi",
+    "name": "r8g.16xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "96",
+    "gpu": "0",
+    "memory": "768Gi",
+    "name": "r8g.24xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "8",
+    "gpu": "0",
+    "memory": "64Gi",
+    "name": "r8g.2xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "192",
+    "gpu": "0",
+    "memory": "1536Gi",
+    "name": "r8g.48xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "16",
+    "gpu": "0",
+    "memory": "128Gi",
+    "name": "r8g.4xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "32",
+    "gpu": "0",
+    "memory": "256Gi",
+    "name": "r8g.8xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "2",
+    "gpu": "0",
+    "memory": "16Gi",
+    "name": "r8g.large"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "96",
+    "gpu": "0",
+    "memory": "768Gi",
+    "name": "r8g.metal-24xl"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "192",
+    "gpu": "0",
+    "memory": "1536Gi",
+    "name": "r8g.metal-48xl"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "4",
+    "gpu": "0",
+    "memory": "32Gi",
+    "name": "r8g.xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "48",
+    "gpu": "0",
+    "memory": "384Gi",
+    "name": "r8gb.12xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "64",
+    "gpu": "0",
+    "memory": "512Gi",
+    "name": "r8gb.16xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "96",
+    "gpu": "0",
+    "memory": "768Gi",
+    "name": "r8gb.24xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "8",
+    "gpu": "0",
+    "memory": "64Gi",
+    "name": "r8gb.2xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "192",
+    "gpu": "0",
+    "memory": "1536Gi",
+    "name": "r8gb.48xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "16",
+    "gpu": "0",
+    "memory": "128Gi",
+    "name": "r8gb.4xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "32",
+    "gpu": "0",
+    "memory": "256Gi",
+    "name": "r8gb.8xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "2",
+    "gpu": "0",
+    "memory": "16Gi",
+    "name": "r8gb.large"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "96",
+    "gpu": "0",
+    "memory": "768Gi",
+    "name": "r8gb.metal-24xl"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "192",
+    "gpu": "0",
+    "memory": "1536Gi",
+    "name": "r8gb.metal-48xl"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "4",
+    "gpu": "0",
+    "memory": "32Gi",
+    "name": "r8gb.xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "48",
+    "gpu": "0",
+    "memory": "384Gi",
+    "name": "r8gd.12xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "64",
+    "gpu": "0",
+    "memory": "512Gi",
+    "name": "r8gd.16xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "96",
+    "gpu": "0",
+    "memory": "768Gi",
+    "name": "r8gd.24xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "8",
+    "gpu": "0",
+    "memory": "64Gi",
+    "name": "r8gd.2xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "192",
+    "gpu": "0",
+    "memory": "1536Gi",
+    "name": "r8gd.48xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "16",
+    "gpu": "0",
+    "memory": "128Gi",
+    "name": "r8gd.4xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "32",
+    "gpu": "0",
+    "memory": "256Gi",
+    "name": "r8gd.8xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "2",
+    "gpu": "0",
+    "memory": "16Gi",
+    "name": "r8gd.large"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "96",
+    "gpu": "0",
+    "memory": "768Gi",
+    "name": "r8gd.metal-24xl"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "192",
+    "gpu": "0",
+    "memory": "1536Gi",
+    "name": "r8gd.metal-48xl"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "4",
+    "gpu": "0",
+    "memory": "32Gi",
+    "name": "r8gd.xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "48",
+    "gpu": "0",
+    "memory": "384Gi",
+    "name": "r8gn.12xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "64",
+    "gpu": "0",
+    "memory": "512Gi",
+    "name": "r8gn.16xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "96",
+    "gpu": "0",
+    "memory": "768Gi",
+    "name": "r8gn.24xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "8",
+    "gpu": "0",
+    "memory": "64Gi",
+    "name": "r8gn.2xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "192",
+    "gpu": "0",
+    "memory": "1536Gi",
+    "name": "r8gn.48xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "16",
+    "gpu": "0",
+    "memory": "128Gi",
+    "name": "r8gn.4xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "32",
+    "gpu": "0",
+    "memory": "256Gi",
+    "name": "r8gn.8xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "2",
+    "gpu": "0",
+    "memory": "16Gi",
+    "name": "r8gn.large"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "96",
+    "gpu": "0",
+    "memory": "768Gi",
+    "name": "r8gn.metal-24xl"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "192",
+    "gpu": "0",
+    "memory": "1536Gi",
+    "name": "r8gn.metal-48xl"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "4",
+    "gpu": "0",
+    "memory": "32Gi",
+    "name": "r8gn.xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "48",
+    "gpu": "0",
+    "memory": "384Gi",
+    "name": "r8i-flex.12xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "64",
+    "gpu": "0",
+    "memory": "512Gi",
+    "name": "r8i-flex.16xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "8",
+    "gpu": "0",
+    "memory": "64Gi",
+    "name": "r8i-flex.2xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "16",
+    "gpu": "0",
+    "memory": "128Gi",
+    "name": "r8i-flex.4xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "32",
+    "gpu": "0",
+    "memory": "256Gi",
+    "name": "r8i-flex.8xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "2",
+    "gpu": "0",
+    "memory": "16Gi",
+    "name": "r8i-flex.large"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "4",
+    "gpu": "0",
+    "memory": "32Gi",
+    "name": "r8i-flex.xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "48",
+    "gpu": "0",
+    "memory": "384Gi",
+    "name": "r8i.12xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "64",
+    "gpu": "0",
+    "memory": "512Gi",
+    "name": "r8i.16xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "96",
+    "gpu": "0",
+    "memory": "768Gi",
+    "name": "r8i.24xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "8",
+    "gpu": "0",
+    "memory": "64Gi",
+    "name": "r8i.2xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "128",
+    "gpu": "0",
+    "memory": "1Ti",
+    "name": "r8i.32xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "192",
+    "gpu": "0",
+    "memory": "1536Gi",
+    "name": "r8i.48xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "16",
+    "gpu": "0",
+    "memory": "128Gi",
+    "name": "r8i.4xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "32",
+    "gpu": "0",
+    "memory": "256Gi",
+    "name": "r8i.8xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "384",
+    "gpu": "0",
+    "memory": "3Ti",
+    "name": "r8i.96xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "2",
+    "gpu": "0",
+    "memory": "16Gi",
+    "name": "r8i.large"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "192",
+    "gpu": "0",
+    "memory": "1536Gi",
+    "name": "r8i.metal-48xl"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "384",
+    "gpu": "0",
+    "memory": "3Ti",
+    "name": "r8i.metal-96xl"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "4",
+    "gpu": "0",
+    "memory": "32Gi",
+    "name": "r8i.xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "48",
+    "gpu": "0",
+    "memory": "384Gi",
+    "name": "r8ib.12xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "64",
+    "gpu": "0",
+    "memory": "512Gi",
+    "name": "r8ib.16xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "96",
+    "gpu": "0",
+    "memory": "768Gi",
+    "name": "r8ib.24xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "8",
+    "gpu": "0",
+    "memory": "64Gi",
+    "name": "r8ib.2xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "128",
+    "gpu": "0",
+    "memory": "1Ti",
+    "name": "r8ib.32xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "192",
+    "gpu": "0",
+    "memory": "1536Gi",
+    "name": "r8ib.48xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "16",
+    "gpu": "0",
+    "memory": "128Gi",
+    "name": "r8ib.4xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "32",
+    "gpu": "0",
+    "memory": "256Gi",
+    "name": "r8ib.8xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "384",
+    "gpu": "0",
+    "memory": "3Ti",
+    "name": "r8ib.96xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "2",
+    "gpu": "0",
+    "memory": "16Gi",
+    "name": "r8ib.large"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "192",
+    "gpu": "0",
+    "memory": "1536Gi",
+    "name": "r8ib.metal-48xl"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "384",
+    "gpu": "0",
+    "memory": "3Ti",
+    "name": "r8ib.metal-96xl"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "4",
+    "gpu": "0",
+    "memory": "32Gi",
+    "name": "r8ib.xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "48",
+    "gpu": "0",
+    "memory": "384Gi",
+    "name": "r8id.12xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "64",
+    "gpu": "0",
+    "memory": "512Gi",
+    "name": "r8id.16xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "96",
+    "gpu": "0",
+    "memory": "768Gi",
+    "name": "r8id.24xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "8",
+    "gpu": "0",
+    "memory": "64Gi",
+    "name": "r8id.2xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "128",
+    "gpu": "0",
+    "memory": "1Ti",
+    "name": "r8id.32xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "192",
+    "gpu": "0",
+    "memory": "1536Gi",
+    "name": "r8id.48xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "16",
+    "gpu": "0",
+    "memory": "128Gi",
+    "name": "r8id.4xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "32",
+    "gpu": "0",
+    "memory": "256Gi",
+    "name": "r8id.8xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "384",
+    "gpu": "0",
+    "memory": "3Ti",
+    "name": "r8id.96xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "2",
+    "gpu": "0",
+    "memory": "16Gi",
+    "name": "r8id.large"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "192",
+    "gpu": "0",
+    "memory": "1536Gi",
+    "name": "r8id.metal-48xl"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "384",
+    "gpu": "0",
+    "memory": "3Ti",
+    "name": "r8id.metal-96xl"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "4",
+    "gpu": "0",
+    "memory": "32Gi",
+    "name": "r8id.xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "48",
+    "gpu": "0",
+    "memory": "384Gi",
+    "name": "r8idb.12xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "64",
+    "gpu": "0",
+    "memory": "512Gi",
+    "name": "r8idb.16xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "96",
+    "gpu": "0",
+    "memory": "768Gi",
+    "name": "r8idb.24xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "8",
+    "gpu": "0",
+    "memory": "64Gi",
+    "name": "r8idb.2xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "128",
+    "gpu": "0",
+    "memory": "1Ti",
+    "name": "r8idb.32xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "192",
+    "gpu": "0",
+    "memory": "1536Gi",
+    "name": "r8idb.48xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "16",
+    "gpu": "0",
+    "memory": "128Gi",
+    "name": "r8idb.4xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "32",
+    "gpu": "0",
+    "memory": "256Gi",
+    "name": "r8idb.8xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "384",
+    "gpu": "0",
+    "memory": "3Ti",
+    "name": "r8idb.96xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "2",
+    "gpu": "0",
+    "memory": "16Gi",
+    "name": "r8idb.large"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "192",
+    "gpu": "0",
+    "memory": "1536Gi",
+    "name": "r8idb.metal-48xl"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "384",
+    "gpu": "0",
+    "memory": "3Ti",
+    "name": "r8idb.metal-96xl"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "4",
+    "gpu": "0",
+    "memory": "32Gi",
+    "name": "r8idb.xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "48",
+    "gpu": "0",
+    "memory": "384Gi",
+    "name": "r8idn.12xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "64",
+    "gpu": "0",
+    "memory": "512Gi",
+    "name": "r8idn.16xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "96",
+    "gpu": "0",
+    "memory": "768Gi",
+    "name": "r8idn.24xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "8",
+    "gpu": "0",
+    "memory": "64Gi",
+    "name": "r8idn.2xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "128",
+    "gpu": "0",
+    "memory": "1Ti",
+    "name": "r8idn.32xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "192",
+    "gpu": "0",
+    "memory": "1536Gi",
+    "name": "r8idn.48xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "16",
+    "gpu": "0",
+    "memory": "128Gi",
+    "name": "r8idn.4xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "32",
+    "gpu": "0",
+    "memory": "256Gi",
+    "name": "r8idn.8xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "384",
+    "gpu": "0",
+    "memory": "3Ti",
+    "name": "r8idn.96xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "2",
+    "gpu": "0",
+    "memory": "16Gi",
+    "name": "r8idn.large"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "192",
+    "gpu": "0",
+    "memory": "1536Gi",
+    "name": "r8idn.metal-48xl"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "384",
+    "gpu": "0",
+    "memory": "3Ti",
+    "name": "r8idn.metal-96xl"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "4",
+    "gpu": "0",
+    "memory": "32Gi",
+    "name": "r8idn.xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "48",
+    "gpu": "0",
+    "memory": "384Gi",
+    "name": "r8in.12xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "64",
+    "gpu": "0",
+    "memory": "512Gi",
+    "name": "r8in.16xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "96",
+    "gpu": "0",
+    "memory": "768Gi",
+    "name": "r8in.24xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "8",
+    "gpu": "0",
+    "memory": "64Gi",
+    "name": "r8in.2xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "128",
+    "gpu": "0",
+    "memory": "1Ti",
+    "name": "r8in.32xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "192",
+    "gpu": "0",
+    "memory": "1536Gi",
+    "name": "r8in.48xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "16",
+    "gpu": "0",
+    "memory": "128Gi",
+    "name": "r8in.4xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "32",
+    "gpu": "0",
+    "memory": "256Gi",
+    "name": "r8in.8xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "384",
+    "gpu": "0",
+    "memory": "3Ti",
+    "name": "r8in.96xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "2",
+    "gpu": "0",
+    "memory": "16Gi",
+    "name": "r8in.large"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "192",
+    "gpu": "0",
+    "memory": "1536Gi",
+    "name": "r8in.metal-48xl"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "384",
+    "gpu": "0",
+    "memory": "3Ti",
+    "name": "r8in.metal-96xl"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "4",
+    "gpu": "0",
+    "memory": "32Gi",
+    "name": "r8in.xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "8",
+    "gpu": "0",
+    "memory": "32Gi",
+    "name": "t2.2xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "2",
+    "gpu": "0",
+    "memory": "8Gi",
+    "name": "t2.large"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "2",
+    "gpu": "0",
+    "memory": "4Gi",
+    "name": "t2.medium"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "4",
+    "gpu": "0",
+    "memory": "16Gi",
+    "name": "t2.xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "8",
+    "gpu": "0",
+    "memory": "32Gi",
+    "name": "t3.2xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "2",
+    "gpu": "0",
+    "memory": "8Gi",
+    "name": "t3.large"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "2",
+    "gpu": "0",
+    "memory": "4Gi",
+    "name": "t3.medium"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "4",
+    "gpu": "0",
+    "memory": "16Gi",
+    "name": "t3.xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "8",
+    "gpu": "0",
+    "memory": "32Gi",
+    "name": "t3a.2xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "2",
+    "gpu": "0",
+    "memory": "8Gi",
+    "name": "t3a.large"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "2",
+    "gpu": "0",
+    "memory": "4Gi",
+    "name": "t3a.medium"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "4",
+    "gpu": "0",
+    "memory": "16Gi",
+    "name": "t3a.xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "8",
+    "gpu": "0",
+    "memory": "32Gi",
+    "name": "t4g.2xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "2",
+    "gpu": "0",
+    "memory": "8Gi",
+    "name": "t4g.large"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "2",
+    "gpu": "0",
+    "memory": "4Gi",
+    "name": "t4g.medium"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "2",
+    "gpu": "0",
+    "memory": "512Mi",
+    "name": "t4g.nano"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "4",
+    "gpu": "0",
+    "memory": "16Gi",
+    "name": "t4g.xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "8",
+    "gpu": "0",
+    "memory": "32Gi",
+    "name": "trn1.2xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "128",
+    "gpu": "0",
+    "memory": "512Gi",
+    "name": "trn1.32xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "128",
+    "gpu": "0",
+    "memory": "512Gi",
+    "name": "trn1n.32xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "12",
+    "gpu": "0",
+    "memory": "128Gi",
+    "name": "trn2.3xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "192",
+    "gpu": "0",
+    "memory": "2Ti",
+    "name": "trn2.48xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "448",
+    "gpu": "0",
+    "memory": "12Ti",
+    "name": "u-12tb1.112xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "448",
+    "gpu": "0",
+    "memory": "12Ti",
+    "name": "u-12tb1.metal"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "448",
+    "gpu": "0",
+    "memory": "18Ti",
+    "name": "u-18tb1.112xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "448",
+    "gpu": "0",
+    "memory": "24Ti",
+    "name": "u-24tb1.112xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "224",
+    "gpu": "0",
+    "memory": "3Ti",
+    "name": "u-3tb1.56xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "448",
+    "gpu": "0",
+    "memory": "6Ti",
+    "name": "u-6tb1.112xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "224",
+    "gpu": "0",
+    "memory": "6Ti",
+    "name": "u-6tb1.56xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "448",
+    "gpu": "0",
+    "memory": "6Ti",
+    "name": "u-6tb1.metal"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "448",
+    "gpu": "0",
+    "memory": "9Ti",
+    "name": "u-9tb1.112xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "448",
+    "gpu": "0",
+    "memory": "9Ti",
+    "name": "u-9tb1.metal"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "896",
+    "gpu": "0",
+    "memory": "12Ti",
+    "name": "u7i-12tb.224xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "448",
+    "gpu": "0",
+    "memory": "6Ti",
+    "name": "u7i-6tb.112xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "448",
+    "gpu": "0",
+    "memory": "8Ti",
+    "name": "u7i-8tb.112xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "896",
+    "gpu": "0",
+    "memory": "16Ti",
+    "name": "u7in-16tb.224xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "896",
+    "gpu": "0",
+    "memory": "24Ti",
+    "name": "u7in-24tb.224xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "896",
+    "gpu": "0",
+    "memory": "32Ti",
+    "name": "u7in-32tb.224xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "96",
+    "gpu": "0",
+    "memory": "192Gi",
+    "name": "vt1.24xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "12",
+    "gpu": "0",
+    "memory": "24Gi",
+    "name": "vt1.3xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "24",
+    "gpu": "0",
+    "memory": "48Gi",
+    "name": "vt1.6xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "64",
+    "gpu": "0",
+    "memory": "976Gi",
+    "name": "x1.16xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "128",
+    "gpu": "0",
+    "memory": "1952Gi",
+    "name": "x1.32xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "64",
+    "gpu": "0",
+    "memory": "1952Gi",
+    "name": "x1e.16xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "8",
+    "gpu": "0",
+    "memory": "244Gi",
+    "name": "x1e.2xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "128",
+    "gpu": "0",
+    "memory": "3904Gi",
+    "name": "x1e.32xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "16",
+    "gpu": "0",
+    "memory": "488Gi",
+    "name": "x1e.4xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "32",
+    "gpu": "0",
+    "memory": "976Gi",
+    "name": "x1e.8xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "4",
+    "gpu": "0",
+    "memory": "122Gi",
+    "name": "x1e.xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "48",
+    "gpu": "0",
+    "memory": "768Gi",
+    "name": "x2gd.12xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "64",
+    "gpu": "0",
+    "memory": "1Ti",
+    "name": "x2gd.16xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "8",
+    "gpu": "0",
+    "memory": "128Gi",
+    "name": "x2gd.2xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "16",
+    "gpu": "0",
+    "memory": "256Gi",
+    "name": "x2gd.4xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "32",
+    "gpu": "0",
+    "memory": "512Gi",
+    "name": "x2gd.8xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "2",
+    "gpu": "0",
+    "memory": "32Gi",
+    "name": "x2gd.large"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "64",
+    "gpu": "0",
+    "memory": "1Ti",
+    "name": "x2gd.metal"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "4",
+    "gpu": "0",
+    "memory": "64Gi",
+    "name": "x2gd.xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "64",
+    "gpu": "0",
+    "memory": "1Ti",
+    "name": "x2idn.16xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "96",
+    "gpu": "0",
+    "memory": "1536Gi",
+    "name": "x2idn.24xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "128",
+    "gpu": "0",
+    "memory": "2Ti",
+    "name": "x2idn.32xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "128",
+    "gpu": "0",
+    "memory": "2Ti",
+    "name": "x2idn.metal"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "64",
+    "gpu": "0",
+    "memory": "2Ti",
+    "name": "x2iedn.16xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "96",
+    "gpu": "0",
+    "memory": "3Ti",
+    "name": "x2iedn.24xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "8",
+    "gpu": "0",
+    "memory": "256Gi",
+    "name": "x2iedn.2xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "128",
+    "gpu": "0",
+    "memory": "4Ti",
+    "name": "x2iedn.32xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "16",
+    "gpu": "0",
+    "memory": "512Gi",
+    "name": "x2iedn.4xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "32",
+    "gpu": "0",
+    "memory": "1Ti",
+    "name": "x2iedn.8xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "128",
+    "gpu": "0",
+    "memory": "4Ti",
+    "name": "x2iedn.metal"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "4",
+    "gpu": "0",
+    "memory": "128Gi",
+    "name": "x2iedn.xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "48",
+    "gpu": "0",
+    "memory": "1536Gi",
+    "name": "x2iezn.12xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "8",
+    "gpu": "0",
+    "memory": "256Gi",
+    "name": "x2iezn.2xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "16",
+    "gpu": "0",
+    "memory": "512Gi",
+    "name": "x2iezn.4xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "24",
+    "gpu": "0",
+    "memory": "768Gi",
+    "name": "x2iezn.6xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "32",
+    "gpu": "0",
+    "memory": "1Ti",
+    "name": "x2iezn.8xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "48",
+    "gpu": "0",
+    "memory": "1536Gi",
+    "name": "x2iezn.metal"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "48",
+    "gpu": "0",
+    "memory": "1536Gi",
+    "name": "x8aedz.12xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "96",
+    "gpu": "0",
+    "memory": "3Ti",
+    "name": "x8aedz.24xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "12",
+    "gpu": "0",
+    "memory": "384Gi",
+    "name": "x8aedz.3xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "24",
+    "gpu": "0",
+    "memory": "768Gi",
+    "name": "x8aedz.6xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "2",
+    "gpu": "0",
+    "memory": "64Gi",
+    "name": "x8aedz.large"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "48",
+    "gpu": "0",
+    "memory": "1536Gi",
+    "name": "x8aedz.metal-12xl"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "96",
+    "gpu": "0",
+    "memory": "3Ti",
+    "name": "x8aedz.metal-24xl"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "4",
+    "gpu": "0",
+    "memory": "128Gi",
+    "name": "x8aedz.xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "48",
+    "gpu": "0",
+    "memory": "768Gi",
+    "name": "x8g.12xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "64",
+    "gpu": "0",
+    "memory": "1Ti",
+    "name": "x8g.16xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "96",
+    "gpu": "0",
+    "memory": "1536Gi",
+    "name": "x8g.24xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "8",
+    "gpu": "0",
+    "memory": "128Gi",
+    "name": "x8g.2xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "192",
+    "gpu": "0",
+    "memory": "3Ti",
+    "name": "x8g.48xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "16",
+    "gpu": "0",
+    "memory": "256Gi",
+    "name": "x8g.4xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "32",
+    "gpu": "0",
+    "memory": "512Gi",
+    "name": "x8g.8xlarge"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "2",
+    "gpu": "0",
+    "memory": "32Gi",
+    "name": "x8g.large"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "96",
+    "gpu": "0",
+    "memory": "1536Gi",
+    "name": "x8g.metal-24xl"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "192",
+    "gpu": "0",
+    "memory": "3Ti",
+    "name": "x8g.metal-48xl"
+  },
+  {
+    "architecture": "arm64",
+    "cpu": "4",
+    "gpu": "0",
+    "memory": "64Gi",
+    "name": "x8g.xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "48",
+    "gpu": "0",
+    "memory": "768Gi",
+    "name": "x8i.12xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "64",
+    "gpu": "0",
+    "memory": "1Ti",
+    "name": "x8i.16xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "96",
+    "gpu": "0",
+    "memory": "1536Gi",
+    "name": "x8i.24xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "8",
+    "gpu": "0",
+    "memory": "128Gi",
+    "name": "x8i.2xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "128",
+    "gpu": "0",
+    "memory": "2Ti",
+    "name": "x8i.32xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "192",
+    "gpu": "0",
+    "memory": "3Ti",
+    "name": "x8i.48xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "16",
+    "gpu": "0",
+    "memory": "256Gi",
+    "name": "x8i.4xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "256",
+    "gpu": "0",
+    "memory": "4Ti",
+    "name": "x8i.64xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "32",
+    "gpu": "0",
+    "memory": "512Gi",
+    "name": "x8i.8xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "384",
+    "gpu": "0",
+    "memory": "6Ti",
+    "name": "x8i.96xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "2",
+    "gpu": "0",
+    "memory": "32Gi",
+    "name": "x8i.large"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "192",
+    "gpu": "0",
+    "memory": "3Ti",
+    "name": "x8i.metal-48xl"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "384",
+    "gpu": "0",
+    "memory": "6Ti",
+    "name": "x8i.metal-96xl"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "4",
+    "gpu": "0",
+    "memory": "64Gi",
+    "name": "x8i.xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "48",
+    "gpu": "0",
+    "memory": "384Gi",
+    "name": "z1d.12xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "8",
+    "gpu": "0",
+    "memory": "64Gi",
+    "name": "z1d.2xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "12",
+    "gpu": "0",
+    "memory": "96Gi",
+    "name": "z1d.3xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "24",
+    "gpu": "0",
+    "memory": "192Gi",
+    "name": "z1d.6xlarge"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "2",
+    "gpu": "0",
+    "memory": "16Gi",
+    "name": "z1d.large"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "48",
+    "gpu": "0",
+    "memory": "384Gi",
+    "name": "z1d.metal"
+  },
+  {
+    "architecture": "amd64",
+    "cpu": "4",
+    "gpu": "0",
+    "memory": "32Gi",
+    "name": "z1d.xlarge"
+  }
+]
