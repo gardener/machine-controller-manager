@@ -4,6 +4,10 @@
 
 package v1alpha1
 
+import (
+	"time"
+)
+
 const (
 	// AnnotationKeyMachineUpdateFailedReason is the annotation key that indicates the reason for a machine update failure.
 	AnnotationKeyMachineUpdateFailedReason = "node.machine.sapcloud.io/update-failed-reason"
@@ -30,4 +34,10 @@ const (
 	LabelValueNodeUpdateSuccessful = "successful"
 	// LabelValueNodeUpdateFailed is the label value that indicates the update on the node has failed.
 	LabelValueNodeUpdateFailed = "failed"
+)
+
+const (
+	// DefaultMachinePreserveTimeout is the default time for which the machine is preserved
+	// when [MachineConfiguration.MachinePreserveTimeout] is not specified.
+	DefaultMachinePreserveTimeout = 96 * time.Hour
 )

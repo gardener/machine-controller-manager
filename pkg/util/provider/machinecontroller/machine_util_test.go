@@ -3547,6 +3547,47 @@ var _ = Describe("machine_util", func() {
 				},
 			}),
 		)
+
+		DescribeTable("##PreserveExpiryTime on creation-timeout transition to Failed",
+			func(preserveAnnotation string, expectExpirySet bool) {
+				stop := make(chan struct{})
+				defer close(stop)
+
+				annotations := map[string]string{}
+				if preserveAnnotation != "" {
+					annotations[machineutils.PreserveMachineAnnotationKey] = preserveAnnotation
+				}
+				machine := newMachine(
+					&machinev1.MachineTemplateSpec{ObjectMeta: *newObjectMeta(&metav1.ObjectMeta{GenerateName: machineSet1Deploy1}, 0)},
+					&machinev1.MachineStatus{CurrentStatus: machinev1.CurrentStatus{Phase: machinev1.MachinePending}},
+					nil, annotations, map[string]string{machinev1.NodeLabelKey: "node-0-0"}, true, metav1.NewTime(time.Now().Add(-25*time.Minute)),
+				)
+
+				c, trackers := createController(stop, testNamespace, []runtime.Object{machine}, nil, nil, nil, false)
+				defer trackers.Stop()
+				c.safetyOptions.MachinePreserveTimeout = metav1.Duration{Duration: 24 * time.Hour}
+				c.permitGiver = permits.NewPermitGiver(5*time.Second, 1*time.Second)
+				defer c.permitGiver.Close()
+				waitForCacheSync(stop, c)
+
+				_, _ = c.reconcileMachineHealth(context.TODO(), machine)
+
+				updated, err := c.controlMachineClient.Machines(testNamespace).Get(context.TODO(), machine.Name, metav1.GetOptions{})
+				Expect(err).To(BeNil())
+				Expect(updated.Status.CurrentStatus.Phase).To(Equal(machinev1.MachineFailed))
+				if expectExpirySet {
+					Expect(updated.Status.CurrentStatus.PreserveExpiryTime).NotTo(BeNil())
+					Expect(updated.Status.CurrentStatus.PreserveExpiryTime.After(time.Now())).To(BeTrue())
+				} else {
+					Expect(updated.Status.CurrentStatus.PreserveExpiryTime).To(BeNil())
+				}
+			},
+			Entry("preserve=when-failed: PreserveExpiryTime must be set", machineutils.PreserveMachineAnnotationValueWhenFailed, true),
+			Entry("preserve=now: PreserveExpiryTime must NOT be set by creation-timeout path", machineutils.PreserveMachineAnnotationValueNow, false),
+			Entry("preserve=false: PreserveExpiryTime must NOT be set", machineutils.PreserveMachineAnnotationValueFalse, false),
+			Entry("preserve=auto-preserved: PreserveExpiryTime must NOT be set (set later after auto-preserve selection)", machineutils.PreserveMachineAnnotationValueAutoPreserved, false),
+			Entry("no preserve annotation: PreserveExpiryTime must NOT be set", "", false),
+		)
 	})
 
 	Describe("#inPlaceUpdate", func() {
@@ -3996,8 +4037,9 @@ var _ = Describe("machine_util", func() {
 
 				machine := &machinev1.Machine{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      "machine-1",
-						Namespace: testNamespace,
+						Name:            "machine-1",
+						Namespace:       testNamespace,
+						ResourceVersion: "1",
 						Labels: map[string]string{
 							machinev1.NodeLabelKey: tc.setup.nodeName,
 						},
@@ -4017,9 +4059,10 @@ var _ = Describe("machine_util", func() {
 						},
 					},
 				}
+				var node *corev1.Node
 				if tc.setup.nodeName != "" && tc.setup.nodeName != "err-backing-node" {
 
-					node := corev1.Node{
+					node = &corev1.Node{
 						ObjectMeta: metav1.ObjectMeta{
 							Name:        tc.setup.nodeName,
 							Labels:      map[string]string{},
@@ -4036,14 +4079,14 @@ var _ = Describe("machine_util", func() {
 					if tc.setup.isCAAnnotationPresent {
 						node.Annotations[autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationKey] = "true"
 					}
-					targetCoreObjects = append(targetCoreObjects, &node)
+					targetCoreObjects = append(targetCoreObjects, node)
 				}
 				controlMachineObjects = append(controlMachineObjects, machine)
 
 				c, trackers := createController(stop, testNamespace, controlMachineObjects, nil, targetCoreObjects, nil, false)
 				defer trackers.Stop()
 				waitForCacheSync(stop, c)
-				_, err := c.preserveMachine(context.TODO(), machine, tc.setup.preserveValue)
+				_, _, err := c.preserveMachine(context.TODO(), machine, node, tc.setup.preserveValue)
 				if tc.expect.err == nil {
 					Expect(err).To(BeNil())
 				} else {
@@ -4263,7 +4306,7 @@ var _ = Describe("machine_util", func() {
 					preserveValue: machineutils.PreserveMachineAnnotationValueNow,
 				},
 				expect: expect{
-					err:                     fmt.Errorf("node \"err-backing-node\" not found"),
+					err:                     nil,
 					isPreserveExpiryTimeSet: true,
 					isCAAnnotationPresent:   false,
 				},
@@ -4416,9 +4459,10 @@ var _ = Describe("machine_util", func() {
 				}
 				machine := &machinev1.Machine{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      "machine-1",
-						Namespace: testNamespace,
-						Labels:    map[string]string{},
+						Name:            "machine-1",
+						Namespace:       testNamespace,
+						ResourceVersion: "1",
+						Labels:          map[string]string{},
 					},
 					Spec: machinev1.MachineSpec{},
 					Status: machinev1.MachineStatus{
@@ -4429,9 +4473,10 @@ var _ = Describe("machine_util", func() {
 						},
 					},
 				}
+				var node *corev1.Node
 				if tc.setup.nodeName != "" && tc.setup.nodeName != "err-backing-node" {
 					machine.Labels[machinev1.NodeLabelKey] = tc.setup.nodeName
-					node := &corev1.Node{
+					node = &corev1.Node{
 						ObjectMeta: metav1.ObjectMeta{
 							Name: "node-1",
 							Annotations: map[string]string{
@@ -4466,7 +4511,7 @@ var _ = Describe("machine_util", func() {
 				c, trackers := createController(stop, testNamespace, controlMachineObjects, nil, targetCoreObjects, nil, false)
 				defer trackers.Stop()
 				waitForCacheSync(stop, c)
-				_, err := c.stopPreservationIfActive(context.TODO(), machine, tc.setup.removePreserveAnnotation)
+				_, _, err := c.stopPreservationIfActive(context.TODO(), machine, node, tc.setup.removePreserveAnnotation)
 				if tc.expect.err != nil {
 					Expect(err).To(HaveOccurred())
 					Expect(err.Error()).To(Equal(tc.expect.err.Error()))
@@ -4926,6 +4971,80 @@ var _ = Describe("machine_util", func() {
 						machineutils.PreserveMachineAnnotationKey,
 					},
 				},
+			}),
+		)
+	})
+
+	Describe("#updateMachineToFailedState", func() {
+		type setup struct {
+			preserveAnnotation string
+		}
+		type expect struct {
+			preserveExpiryTimeSet bool
+		}
+		type testCase struct {
+			setup  setup
+			expect expect
+		}
+
+		DescribeTable("##PreserveExpiryTime on transition to Failed",
+			func(tc *testCase) {
+				stop := make(chan struct{})
+				defer close(stop)
+
+				annotations := map[string]string{}
+				if tc.setup.preserveAnnotation != "" {
+					annotations[machineutils.PreserveMachineAnnotationKey] = tc.setup.preserveAnnotation
+				}
+
+				machine := &machinev1.Machine{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:            "machine-1",
+						Namespace:       testNamespace,
+						ResourceVersion: "1",
+						Annotations:     annotations,
+					},
+					Status: machinev1.MachineStatus{
+						CurrentStatus: machinev1.CurrentStatus{
+							Phase: machinev1.MachinePending,
+						},
+					},
+				}
+				clone := machine.DeepCopy()
+
+				c, trackers := createController(stop, testNamespace, []runtime.Object{machine}, nil, nil, nil, false)
+				defer trackers.Stop()
+				c.safetyOptions.MachinePreserveTimeout = metav1.Duration{Duration: 24 * time.Hour}
+				waitForCacheSync(stop, c)
+
+				_, err := c.updateMachineToFailedState(context.TODO(), "test failure", machine, clone)
+				Expect(err).To(Equal(errSuccessfulPhaseUpdate))
+
+				updated, getErr := c.controlMachineClient.Machines(testNamespace).Get(context.TODO(), machine.Name, metav1.GetOptions{})
+				Expect(getErr).To(BeNil())
+				Expect(updated.Status.CurrentStatus.Phase).To(Equal(machinev1.MachineFailed))
+				if tc.expect.preserveExpiryTimeSet {
+					Expect(updated.Status.CurrentStatus.PreserveExpiryTime).NotTo(BeNil())
+					Expect(updated.Status.CurrentStatus.PreserveExpiryTime.After(time.Now())).To(BeTrue())
+				} else {
+					Expect(updated.Status.CurrentStatus.PreserveExpiryTime).To(BeNil())
+				}
+			},
+			Entry("preserve=when-failed: PreserveExpiryTime must be set on transition to Failed", &testCase{
+				setup:  setup{preserveAnnotation: machineutils.PreserveMachineAnnotationValueWhenFailed},
+				expect: expect{preserveExpiryTimeSet: true},
+			}),
+			Entry("preserve=now: PreserveExpiryTime must NOT be set by updateMachineToFailedState (already set by preserveMachine)", &testCase{
+				setup:  setup{preserveAnnotation: machineutils.PreserveMachineAnnotationValueNow},
+				expect: expect{preserveExpiryTimeSet: false},
+			}),
+			Entry("preserve=false: PreserveExpiryTime must NOT be set", &testCase{
+				setup:  setup{preserveAnnotation: machineutils.PreserveMachineAnnotationValueFalse},
+				expect: expect{preserveExpiryTimeSet: false},
+			}),
+			Entry("no preserve annotation: PreserveExpiryTime must NOT be set", &testCase{
+				setup:  setup{},
+				expect: expect{preserveExpiryTimeSet: false},
 			}),
 		)
 	})

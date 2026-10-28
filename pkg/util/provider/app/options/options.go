@@ -39,6 +39,7 @@ import (
 
 	// add the machine feature gates
 	"github.com/gardener/machine-controller-manager/pkg/apis/constants"
+	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	_ "github.com/gardener/machine-controller-manager/pkg/features"
 )
 
@@ -79,7 +80,7 @@ func NewMCServer() *MCServer {
 				MachineSafetyOrphanVMsPeriod:             metav1.Duration{Duration: 15 * time.Minute},
 				MachineSafetyAPIServerStatusCheckPeriod:  metav1.Duration{Duration: 1 * time.Minute},
 				MachineSafetyAPIServerStatusCheckTimeout: metav1.Duration{Duration: 30 * time.Second},
-				MachinePreserveTimeout:                   metav1.Duration{Duration: 96 * time.Hour},
+				MachinePreserveTimeout:                   metav1.Duration{Duration: v1alpha1.DefaultMachinePreserveTimeout},
 			},
 		},
 	}
@@ -112,7 +113,7 @@ func (s *MCServer) AddFlags(fs *pflag.FlagSet) {
 	fs.DurationVar(&s.SafetyOptions.PvDetachTimeout.Duration, "machine-pv-detach-timeout", s.SafetyOptions.PvDetachTimeout.Duration, "Timeout (in duration) used while waiting for detach of PV while evicting/deleting pods")
 	fs.DurationVar(&s.SafetyOptions.PvReattachTimeout.Duration, "machine-pv-reattach-timeout", s.SafetyOptions.PvReattachTimeout.Duration, "Timeout (in duration) used while waiting for reattach of PV onto a different node")
 	fs.DurationVar(&s.SafetyOptions.MachineSafetyAPIServerStatusCheckTimeout.Duration, "machine-safety-apiserver-statuscheck-timeout", s.SafetyOptions.MachineSafetyAPIServerStatusCheckTimeout.Duration, "Timeout (in duration) for which the APIServer can be down before declare the machine controller frozen by safety controller")
-	fs.DurationVar(&s.SafetyOptions.MachinePreserveTimeout.Duration, "machine-preserve-timeout", s.SafetyOptions.MachinePreserveTimeout.Duration, "Duration for which a failed machine should be preserved if it has the appropriate preserve annotation set.")
+	fs.DurationVar(&s.SafetyOptions.MachinePreserveTimeout.Duration, "machine-preserve-timeout", s.SafetyOptions.MachinePreserveTimeout.Duration, "Duration for which a failed machine should be preserved if it has the appropriate preserve annotation set. This is only applicable for manual-preservation and not for auto-preservation.")
 
 	fs.DurationVar(&s.SafetyOptions.MachineSafetyOrphanVMsPeriod.Duration, "machine-safety-orphan-vms-period", s.SafetyOptions.MachineSafetyOrphanVMsPeriod.Duration, "Time period (in duration) used to poll for orphan VMs by safety controller.")
 	fs.DurationVar(&s.SafetyOptions.MachineSafetyAPIServerStatusCheckPeriod.Duration, "machine-safety-apiserver-statuscheck-period", s.SafetyOptions.MachineSafetyAPIServerStatusCheckPeriod.Duration, "Time period (in duration) used to poll for APIServer's health by safety controller")
