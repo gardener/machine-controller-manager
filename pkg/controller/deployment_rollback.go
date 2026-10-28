@@ -25,6 +25,7 @@ package controller
 import (
 	"context"
 	"fmt"
+
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -33,8 +34,8 @@ import (
 )
 
 // rollback the deployment to the specified revision. In any case cleanup the rollback spec.
-func (dc *controller) rollback(ctx context.Context, d *v1alpha1.MachineDeployment, isList []*v1alpha1.MachineSet, machineMap map[types.UID]*v1alpha1.MachineList) error {
-	newIS, allOldISs, err := dc.getAllMachineSetsAndSyncRevision(ctx, d, isList, machineMap, true)
+func (c *controller) rollback(ctx context.Context, d *v1alpha1.MachineDeployment, isList []*v1alpha1.MachineSet, machineMap map[types.UID]*v1alpha1.MachineList) error {
+	newIS, allOldISs, err := c.getAllMachineSetsAndSyncRevision(ctx, d, isList, machineMap, true)
 	if err != nil {
 		return err
 	}
@@ -45,9 +46,9 @@ func (dc *controller) rollback(ctx context.Context, d *v1alpha1.MachineDeploymen
 	if *toRevision == 0 {
 		if *toRevision = LastRevision(allISs); *toRevision == 0 {
 			// If we still can't find the last revision, gives up rollback
-			dc.emitRollbackWarningEvent(d, RollbackRevisionNotFound, "Unable to find last revision.")
+			c.emitRollbackWarningEvent(d, RollbackRevisionNotFound, "Unable to find last revision.")
 			// Gives up rollback
-			return dc.updateMachineDeploymentAndClearRollbackTo(ctx, d)
+			return c.updateMachineDeploymentAndClearRollbackTo(ctx, d)
 		}
 	}
 	for _, is := range allISs {
@@ -67,7 +68,7 @@ func (dc *controller) rollback(ctx context.Context, d *v1alpha1.MachineDeploymen
 					Effect: "PreferNoSchedule",
 				}
 
-				if err := dc.removeTaintNodesBackingMachineSet(ctx, is, taint); err != nil {
+				if err := c.removeTaintNodesBackingMachineSet(ctx, is, taint); err != nil {
 					klog.Errorf("Failed to remove taints %s from all nodes. Error: %v", PreferNoScheduleKey, err)
 					return err
 				}
@@ -76,22 +77,22 @@ func (dc *controller) rollback(ctx context.Context, d *v1alpha1.MachineDeploymen
 			// rollback by copying podTemplate.Spec from the machine set
 			// revision number will be incremented during the next getAllMachineSetsAndSyncRevision call
 			// no-op if the spec matches current deployment's podTemplate.Spec
-			performedRollback, err := dc.rollbackToTemplate(ctx, d, is)
+			performedRollback, err := c.rollbackToTemplate(ctx, d, is)
 			if performedRollback && err == nil {
-				dc.emitRollbackNormalEvent(d, fmt.Sprintf("Rolled back deployment %q to revision %d", d.Name, *toRevision))
+				c.emitRollbackNormalEvent(d, fmt.Sprintf("Rolled back deployment %q to revision %d", d.Name, *toRevision))
 			}
 			return err
 		}
 	}
-	dc.emitRollbackWarningEvent(d, RollbackRevisionNotFound, "Unable to find the revision to rollback to.")
+	c.emitRollbackWarningEvent(d, RollbackRevisionNotFound, "Unable to find the revision to rollback to.")
 	// Gives up rollback
-	return dc.updateMachineDeploymentAndClearRollbackTo(ctx, d)
+	return c.updateMachineDeploymentAndClearRollbackTo(ctx, d)
 }
 
 // rollbackToTemplate compares the templates of the provided deployment and machine set and
 // updates the deployment with the machine set template in case they are different. It also
 // cleans up the rollback spec so subsequent requeues of the deployment won't end up in here.
-func (dc *controller) rollbackToTemplate(ctx context.Context, d *v1alpha1.MachineDeployment, is *v1alpha1.MachineSet) (bool, error) {
+func (c *controller) rollbackToTemplate(ctx context.Context, d *v1alpha1.MachineDeployment, is *v1alpha1.MachineSet) (bool, error) {
 	performedRollback := false
 	if !EqualIgnoreHash(&d.Spec.Template, &is.Spec.Template) {
 		klog.V(4).Infof("Rolling back deployment %q to template spec %+v", d.Name, is.Spec.Template.Spec)
@@ -112,26 +113,26 @@ func (dc *controller) rollbackToTemplate(ctx context.Context, d *v1alpha1.Machin
 	} else {
 		klog.V(4).Infof("Rolling back to a revision that contains the same template as current deployment %q, skipping rollback...", d.Name)
 		eventMsg := fmt.Sprintf("The rollback revision contains the same template as current deployment %q", d.Name)
-		dc.emitRollbackWarningEvent(d, RollbackTemplateUnchanged, eventMsg)
+		c.emitRollbackWarningEvent(d, RollbackTemplateUnchanged, eventMsg)
 	}
 
-	return performedRollback, dc.updateMachineDeploymentAndClearRollbackTo(ctx, d)
+	return performedRollback, c.updateMachineDeploymentAndClearRollbackTo(ctx, d)
 }
 
-func (dc *controller) emitRollbackWarningEvent(d *v1alpha1.MachineDeployment, reason, message string) {
-	dc.recorder.Eventf(d, v1.EventTypeWarning, reason, message)
+func (c *controller) emitRollbackWarningEvent(d *v1alpha1.MachineDeployment, reason, message string) {
+	c.recorder.Eventf(d, v1.EventTypeWarning, reason, message)
 }
 
-func (dc *controller) emitRollbackNormalEvent(d *v1alpha1.MachineDeployment, message string) {
-	dc.recorder.Eventf(d, v1.EventTypeNormal, RollbackDone, message)
+func (c *controller) emitRollbackNormalEvent(d *v1alpha1.MachineDeployment, message string) {
+	c.recorder.Eventf(d, v1.EventTypeNormal, RollbackDone, message)
 }
 
 // updateDeploymentAndClearRollbackTo sets .spec.rollbackTo to nil and update the input deployment
 // It is assumed that the caller will have updated the deployment template appropriately (in case
 // we want to rollback).
-func (dc *controller) updateMachineDeploymentAndClearRollbackTo(ctx context.Context, d *v1alpha1.MachineDeployment) error {
+func (c *controller) updateMachineDeploymentAndClearRollbackTo(ctx context.Context, d *v1alpha1.MachineDeployment) error {
 	klog.V(4).Infof("Cleans up rollbackTo of machine deployment %q", d.Name)
 	d.Spec.RollbackTo = nil
-	_, err := dc.controlMachineClient.MachineDeployments(d.Namespace).Update(ctx, d, metav1.UpdateOptions{})
+	_, err := c.controlMachineClient.MachineDeployments(d.Namespace).Update(ctx, d, metav1.UpdateOptions{})
 	return err
 }

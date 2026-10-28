@@ -719,6 +719,7 @@ func (c *controller) prepareMachineForDeletion(ctx context.Context, targetMachin
 		}
 	}
 
+	klog.V(2).Infof("Inside MachineSetController. LastOp.ErrorCode=%q, LastOp.Description=%q", targetMachine.Status.LastOperation.ErrorCode, targetMachine.Status.LastOperation.Description)
 	// Force trigger deletion to reflect in machine status
 	lastOperation := v1alpha1.LastOperation{
 		Description:    "Deleting machine from cloud provider",

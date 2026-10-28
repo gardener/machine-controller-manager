@@ -9,6 +9,7 @@ import (
 	"context"
 	"fmt"
 
+	v1alpha1 "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	clientset "k8s.io/client-go/kubernetes"
@@ -50,9 +51,9 @@ func AddOrUpdateCondition(node *v1.Node, condition v1.NodeCondition) *v1.Node {
 
 // GetCondition returns a condition matching the type from the node's status
 func GetCondition(node *v1.Node, conditionType v1.NodeConditionType) *v1.NodeCondition {
-	for _, cond := range node.Status.Conditions {
-		if cond.Type == conditionType {
-			return &cond
+	for _, c := range node.Status.Conditions {
+		if c.Type == conditionType {
+			return &c
 		}
 	}
 	return nil
@@ -106,4 +107,68 @@ func UpdateNodeConditions(ctx context.Context, c clientset.Interface, nodeName s
 		return nil, fmt.Errorf("failed to create/update conditions on node %q: %v", nodeName, err)
 	}
 	return updatedNode, nil
+}
+
+// IsMachineOnlyCondition returns true for condition types that are set by MCM, are machine-specific and not sourced from the node.
+func IsMachineOnlyCondition(condType v1.NodeConditionType) bool {
+	return condType == v1alpha1.ConditionMachineJoined
+}
+
+// NodeConditionsHaveChanged compares two node status.conditions to see if any of the statuses have changed.
+// Ignores machine-only conditions (see [IsMachineOnlyCondition]).
+// A Status change is considered a change for all condition types; for [v1alpha1.NodeInPlaceUpdate]
+// a Reason change is also considered a change.
+func NodeConditionsHaveChanged(oldConditions []v1.NodeCondition, newConditions []v1.NodeCondition) ([]v1.NodeCondition, []v1.NodeCondition, bool) {
+	var (
+		oldConditionsByType      = make(map[v1.NodeConditionType]v1.NodeCondition, len(oldConditions))
+		newConditionsByType      = make(map[v1.NodeConditionType]v1.NodeCondition, len(newConditions))
+		addedOrUpdatedConditions = make([]v1.NodeCondition, 0, len(newConditions))
+		removedConditions        = make([]v1.NodeCondition, 0, len(oldConditions))
+	)
+
+	for _, c := range oldConditions {
+		if IsMachineOnlyCondition(c.Type) {
+			continue
+		}
+		oldConditionsByType[c.Type] = c
+	}
+	for _, c := range newConditions {
+		if IsMachineOnlyCondition(c.Type) {
+			continue
+		}
+		newConditionsByType[c.Type] = c
+	}
+
+	// checking for any added/updated new condition
+	for _, c := range newConditions {
+		oldC, exists := oldConditionsByType[c.Type]
+		if !exists || (oldC.Status != c.Status) || (c.Type == v1alpha1.NodeInPlaceUpdate && oldC.Reason != c.Reason) {
+			addedOrUpdatedConditions = append(addedOrUpdatedConditions, c)
+		}
+	}
+
+	// checking for any deleted condition
+	for _, c := range oldConditions {
+		if IsMachineOnlyCondition(c.Type) {
+			continue
+		}
+		if _, exists := newConditionsByType[c.Type]; !exists {
+			removedConditions = append(removedConditions, c)
+		}
+	}
+
+	return addedOrUpdatedConditions, removedConditions, len(addedOrUpdatedConditions) != 0 || len(removedConditions) != 0
+}
+
+// ReplacePreservingMachineOnlyConditions replaces existing with newConditions, re-inserting any
+// machine-only conditions (see [IsMachineOnlyCondition]) from existing so they are not lost when newConditions
+// originates from an external source (e.g. a node) that is unaware of MCM-internal condition types.
+func ReplacePreservingMachineOnlyConditions(existing, newConditions []v1.NodeCondition) []v1.NodeCondition {
+	result := newConditions
+	for _, c := range existing {
+		if IsMachineOnlyCondition(c.Type) {
+			result, _ = CloneAndAddCondition(result, c)
+		}
+	}
+	return result
 }
