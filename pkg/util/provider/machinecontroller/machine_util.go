@@ -1736,7 +1736,7 @@ func (c *controller) drainNode(ctx context.Context, deleteMachineRequest *driver
 		}
 		err = fmt.Errorf("%s", description)
 		state = v1alpha1.MachineStateProcessing
-		metrics.UpdateMetricsForMachineDurations(machine, nil, metrics.MachineDurations{Drain: drainOptions.GetDrainDuration()})
+		metrics.UpdateMetricsForMachineDurations(machine, deleteMachineRequest.MachineClass, metrics.MachineDurations{Drain: drainOptions.GetDrainDuration()})
 
 		// Return error even when machine object is updated
 	} else if err != nil && forceDeleteMachine {
