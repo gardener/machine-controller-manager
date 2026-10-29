@@ -274,7 +274,7 @@ func (c *controller) reconcileClusterMachine(ctx context.Context, machine *v1alp
 		return retry, err
 	}
 
-	if machine.Labels[v1alpha1.NodeLabelKey] != "" && machine.Status.CurrentStatus.Phase != "" {
+	if c.getBackingNodeName(machine) != "" && machine.Status.CurrentStatus.Phase != "" {
 		// If reference to node object exists execute the below
 		retry, err := c.reconcileMachineHealth(ctx, machine)
 		if err != nil {
@@ -842,7 +842,7 @@ func (c *controller) manageMachinePreservation(ctx context.Context, machine *v1a
 			retry = machineutils.LongRetry
 		}
 	}()
-	nodeName := machine.Labels[v1alpha1.NodeLabelKey]
+	nodeName := c.getBackingNodeName(machine)
 	// We buffer the error returned here until we can tell if the machine is preservation-bound.
 	preserveInfo, getErr := c.getPreserveStateInfo(machine)
 	if preserveInfo.machineAnnotated && !machineutils.AllowedPreserveAnnotationValues.Has(preserveInfo.machineValue) {
@@ -980,7 +980,7 @@ func (c *controller) getPreserveStateInfo(machine *v1alpha1.Machine) (preserveSt
 	if machine.Status.CurrentStatus.PreserveExpiryTime != nil {
 		info.preserveExpiryTimeSet = true
 	}
-	nodeName := machine.Labels[v1alpha1.NodeLabelKey]
+	nodeName := c.getBackingNodeName(machine)
 	if nodeName != "" {
 		node, err := c.nodeLister.Get(nodeName)
 		if err != nil {

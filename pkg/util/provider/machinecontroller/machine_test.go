@@ -3931,6 +3931,106 @@ var _ = Describe("machine", func() {
 					),
 				},
 			}),
+			Entry("without target cluster: skip node deletion of machine with node label", &data{
+				setup: setup{
+					noTargetCluster: true,
+					secrets: []*corev1.Secret{
+						{
+							ObjectMeta: *newObjectMeta(objMeta, 0),
+						},
+					},
+					machineClasses: []*v1alpha1.MachineClass{
+						{
+							ObjectMeta: *newObjectMeta(objMeta, 0),
+							SecretRef:  newSecretReference(objMeta, 0),
+						},
+					},
+					machines: newMachines(
+						1,
+						&v1alpha1.MachineTemplateSpec{
+							ObjectMeta: *newObjectMeta(objMeta, 0),
+							Spec: v1alpha1.MachineSpec{
+								Class: v1alpha1.ClassSpec{
+									Kind: "MachineClass",
+									Name: "machine-0",
+								},
+								ProviderID: "fakeID",
+							},
+						},
+						&v1alpha1.MachineStatus{
+							CurrentStatus: v1alpha1.CurrentStatus{
+								Phase:          v1alpha1.MachineTerminating,
+								LastUpdateTime: metav1.Now(),
+							},
+							LastOperation: v1alpha1.LastOperation{
+								Description:    machineutils.InitiateNodeDeletion,
+								State:          v1alpha1.MachineStateProcessing,
+								Type:           v1alpha1.MachineOperationDelete,
+								LastUpdateTime: metav1.Now(),
+							},
+						},
+						nil,
+						map[string]string{
+							machineutils.MachinePriority: "3",
+						},
+						map[string]string{v1alpha1.NodeLabelKey: "fakeID-0"},
+						true,
+						metav1.Now(),
+					),
+					nodes: []*corev1.Node{
+						{
+							ObjectMeta: metav1.ObjectMeta{
+								Name: "fakeID-0",
+							},
+						},
+					},
+				},
+				action: action{
+					machine: "machine-0",
+					fakeDriver: &driver.FakeDriver{
+						VMExists:   true,
+						ProviderID: "fakeID-0",
+						NodeName:   "fakeNode-0",
+						Err:        nil,
+					},
+				},
+				expect: expect{
+					err:         fmt.Errorf("machine deletion in process: running without target cluster"),
+					retry:       machineutils.ShortRetry,
+					nodeDeleted: false,
+					machine: newMachine(
+						&v1alpha1.MachineTemplateSpec{
+							ObjectMeta: *newObjectMeta(objMeta, 0),
+							Spec: v1alpha1.MachineSpec{
+								Class: v1alpha1.ClassSpec{
+									Kind: "MachineClass",
+									Name: "machine-0",
+								},
+								ProviderID: "fakeID",
+							},
+						},
+						&v1alpha1.MachineStatus{
+							CurrentStatus: v1alpha1.CurrentStatus{
+								Phase:          v1alpha1.MachineTerminating,
+								LastUpdateTime: metav1.Now(),
+							},
+							LastOperation: v1alpha1.LastOperation{
+								Description:    fmt.Sprintf("Running without target cluster, skipping node deletion. %s", machineutils.InitiateFinalizerRemoval),
+								State:          v1alpha1.MachineStateProcessing,
+								Type:           v1alpha1.MachineOperationDelete,
+								LastUpdateTime: metav1.Now(),
+							},
+						},
+						nil,
+						map[string]string{
+							machineutils.MachinePriority: "3",
+						},
+						map[string]string{v1alpha1.NodeLabelKey: "fakeID-0"},
+						true,
+						metav1.Now(),
+					),
+				},
+			}),
 		)
 	})
 
@@ -4440,6 +4540,7 @@ var _ = Describe("machine", func() {
 			machinePhase           v1alpha1.MachinePhase
 			preserveExpiryTime     *metav1.Time
 			nodeTainted            bool
+			noTargetCluster        bool
 		}
 		type expect struct {
 			retry                   machineutils.RetryPeriod
@@ -4515,7 +4616,7 @@ var _ = Describe("machine", func() {
 					}
 					targetCoreObjects = append(targetCoreObjects, node)
 				}
-				c, trackers := createController(stop, testNamespace, controlMachineObjects, nil, targetCoreObjects, nil, false)
+				c, trackers := createController(stop, testNamespace, controlMachineObjects, nil, targetCoreObjects, nil, tc.setup.noTargetCluster)
 				defer trackers.Stop()
 				waitForCacheSync(stop, c)
 				retry, err := c.manageMachinePreservation(context.TODO(), machine)
@@ -4535,7 +4636,7 @@ var _ = Describe("machine", func() {
 				} else {
 					Expect(updatedMachine.Status.CurrentStatus.PreserveExpiryTime.IsZero()).To(BeTrue())
 				}
-				if tc.setup.nodeName != "" && tc.setup.nodeName != "invalid" {
+				if !tc.setup.noTargetCluster && tc.setup.nodeName != "" && tc.setup.nodeName != "invalid" {
 					updatedNode, err := c.targetCoreClient.CoreV1().Nodes().Get(context.TODO(), tc.setup.nodeName, metav1.GetOptions{})
 					Expect(err).ToNot(HaveOccurred())
 					found := false
@@ -4733,6 +4834,50 @@ var _ = Describe("machine", func() {
 					nodeCondition:           nil,
 					retry:                   machineutils.LongRetry,
 					err:                     nil,
+				},
+			}),
+			Entry("when running without target cluster and a machine with node label is annotated with preserve=now, should start preservation without node", testCase{
+				setup: setup{
+					machineAnnotationValue: machineutils.PreserveMachineAnnotationValueNow,
+					machineAnnotated:       true,
+					nodeName:               "node-1",
+					machinePhase:           v1alpha1.MachineRunning,
+					noTargetCluster:        true,
+				},
+				expect: expect{
+					preserveExpiryTimeIsSet: true,
+					nodeCondition:           nil,
+					retry:                   machineutils.LongRetry,
+					machineAnnotationValue:  machineutils.PreserveMachineAnnotationValueNow,
+					err:                     nil,
+				},
+			}),
+			Entry("when running without target cluster and preservation times out for a machine with node label, should stop preservation without node", testCase{
+				setup: setup{
+					machineAnnotationValue: machineutils.PreserveMachineAnnotationValueNow,
+					machineAnnotated:       true,
+					nodeName:               "node-1",
+					machinePhase:           v1alpha1.MachineRunning,
+					preserveExpiryTime:     &metav1.Time{Time: metav1.Now().Add(-1 * time.Minute)},
+					noTargetCluster:        true,
+				},
+				expect: expect{
+					preserveExpiryTimeIsSet: false,
+					nodeCondition:           nil,
+					retry:                   machineutils.LongRetry,
+					err:                     nil,
+				},
+			}),
+			Entry("when running without target cluster and a machine with node label is not annotated, should do nothing", testCase{
+				setup: setup{
+					nodeName:        "node-1",
+					machinePhase:    v1alpha1.MachineAvailable,
+					noTargetCluster: true,
+				},
+				expect: expect{
+					preserveExpiryTimeIsSet: false,
+					nodeCondition:           nil,
+					retry:                   machineutils.LongRetry,
 				},
 			}),
 			Entry("when a machine has a backing node, but node retrieval fails", testCase{
@@ -5066,6 +5211,7 @@ var _ = Describe("machine", func() {
 			nodeName           string
 			nodeAnnotations    map[string]string
 			includeNode        bool
+			noTargetCluster    bool
 		}
 		type expect struct {
 			machineAnnotated      bool
@@ -5110,7 +5256,7 @@ var _ = Describe("machine", func() {
 					})
 				}
 
-				c, trackers := createController(stop, testNamespace, []runtime.Object{machine}, nil, targetCoreObjects, nil, false)
+				c, trackers := createController(stop, testNamespace, []runtime.Object{machine}, nil, targetCoreObjects, nil, tc.setup.noTargetCluster)
 				defer trackers.Stop()
 				waitForCacheSync(stop, c)
 
@@ -5131,6 +5277,19 @@ var _ = Describe("machine", func() {
 			Entry("machine has no annotations and no node label", testCase{
 				setup:  setup{},
 				expect: expect{},
+			}),
+			Entry("running without target cluster, machine has node label and preserve annotation", testCase{
+				setup: setup{
+					nodeName: "node-1",
+					machineAnnotations: map[string]string{
+						machineutils.PreserveMachineAnnotationKey: machineutils.PreserveMachineAnnotationValueNow,
+					},
+					noTargetCluster: true,
+				},
+				expect: expect{
+					machineAnnotated: true,
+					machineValue:     machineutils.PreserveMachineAnnotationValueNow,
+				},
 			}),
 			Entry("machine has preserve annotation and node is not annotated", testCase{
 				setup: setup{
