@@ -74,7 +74,7 @@ jobs:
       - name: run-unit-tests
         shell: bash
         run: |
-          set -eu
+          set -euo pipefail
           mkdir -p /tmp/logs
           SKIP_INTEGRATION_TESTS=true .ci/test |& tee /tmp/logs/unit-test-log.txt
       - name: upload-unit-test-log
@@ -96,7 +96,7 @@ jobs:
       - name: run-integration-tests
         shell: bash
         run: |
-          set -eu
+          set -euo pipefail
           mkdir -p /tmp/logs
           SKIP_UNIT_TESTS=true .ci/test |& tee /tmp/logs/integration-test-log.txt
       - name: upload-mc-mcm-logs-on-failure
@@ -116,7 +116,7 @@ jobs:
           name: integration-test-log-${{ github.run_id }}-${{ github.run_attempt }}
           path: /tmp/logs/integration-test-log.txt
 
-  test:
+  consolidate-report:
     runs-on: ubuntu-latest
     needs:
       - unit-tests
@@ -136,7 +136,10 @@ jobs:
           path: /tmp/blobs.d/logs
       - name: package-test-logs
         shell: bash
-        run: tar czf /tmp/blobs.d/test-log.tar.gz -C /tmp/blobs.d/logs .
+        run: |
+          set -euo pipefail
+          cat /tmp/blobs.d/logs/unit-test-log.txt /tmp/blobs.d/logs/integration-test-log.txt > /tmp/blobs.d/logs/test-log.txt
+          tar czf /tmp/blobs.d/test-log.tar.gz -C /tmp/blobs.d/logs .
       - name: add-test-results-to-component-descriptor
         uses: gardener/cc-utils/.github/actions/export-ocm-fragments@v1
         with:
