@@ -444,7 +444,7 @@ func (c *controller) manageReplicas(ctx context.Context, allMachines []*v1alpha1
 	staleMachines = append(staleMachines, getMachinesMarkedForDeletion(machinesWithoutUpdateSuccessfulLabel, machineSet)...)
 	for _, machine := range machinesWithoutUpdateSuccessfulLabel {
 		// if a failed machine is preserved, it must not be terminated
-		if machineutils.IsFailed(machine) && c.shouldFailedMachineBeTerminated(machine) {
+		if machineutils.IsFailed(machine) && !machineutils.IsPreserved(machine) {
 			staleMachines = append(staleMachines, machine)
 		}
 	}
@@ -908,21 +908,6 @@ func isMachineStatusEqual(s1, s2 v1alpha1.MachineStatus) bool {
 	s1Copy.CurrentStatus.LastUpdateTime, s2Copy.CurrentStatus.LastUpdateTime = metav1.Time{}, metav1.Time{}
 
 	return apiequality.Semantic.DeepEqual(s1Copy.LastOperation, s2Copy.LastOperation) && apiequality.Semantic.DeepEqual(s1Copy.CurrentStatus, s2Copy.CurrentStatus)
-}
-
-// shouldFailedMachineBeTerminated checks if preservation is ongoing for failed machine(PreserveExpiryTime is set and not yet lapsed),
-// and if yes, returns false indicating that the machine must not be terminated.
-func (c *controller) shouldFailedMachineBeTerminated(machine *v1alpha1.Machine) bool {
-	if machine.Status.CurrentStatus.PreserveExpiryTime == nil {
-		return true
-	}
-	// if preserve expiry time is set and is in the future, machine is already currently being preserved
-	if machine.Status.CurrentStatus.PreserveExpiryTime.After(time.Now()) {
-		klog.V(3).Infof("Failed machine %q is preserved until %v", machine.Name, machine.Status.CurrentStatus.PreserveExpiryTime)
-		return false
-	}
-	klog.V(3).Infof("Preservation of failed machine %q has timed out at %v", machine.Name, machine.Status.CurrentStatus.PreserveExpiryTime)
-	return true
 }
 
 // manageAutoPreservationOfFailedMachines annotates failed machines with preserve=auto-preserved annotation

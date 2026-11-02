@@ -105,7 +105,7 @@ However, if both machine and node have the preservation annotation, the node's a
 To prevent confusion and unintended behaviour, it is recommended to use preservation by annotating the node object, if it exists and can be accessed.
 When the `PreserveExpiryTime` of a preserved machine is reached, the preservation will be stopped. Additionally, the preservation annotation is removed to prevent undesired re-preservation of the same machine. This is applicable for both manual and auto-preservation.
 
-When a machine is annotated with value `false`, the annotation and value is not removed by MCM. This is to explicitly indicate that the machine should not be auto-preserved by MCM. If the annotation value is set to empty or the annotation is deleted, MCM will again auto-preserve the machine if it is in `Failed` phase and the `AutoPreserveFailedMachineMax` limit is not reached.
+When a machine is annotated with value `false`, the annotation and value is not removed by MCM. This is to explicitly indicate that the machine should not be auto-preserved by MCM. If the annotation is deleted, MCM will again auto-preserve the machine if it is in `Failed` phase and the `AutoPreserveFailedMachineMax` limit is not reached.
 
 ---
 ### How to manually stop preservation before PreserveExpiryTime:
@@ -124,7 +124,9 @@ Setting the annotation value to `false` explicitly indicates that the machine sh
 To prevent a `Failed` machine from being auto-preserved the node/machine object must be annotated with `node.machine.sapcloud.io/preserve=false`. If a currently preserved machine is annotated with `false`, the preservation will be stopped.
 Here too, the preservation annotation semantics from above applies - if both machine and node are annotated, the node's annotation value is honoured and the machine's annotation is deleted.
 
-If the preserve annotation value is set to empty or the annotation is deleted, MCM will again auto-preserve the machine if it is in `Failed` phase and the `AutoPreserveFailedMachineMax` limit is not reached.
+If the preserve annotation is deleted, MCM will again auto-preserve the machine if it is in `Failed` phase and the `AutoPreserveFailedMachineMax` limit is not reached.
+
+>Note: If the machine is annotated with `node.machine.sapcloud.io/preserve=<invalid-value>`, this would end up preventing the machine from being `auto-preserved`.
 
 ---
 ### What happens when a machine recovers from failure and moves to `Running` during preservation?

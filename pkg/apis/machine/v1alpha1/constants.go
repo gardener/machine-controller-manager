@@ -37,7 +37,7 @@ const (
 )
 
 const (
-	// DefaultMachinePreserveTimeout is the default time for which the machine is preserved
+	// DefaultMachinePreserveTimeout is the default duration for which the machine is preserved
 	// when [MachineConfiguration.MachinePreserveTimeout] is not specified.
 	DefaultMachinePreserveTimeout = 96 * time.Hour
 )

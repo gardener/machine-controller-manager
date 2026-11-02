@@ -12,8 +12,6 @@ import (
 	"sync"
 	"time"
 
-	corev1 "k8s.io/api/core/v1"
-
 	machinev1 "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	faketyped "github.com/gardener/machine-controller-manager/pkg/client/clientset/versioned/typed/machine/v1alpha1/fake"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/machineutils"
@@ -2651,101 +2649,5 @@ var _ = Describe("machineset", func() {
 			_, err := c.stopAutoPreservationForMachines(context.TODO(), []*machinev1.Machine{m}, 1)
 			Expect(err).To(HaveOccurred())
 		})
-	})
-
-	Describe("#shouldFailedMachineBeTerminated", func() {
-		type setup struct {
-			preserveExpiryTime     *metav1.Time
-			nodeName               string
-			nodeAnnotationValue    string
-			machineAnnotationValue string
-			laNodeAnnotationValue  string
-		}
-		type expect struct {
-			result bool
-		}
-		type testCase struct {
-			setup  setup
-			expect expect
-		}
-
-		DescribeTable("shouldFailedMachineBeTerminated test cases", func(tc testCase) {
-			stop := make(chan struct{})
-			defer close(stop)
-
-			var controlMachineObjects []runtime.Object
-			var targetCoreObjects []runtime.Object
-
-			machine := machinev1.Machine{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:            "test-machine",
-					Namespace:       "default",
-					ResourceVersion: "1",
-					Annotations: map[string]string{
-						machineutils.PreserveMachineAnnotationKey:              tc.setup.machineAnnotationValue,
-						machineutils.LastAppliedNodePreserveValueAnnotationKey: tc.setup.laNodeAnnotationValue,
-					},
-					Labels: map[string]string{
-						machinev1.NodeLabelKey: tc.setup.nodeName,
-					},
-				},
-				Status: machinev1.MachineStatus{
-					CurrentStatus: machinev1.CurrentStatus{
-						Phase:              machinev1.MachineFailed,
-						PreserveExpiryTime: tc.setup.preserveExpiryTime,
-					},
-				},
-			}
-			controlMachineObjects = append(controlMachineObjects, &machine)
-			if tc.setup.nodeName != "" {
-				node := &corev1.Node{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: tc.setup.nodeName,
-						Annotations: map[string]string{
-							machineutils.PreserveMachineAnnotationKey: tc.setup.nodeAnnotationValue,
-						},
-					},
-					Status: corev1.NodeStatus{
-						Conditions: []corev1.NodeCondition{},
-					},
-				}
-				targetCoreObjects = append(targetCoreObjects, node)
-			}
-			c, trackers := createController(stop, testNamespace, controlMachineObjects, nil, targetCoreObjects)
-			defer trackers.Stop()
-			waitForCacheSync(stop, c)
-			result := c.shouldFailedMachineBeTerminated(&machine)
-
-			Expect(result).To(Equal(tc.expect.result))
-		},
-			Entry("should return false if preserve expiry time is in the future", testCase{
-				setup: setup{
-					preserveExpiryTime:     &metav1.Time{Time: metav1.Now().Add(1 * time.Hour)},
-					machineAnnotationValue: machineutils.PreserveMachineAnnotationValueNow,
-					nodeName:               "test-node",
-				},
-				expect: expect{
-					result: false,
-				},
-			}),
-			Entry("should return true if node is not annotated", testCase{
-				setup: setup{
-					nodeName: "test-node",
-				},
-				expect: expect{
-					result: true,
-				},
-			}),
-			Entry("should return true if preservation has timed out", testCase{
-				setup: setup{
-					preserveExpiryTime:  &metav1.Time{Time: metav1.Now().Add(-1 * time.Second)},
-					nodeAnnotationValue: machineutils.PreserveMachineAnnotationValueNow,
-					nodeName:            "test-node",
-				},
-				expect: expect{
-					result: true,
-				},
-			}),
-		)
 	})
 })

@@ -195,9 +195,17 @@ func IsPreserveExpiryTimeSetAndExpired(m *v1alpha1.Machine) bool {
 
 // IsPreserved returns true if the machine is currently being preserved, i.e. it has a
 // PreserveExpiryTime set on its status that lies in the future.
-func IsPreserved(m *v1alpha1.Machine) bool {
-	t := m.Status.CurrentStatus.PreserveExpiryTime
-	return t != nil && t.After(time.Now())
+func IsPreserved(machine *v1alpha1.Machine) bool {
+	if machine.Status.CurrentStatus.PreserveExpiryTime == nil {
+		return false
+	}
+	// if preserve expiry time is set and is in the future, machine is already currently being preserved
+	if machine.Status.CurrentStatus.PreserveExpiryTime.After(time.Now()) {
+		klog.V(3).Infof("Machine %q is preserved until %v", machine.Name, machine.Status.CurrentStatus.PreserveExpiryTime)
+		return true
+	}
+	klog.V(3).Infof("Preservation of machine %q has timed out at %v", machine.Name, machine.Status.CurrentStatus.PreserveExpiryTime)
+	return false
 }
 
 // GetMachineDeploymentName gets the name of the MachineDeployment associated with this Machine
