@@ -8,9 +8,8 @@ package driver
 import (
 	"context"
 
-	corev1 "k8s.io/api/core/v1"
-
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
+	corev1 "k8s.io/api/core/v1"
 )
 
 // Driver is the common interface for creation/deletion of the VMs over different cloud-providers.
@@ -60,8 +59,7 @@ type CreateMachineResponse struct {
 	// LastKnownState represents the last state of the VM during an creation/deletion error
 	LastKnownState string
 
-	// Addresses to reach the VM. Returning this field is optional, and only used if the MCM provider runs without a
-	// target cluster.
+	// Addresses to reach the VM. Once known/reported by the machine provider, they eventually get persisted in this field.
 	Addresses []corev1.NodeAddress
 }
 
@@ -87,8 +85,7 @@ type InitializeMachineResponse struct {
 	// NodeName is the name of the node-object registered to kubernetes.
 	NodeName string
 
-	// Addresses to reach the VM. Returning this field is optional, and only used if the MCM provider runs without a
-	// target cluster.
+	// Addresses to reach the VM. Once known/reported by the machine provider, they eventually get persisted in this field.
 	Addresses []corev1.NodeAddress
 }
 
@@ -132,8 +129,7 @@ type GetMachineStatusResponse struct {
 	// NodeName is the name of the node-object registered to kubernetes.
 	NodeName string
 
-	// Addresses to reach the VM. Returning this field is optional, and only used if the MCM provider runs without a
-	// target cluster.
+	// Addresses to reach the VM. Once known/reported by the machine provider, they eventually get persisted in this field.
 	Addresses []corev1.NodeAddress
 }
 
