@@ -466,7 +466,7 @@ func (c *controller) triggerCreationFlow(ctx context.Context, createMachineReque
 					// To avoid this scenario, check if the name of the node is equal to the machine name before marking them as stale.
 					// Ideally, the check should compare that the providerID of the machine and the node are matching, but since this is
 					// not enforced  for MCM extensions the current best option is to compare the names.
-					if node, err := c.nodeLister.Get(nodeName); err == nil && nodeName != machineName {
+					if _, err := c.nodeLister.Get(nodeName); err == nil && nodeName != machineName {
 						// mark the machine obj as `Failed`
 						klog.Errorf("Stale node obj with name %q for machine %q has been found. Hence marking the created VM for deletion to trigger a new machine creation.", nodeName, machine.Name)
 
@@ -488,16 +488,6 @@ func (c *controller) triggerCreationFlow(ctx context.Context, createMachineReque
 							klog.V(2).Infof("VM successfully deleted in context of stale node obj for machine %q", machine.Name)
 						}
 
-						lastUpdateTime := metav1.Now()
-						machineCurrentStatus := v1alpha1.CurrentStatus{
-							Phase:          v1alpha1.MachineFailed,
-							LastUpdateTime: lastUpdateTime,
-						}
-
-						if val, shouldHandlePreservation := machineutils.DeterminePreservationAction(machine, node); shouldHandlePreservation && val == machineutils.PreserveMachineAnnotationValueWhenFailed {
-							machineCurrentStatus.PreserveExpiryTime = &metav1.Time{Time: metav1.Now().Add(c.getEffectiveMachinePreserveTimeout(machine).Duration)}
-						}
-
 						// machine obj marked Failed for double security
 						updateRetryPeriod, updateErr := c.machineStatusUpdate(
 							ctx,
@@ -506,9 +496,12 @@ func (c *controller) triggerCreationFlow(ctx context.Context, createMachineReque
 								Description:    "VM using old node obj",
 								State:          v1alpha1.MachineStateFailed,
 								Type:           v1alpha1.MachineOperationCreate,
-								LastUpdateTime: lastUpdateTime,
+								LastUpdateTime: metav1.Now(),
 							},
-							machineCurrentStatus,
+							v1alpha1.CurrentStatus{
+								Phase:          v1alpha1.MachineFailed,
+								LastUpdateTime: metav1.Now(),
+							},
 							machine.Status.LastKnownState,
 						)
 
@@ -681,21 +674,7 @@ func (c *controller) initializeMachine(ctx context.Context, machine *v1alpha1.Ma
 			return nil, 0, nil
 		}
 		klog.Errorf("error occurred while initializing VM instance for machine %q: %s", machine.Name, err)
-		lastUpdateTime := metav1.Now()
-		machineCurrentStatus := v1alpha1.CurrentStatus{
-			Phase:          c.getCreateFailurePhase(machine),
-			LastUpdateTime: lastUpdateTime,
-		}
-		if machineCurrentStatus.Phase == v1alpha1.MachineFailed {
-			// check if preservation is needed for the failed machine
-			node, err := c.nodeLister.Get(machine.Labels[v1alpha1.NodeLabelKey])
-			if err != nil {
-				klog.V(3).Infof("node %q not found.", machine.Labels[v1alpha1.NodeLabelKey])
-			}
-			if val, shouldHandlePreservation := machineutils.DeterminePreservationAction(machine, node); shouldHandlePreservation && val == machineutils.PreserveMachineAnnotationValueWhenFailed {
-				machineCurrentStatus.PreserveExpiryTime = &metav1.Time{Time: metav1.Now().Add(c.getEffectiveMachinePreserveTimeout(machine).Duration)}
-			}
-		}
+
 		updateRetryPeriod, updateErr := c.machineStatusUpdate(
 			ctx,
 			machine,
@@ -704,9 +683,12 @@ func (c *controller) initializeMachine(ctx context.Context, machine *v1alpha1.Ma
 				ErrorCode:      errStatus.Code().String(),
 				State:          v1alpha1.MachineStateFailed,
 				Type:           v1alpha1.MachineOperationCreate,
-				LastUpdateTime: lastUpdateTime,
+				LastUpdateTime: metav1.Now(),
 			},
-			machineCurrentStatus,
+			v1alpha1.CurrentStatus{
+				Phase:          c.getCreateFailurePhase(machine),
+				LastUpdateTime: metav1.Now(),
+			},
 			machine.Status.LastKnownState,
 		)
 		if updateErr != nil {
@@ -837,15 +819,17 @@ func (c *controller) isCreationProcessing(machine *v1alpha1.Machine) bool {
 // manageMachinePreservation manages machine preservation based on the preserve annotation values on the node and machine objects.
 func (c *controller) manageMachinePreservation(ctx context.Context, machine *v1alpha1.Machine) (clone *v1alpha1.Machine, err error) {
 	var nodeCopy *corev1.Node
-	node, err := c.nodeLister.Get(machine.Labels[v1alpha1.NodeLabelKey])
-	if err != nil {
-		klog.V(3).Infof("node %q not found. Will check the machine %q for annotation:%q", machine.Labels[v1alpha1.NodeLabelKey], machine.Name, machineutils.PreserveMachineAnnotationKey)
-		nodeCopy = node
-	} else {
-		nodeCopy = node.DeepCopy()
+	if c.nodeLister != nil {
+		node, err := c.nodeLister.Get(machine.Labels[v1alpha1.NodeLabelKey])
+		if err != nil {
+			klog.V(3).Infof("node %q not found. Will check the machine %q for annotation:%q", machine.Labels[v1alpha1.NodeLabelKey], machine.Name, machineutils.PreserveMachineAnnotationKey)
+			nodeCopy = node
+		} else {
+			nodeCopy = node.DeepCopy()
+		}
 	}
 
-	preserveAnnotationValue, shouldHandlePreservation := machineutils.DeterminePreservationAction(machine, node)
+	preserveAnnotationValue, shouldHandlePreservation := machineutils.DeterminePreservationAction(machine, nodeCopy)
 	if !shouldHandlePreservation {
 		// We clear the error here to prevent preservation logic from interfering with non-preservation-bound machines.
 		clone = machine

@@ -817,7 +817,9 @@ func (c *controller) machineCreateErrorHandler(ctx context.Context, machine *v1a
 		// check if preservation is needed for the failed machine
 		node, _ := c.nodeLister.Get(machine.Labels[v1alpha1.NodeLabelKey])
 		if val, shouldHandlePreservation := machineutils.DeterminePreservationAction(machine, node); shouldHandlePreservation && val == machineutils.PreserveMachineAnnotationValueWhenFailed {
-			machineCurrentStatus.PreserveExpiryTime = &metav1.Time{Time: metav1.Now().Add(c.getEffectiveMachinePreserveTimeout(machine).Duration)}
+			if machineCurrentStatus.PreserveExpiryTime == nil {
+				machineCurrentStatus.PreserveExpiryTime = &metav1.Time{Time: metav1.Now().Add(c.getEffectiveMachinePreserveTimeout(machine).Duration)}
+			}
 		}
 	}
 
@@ -1154,7 +1156,9 @@ func (c *controller) reconcileMachineHealth(ctx context.Context, machine *v1alph
 				}
 				// check if preservation is needed for the failed machine
 				if val, shouldHandlePreservation := machineutils.DeterminePreservationAction(machine, node); shouldHandlePreservation && val == machineutils.PreserveMachineAnnotationValueWhenFailed {
-					clone.Status.CurrentStatus.PreserveExpiryTime = &metav1.Time{Time: metav1.Now().Add(c.getEffectiveMachinePreserveTimeout(machine).Duration)}
+					if clone.Status.CurrentStatus.PreserveExpiryTime == nil {
+						clone.Status.CurrentStatus.PreserveExpiryTime = &metav1.Time{Time: metav1.Now().Add(c.getEffectiveMachinePreserveTimeout(machine).Duration)}
+					}
 				}
 				cloneDirty = true
 				if machineClass != nil {
@@ -2233,7 +2237,9 @@ func (c *controller) updateMachineToFailedState(ctx context.Context, description
 
 	// check if preservation is needed for the failed machine
 	if val, shouldHandlePreservation := machineutils.DeterminePreservationAction(machine, node); shouldHandlePreservation && val == machineutils.PreserveMachineAnnotationValueWhenFailed {
-		clone.Status.CurrentStatus.PreserveExpiryTime = &metav1.Time{Time: metav1.Now().Add(c.getEffectiveMachinePreserveTimeout(machine).Duration)}
+		if clone.Status.CurrentStatus.PreserveExpiryTime == nil {
+			clone.Status.CurrentStatus.PreserveExpiryTime = &metav1.Time{Time: metav1.Now().Add(c.getEffectiveMachinePreserveTimeout(machine).Duration)}
+		}
 	}
 
 	_, err = c.controlMachineClient.Machines(clone.Namespace).UpdateStatus(ctx, clone, metav1.UpdateOptions{})
@@ -2498,7 +2504,7 @@ func (c *controller) preserveMachine(ctx context.Context, machine *v1alpha1.Mach
 		// Step 4: Update NodePreserved Condition on Node, with drain status
 		node, err = nodeops.AddOrUpdateConditionsOnNode(ctx, c.targetCoreClient, node.Name, *newCond)
 		if err != nil {
-			klog.Errorf("error trying to update node preserved condition for node %q of machine %q : %v", node.Name, machine.Name, err)
+			klog.Errorf("error trying to update node preserved condition for node %q of machine %q : %v", machine.Labels[v1alpha1.NodeLabelKey], machine.Name, err)
 		}
 	}
 	if drainErr != nil || err != nil {

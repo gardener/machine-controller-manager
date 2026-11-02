@@ -704,9 +704,9 @@ func (dc *controller) updateMachineAndMachineDeploymentDeletionAnnotations(ctx c
 		}
 		if controllerRef := metav1.GetControllerOf(updatedMachine); controllerRef != nil {
 			if machineList, ok := machineMap[controllerRef.UID]; ok {
-				for i, machine := range machineList.Items {
-					if machine.Name == updatedMachine.Name && machine.Namespace == updatedMachine.Namespace {
-						machineList.Items[i] = *updatedMachine
+				for j, m := range machineList.Items {
+					if m.Name == updatedMachine.Name && m.Namespace == updatedMachine.Namespace {
+						machineList.Items[j] = *updatedMachine
 					}
 				}
 			}

@@ -756,6 +756,8 @@ func (s ActiveMachines) Less(i, j int) bool {
 	if isPreservedI != isPreservedJ {
 		return !isPreservedI // if s[i] preserved, it is "greater" and should not be deleted first, therefore, "less" is false, and vice versa
 	}
+	// TODO: the check for preserve value only expects the annotation to be on machine. But the annotation can only be present at the node
+	// which breaks this logic. This problem should be solved once we implement the annotation movement from machine to node.
 	if isPreservedI {
 		// both machines have preserve-expiry-time set, in which case deletion priority goes as
 		// - machine whose preserve annotation was removed as part of stop preservation
