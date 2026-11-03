@@ -565,16 +565,14 @@ func (c *controller) triggerCreationFlow(ctx context.Context, createMachineReque
 		klog.V(2).Infof("Machine %q was initialized in %q", machine.Name, initializeDuration)
 		metrics.UpdateMetricsForMachineDurations(machine, createMachineRequest.MachineClass, metrics.MachineDurations{Initialize: initializeDuration})
 
-		if c.targetCoreClient == nil {
-			// persist addresses from the InitializeMachine and CreateMachine responses
-			clone := clone.DeepCopy()
-			if initResponse != nil {
-				addresses.Insert(initResponse.Addresses...)
-			}
-			clone.Status.Addresses = buildAddressStatus(addresses, nodeName)
-			if _, err := c.controlMachineClient.Machines(clone.Namespace).UpdateStatus(ctx, clone, metav1.UpdateOptions{}); err != nil {
-				return machineutils.ShortRetry, fmt.Errorf("failed to persist status addresses after initialization was successful: %w", err)
-			}
+		// persist addresses from the InitializeMachine and CreateMachine responses
+		clone := clone.DeepCopy()
+		if initResponse != nil {
+			addresses.Insert(initResponse.Addresses...)
+		}
+		clone.Status.Addresses = buildAddressStatus(addresses, nodeName)
+		if _, err := c.controlMachineClient.Machines(clone.Namespace).UpdateStatus(ctx, clone, metav1.UpdateOptions{}); err != nil {
+			return machineutils.ShortRetry, fmt.Errorf("failed to persist status addresses after initialization was successful: %w", err)
 		}
 
 		// Return error even when machine object is updated
@@ -598,15 +596,15 @@ func (c *controller) triggerCreationFlow(ctx context.Context, createMachineReque
 			TimeoutActive:  true,
 			LastUpdateTime: metav1.Now(),
 		}
+		clone.Status.Addresses = buildAddressStatus(addresses, nodeName)
 
-		// If running without a target cluster, set the Machine to Available immediately after a successful VM creation and report its addresses.
+		// If running without a target cluster, set the Machine to Available immediately after a successful VM creation.
 		// Skip waiting for the Node object to get registered.
 		if c.targetCoreClient == nil {
 			clone.Status.LastOperation.Description = "Created machine on cloud provider"
 			clone.Status.LastOperation.State = v1alpha1.MachineStateSuccessful
 			clone.Status.CurrentStatus.Phase = v1alpha1.MachineAvailable
 			clone.Status.CurrentStatus.TimeoutActive = false
-			clone.Status.Addresses = buildAddressStatus(addresses, nodeName)
 		}
 
 		_, err := c.controlMachineClient.Machines(clone.Namespace).UpdateStatus(ctx, clone, metav1.UpdateOptions{})

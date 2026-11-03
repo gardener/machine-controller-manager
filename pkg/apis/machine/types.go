@@ -167,8 +167,12 @@ type CurrentStatus struct {
 
 // MachineStatus holds the most recently observed status of Machine.
 type MachineStatus struct {
-	// Addresses of this machines. This field is only present if the MCM provider runs without a target cluster and may
-	// be used by clients to determine how to connect to the machine, instead of the `Node.status.addresses` field.
+	// Addresses contains the network addresses of this machine as reported by the cloud provider.
+	// It is always populated from the `CreateMachine`/`InitializeMachine` responses, regardless of whether
+	// MCM runs with or without a target cluster. When a target cluster is present, this field may differ
+	// from `Node.status.addresses` — the node object may carry additional addresses added by the kubelet
+	// or CNI, and their order may change. Clients must not assume this field stays in sync with
+	// `Node.status.addresses` after the node registers.
 	Addresses []corev1.NodeAddress
 
 	// Conditions of this machine, same as node

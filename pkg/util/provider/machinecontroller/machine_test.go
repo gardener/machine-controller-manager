@@ -11,11 +11,18 @@ import (
 	"math"
 	"time"
 
+	machineapi "github.com/gardener/machine-controller-manager/pkg/apis/machine"
+	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
+	"github.com/gardener/machine-controller-manager/pkg/apis/machine/validation"
+	fakemachineapi "github.com/gardener/machine-controller-manager/pkg/client/clientset/versioned/typed/machine/v1alpha1/fake"
+	customfake "github.com/gardener/machine-controller-manager/pkg/fakeclient"
 	annotationsutils "github.com/gardener/machine-controller-manager/pkg/util/annotations"
+	"github.com/gardener/machine-controller-manager/pkg/util/provider/driver"
+	"github.com/gardener/machine-controller-manager/pkg/util/provider/machinecodes/codes"
+	"github.com/gardener/machine-controller-manager/pkg/util/provider/machinecodes/status"
+	"github.com/gardener/machine-controller-manager/pkg/util/provider/machineutils"
 	taintutils "github.com/gardener/machine-controller-manager/pkg/util/taints"
-	k8stesting "k8s.io/client-go/testing"
-	"k8s.io/client-go/tools/cache"
-
+	"github.com/gardener/machine-controller-manager/pkg/util/worker"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
@@ -24,17 +31,8 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/validation/field"
-
-	machineapi "github.com/gardener/machine-controller-manager/pkg/apis/machine"
-	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
-	"github.com/gardener/machine-controller-manager/pkg/apis/machine/validation"
-	fakemachineapi "github.com/gardener/machine-controller-manager/pkg/client/clientset/versioned/typed/machine/v1alpha1/fake"
-	customfake "github.com/gardener/machine-controller-manager/pkg/fakeclient"
-	"github.com/gardener/machine-controller-manager/pkg/util/provider/driver"
-	"github.com/gardener/machine-controller-manager/pkg/util/provider/machinecodes/codes"
-	"github.com/gardener/machine-controller-manager/pkg/util/provider/machinecodes/status"
-	"github.com/gardener/machine-controller-manager/pkg/util/provider/machineutils"
-	"github.com/gardener/machine-controller-manager/pkg/util/worker"
+	k8stesting "k8s.io/client-go/testing"
+	"k8s.io/client-go/tools/cache"
 )
 
 const (
@@ -573,7 +571,12 @@ var _ = Describe("machine", func() {
 							},
 							ProviderID: "fakeID",
 						},
-					}, nil, nil, nil, map[string]string{v1alpha1.NodeLabelKey: "fakeNode-0"}, true, metav1.Now()),
+					}, &v1alpha1.MachineStatus{
+						Addresses: []corev1.NodeAddress{{
+							Type:    corev1.NodeHostName,
+							Address: "fakeNode-0",
+						}},
+					}, nil, nil, map[string]string{v1alpha1.NodeLabelKey: "fakeNode-0"}, true, metav1.Now()),
 					err:   fmt.Errorf("machine creation in process. Machine initialization (if required) is successful"),
 					retry: machineutils.ShortRetry,
 				},
@@ -641,6 +644,10 @@ var _ = Describe("machine", func() {
 							CurrentStatus: v1alpha1.CurrentStatus{
 								Phase: v1alpha1.MachinePending,
 							},
+							Addresses: []corev1.NodeAddress{{
+								Type:    corev1.NodeHostName,
+								Address: "fakeNode-0",
+							}},
 						},
 						nil,
 						map[string]string{
@@ -1087,6 +1094,10 @@ var _ = Describe("machine", func() {
 							CurrentStatus: v1alpha1.CurrentStatus{
 								Phase: v1alpha1.MachinePending,
 							},
+							Addresses: []corev1.NodeAddress{{
+								Type:    corev1.NodeHostName,
+								Address: "fakeNode-0",
+							}},
 						},
 						nil,
 						map[string]string{
