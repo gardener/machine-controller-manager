@@ -200,23 +200,30 @@ func (c *controller) filterMachinesForAutoPreservation(machines []*v1alpha1.Mach
 }
 
 // isAutoPreservationCandidate returns true if
+// - machine does not have deletion-timestamp set and
 // - machine is failed and
 // - either machine does not have any preservation annotation
 // or has auto-preserved annotation but preserve expiry time is not set.
 func (c *controller) isAutoPreservationCandidate(machine *v1alpha1.Machine) bool {
+	if machine.DeletionTimestamp != nil {
+		return false
+	}
+
 	if !machineutils.IsFailed(machine) {
 		return false
 	}
 
-	node, err := c.nodeLister.Get(machine.Labels[v1alpha1.NodeLabelKey])
-	if err == nil {
-		if _, ok := node.Annotations[machineutils.PreserveMachineAnnotationKey]; ok {
-			return false
-		}
-	} else {
-		klog.V(3).Infof("Unable to get the node %q from lister.", machine.Labels[v1alpha1.NodeLabelKey])
-		if _, ok := machine.Annotations[machineutils.LastAppliedNodePreserveValueAnnotationKey]; ok {
-			return false
+	if c.nodeLister != nil {
+		node, err := c.nodeLister.Get(machine.Labels[v1alpha1.NodeLabelKey])
+		if err == nil {
+			if _, ok := node.Annotations[machineutils.PreserveMachineAnnotationKey]; ok {
+				return false
+			}
+		} else {
+			klog.V(3).Infof("Unable to get the node %q from lister.", machine.Labels[v1alpha1.NodeLabelKey])
+			if _, ok := machine.Annotations[machineutils.LastAppliedNodePreserveValueAnnotationKey]; ok {
+				return false
+			}
 		}
 	}
 

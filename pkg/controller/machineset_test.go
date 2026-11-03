@@ -2095,10 +2095,9 @@ var _ = Describe("machineset", func() {
 
 	Describe("#manageAutoPreservationOfFailedMachines", func() {
 		type setup struct {
-			autoPreserveFailedMachineCount int32
-			autoPreserveFailedMachineMax   int32
-			additionalMachines             []*machinev1.Machine
-			replicas                       int32
+			autoPreserveFailedMachineMax int32
+			additionalMachines           []*machinev1.Machine
+			replicas                     int32
 		}
 		type expect struct {
 			preservedMachineCount int
@@ -2135,9 +2134,6 @@ var _ = Describe("machineset", func() {
 						},
 					},
 					AutoPreserveFailedMachineMax: tc.setup.autoPreserveFailedMachineMax,
-				},
-				Status: machinev1.MachineSetStatus{
-					AutoPreserveFailedMachineCount: tc.setup.autoPreserveFailedMachineCount,
 				},
 			}
 			testMachine1 := &machinev1.Machine{
@@ -2233,8 +2229,7 @@ var _ = Describe("machineset", func() {
 		},
 			Entry("should trigger auto preservation of 1 failed machine if AutoPreserveFailedMachineMax is 1 and AutoPreserveFailedMachineCount is 0", testCase{
 				setup: setup{
-					autoPreserveFailedMachineCount: 0,
-					autoPreserveFailedMachineMax:   1,
+					autoPreserveFailedMachineMax: 1,
 				},
 				expect: expect{
 					preservedMachineCount: 1,
@@ -2242,8 +2237,7 @@ var _ = Describe("machineset", func() {
 			}),
 			Entry("should not trigger auto preservation of failed machines if AutoPreserveFailedMachineMax is 0", testCase{
 				setup: setup{
-					autoPreserveFailedMachineCount: 0,
-					autoPreserveFailedMachineMax:   0,
+					autoPreserveFailedMachineMax: 0,
 				},
 				expect: expect{
 					preservedMachineCount: 0,
@@ -2251,8 +2245,7 @@ var _ = Describe("machineset", func() {
 			}),
 			Entry("should not trigger auto preservation of additional failed machines if AutoPreserveFailedMachineCount has reached AutoPreserveFailedMachineMax", testCase{
 				setup: setup{
-					autoPreserveFailedMachineCount: 2,
-					autoPreserveFailedMachineMax:   2,
+					autoPreserveFailedMachineMax: 2,
 					// Two machines below are already auto-preserved, so the machineset is at capacity.
 					// machine-1 and machine-2 must therefore NOT get preserved now.
 					additionalMachines: []*machinev1.Machine{
@@ -2298,8 +2291,7 @@ var _ = Describe("machineset", func() {
 			}),
 			Entry("should trigger auto preservation of both failed machines if AutoPreserveFailedMachineCount is 0 and AutoPreserveFailedMachineMax is 2", testCase{
 				setup: setup{
-					autoPreserveFailedMachineCount: 0,
-					autoPreserveFailedMachineMax:   2,
+					autoPreserveFailedMachineMax: 2,
 				},
 				expect: expect{
 					preservedMachineCount: 2,
@@ -2307,8 +2299,7 @@ var _ = Describe("machineset", func() {
 			}),
 			Entry("should not trigger auto preservation of failed machine annotated with preserve=false even if AutoPreserveFailedMachineCount < AutoPreserveFailedMachineMax", testCase{
 				setup: setup{
-					autoPreserveFailedMachineCount: 0,
-					autoPreserveFailedMachineMax:   3,
+					autoPreserveFailedMachineMax: 3,
 				},
 				expect: expect{
 					preservedMachineCount: 2,
@@ -2316,8 +2307,7 @@ var _ = Describe("machineset", func() {
 			}),
 			Entry("should stop auto preservation of machines annotated with preserve=auto-preserve if AutoPreserveFailedMachineCount > AutoPreserveFailedMachineMax", testCase{
 				setup: setup{
-					autoPreserveFailedMachineCount: 1,
-					autoPreserveFailedMachineMax:   0,
+					autoPreserveFailedMachineMax: 0,
 					additionalMachines: []*machinev1.Machine{
 						{
 							ObjectMeta: metav1.ObjectMeta{
@@ -2343,8 +2333,7 @@ var _ = Describe("machineset", func() {
 			}),
 			Entry("should reduce auto-preserved machines to the new lower AutoPreserveFailedMachineMax", testCase{
 				setup: setup{
-					autoPreserveFailedMachineCount: 2,
-					autoPreserveFailedMachineMax:   1,
+					autoPreserveFailedMachineMax: 1,
 					additionalMachines: []*machinev1.Machine{
 						{
 							ObjectMeta: metav1.ObjectMeta{

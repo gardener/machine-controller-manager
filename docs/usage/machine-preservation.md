@@ -114,7 +114,7 @@ To manually stop preservation, the preservation annotation must be deleted from 
 
 **In the case of auto-preservation:**
 To stop auto-preservation, the machine should be annotated with `node.machine.sapcloud.io/preserve=false`. 
-Deleting the annotation value or setting it to empty will not stop preservation since MCM will again auto-preserve the machine if it is in `Failed` phase and the `AutoPreserveFailedMachineMax` limit is not reached. 
+Deleting the annotation will not stop preservation since MCM will again auto-preserve the machine if it is in `Failed` phase and the `AutoPreserveFailedMachineMax` limit is not reached. 
 Setting the annotation value to `false` explicitly indicates that the machine should not be auto-preserved by MCM anymore, and the preservation will be stopped.
 
 ---
@@ -126,7 +126,7 @@ Here too, the preservation annotation semantics from above applies - if both mac
 
 If the preserve annotation is deleted, MCM will again auto-preserve the machine if it is in `Failed` phase and the `AutoPreserveFailedMachineMax` limit is not reached.
 
->Note: If the machine is annotated with `node.machine.sapcloud.io/preserve=<invalid-value>`, this would end up preventing the machine from being `auto-preserved`.
+>Note: If the machine/node is annotated with `node.machine.sapcloud.io/preserve=<invalid-value>`, this would end up preventing the machine from being `auto-preserved`.
 
 ---
 ### What happens when a machine recovers from failure and moves to `Running` during preservation?

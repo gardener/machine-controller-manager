@@ -428,9 +428,10 @@ var _ = Describe("machine", func() {
 			fakeDriver *driver.FakeDriver
 		}
 		type expect struct {
-			machine *v1alpha1.Machine
-			err     error
-			retry   machineutils.RetryPeriod
+			machine        *v1alpha1.Machine
+			err            error
+			retry          machineutils.RetryPeriod
+			machineDeleted bool
 		}
 		type data struct {
 			setup  setup
@@ -509,6 +510,11 @@ var _ = Describe("machine", func() {
 				}
 
 				actual, err := controller.controlMachineClient.Machines(machine.Namespace).Get(context.TODO(), machine.Name, metav1.GetOptions{})
+				if data.expect.machineDeleted {
+					Expect(apierrors.IsNotFound(err)).To(BeTrue())
+					Expect(retry).To(Equal(data.expect.retry))
+					return
+				}
 				Expect(err).To(BeNil())
 				Expect(actual.Spec.ProviderID).To(Equal(data.expect.machine.Spec.ProviderID))
 				Expect(actual.Finalizers).To(Equal(data.expect.machine.Finalizers))
@@ -1012,13 +1018,10 @@ var _ = Describe("machine", func() {
 								Name: "machineClass",
 							},
 						},
-					}, &v1alpha1.MachineStatus{
-						CurrentStatus: v1alpha1.CurrentStatus{
-							Phase: v1alpha1.MachineFailed,
-						},
-					}, nil, nil, nil, true, metav1.Now()),
-					err:   nil,
-					retry: machineutils.ShortRetry,
+					}, nil, nil, nil, nil, true, metav1.Now()),
+					err:            nil,
+					retry:          machineutils.ShortRetry,
+					machineDeleted: true,
 				},
 			}),
 			Entry("CLBF machine turns to Pending if VM is present", &data{

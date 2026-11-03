@@ -707,6 +707,7 @@ func (dc *controller) updateMachineAndMachineDeploymentDeletionAnnotations(ctx c
 				for j, m := range machineList.Items {
 					if m.Name == updatedMachine.Name && m.Namespace == updatedMachine.Namespace {
 						machineList.Items[j] = *updatedMachine
+						break
 					}
 				}
 			}

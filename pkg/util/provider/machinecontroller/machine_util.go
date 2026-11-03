@@ -815,10 +815,12 @@ func (c *controller) machineCreateErrorHandler(ctx context.Context, machine *v1a
 	}
 	if machineCurrentStatus.Phase == v1alpha1.MachineFailed {
 		// check if preservation is needed for the failed machine
-		node, _ := c.nodeLister.Get(machine.Labels[v1alpha1.NodeLabelKey])
-		if val, shouldHandlePreservation := machineutils.DeterminePreservationAction(machine, node); shouldHandlePreservation && val == machineutils.PreserveMachineAnnotationValueWhenFailed {
-			if machineCurrentStatus.PreserveExpiryTime == nil {
-				machineCurrentStatus.PreserveExpiryTime = &metav1.Time{Time: metav1.Now().Add(c.getEffectiveMachinePreserveTimeout(machine).Duration)}
+		if c.nodeLister != nil {
+			node, _ := c.nodeLister.Get(machine.Labels[v1alpha1.NodeLabelKey])
+			if val, shouldHandlePreservation := machineutils.DeterminePreservationAction(machine, node); shouldHandlePreservation && val == machineutils.PreserveMachineAnnotationValueWhenFailed {
+				if machineCurrentStatus.PreserveExpiryTime == nil {
+					machineCurrentStatus.PreserveExpiryTime = &metav1.Time{Time: metav1.Now().Add(c.getEffectiveMachinePreserveTimeout(machine).Duration)}
+				}
 			}
 		}
 	}
@@ -2214,6 +2216,9 @@ func (c *controller) UpdateNodeTerminationCondition(ctx context.Context, machine
 }
 
 func (c *controller) updateMachineToFailedState(ctx context.Context, description string, machine, clone *v1alpha1.Machine) (bool, error) {
+	var node *v1.Node
+	var err error
+
 	// Log the error message for machine failure
 	klog.Error(description)
 
@@ -2230,9 +2235,11 @@ func (c *controller) updateMachineToFailedState(ctx context.Context, description
 		PreserveExpiryTime: machine.Status.CurrentStatus.PreserveExpiryTime,
 	}
 
-	node, err := c.nodeLister.Get(machine.Labels[v1alpha1.NodeLabelKey])
-	if err != nil {
-		klog.Infof("Error fetching the node %q: %v", machine.Labels[v1alpha1.NodeLabelKey], err)
+	if c.nodeLister != nil {
+		node, err = c.nodeLister.Get(machine.Labels[v1alpha1.NodeLabelKey])
+		if err != nil {
+			klog.Infof("Error fetching the node %q: %v", machine.Labels[v1alpha1.NodeLabelKey], err)
+		}
 	}
 
 	// check if preservation is needed for the failed machine

@@ -468,7 +468,7 @@ func (c *controller) triggerCreationFlow(ctx context.Context, createMachineReque
 					// not enforced  for MCM extensions the current best option is to compare the names.
 					if _, err := c.nodeLister.Get(nodeName); err == nil && nodeName != machineName {
 						// mark the machine obj as `Failed`
-						klog.Errorf("Stale node obj with name %q for machine %q has been found. Hence marking the created VM for deletion to trigger a new machine creation.", nodeName, machine.Name)
+						klog.Errorf("stale node obj with name %q for machine %q has been found. Hence marking the created VM for deletion to trigger a new machine creation.", nodeName, machine.Name)
 
 						deleteMachineRequest := &driver.DeleteMachineRequest{
 							Machine: &v1alpha1.Machine{
@@ -488,28 +488,16 @@ func (c *controller) triggerCreationFlow(ctx context.Context, createMachineReque
 							klog.V(2).Infof("VM successfully deleted in context of stale node obj for machine %q", machine.Name)
 						}
 
-						// machine obj marked Failed for double security
-						updateRetryPeriod, updateErr := c.machineStatusUpdate(
-							ctx,
-							machine,
-							v1alpha1.LastOperation{
-								Description:    "VM using old node obj",
-								State:          v1alpha1.MachineStateFailed,
-								Type:           v1alpha1.MachineOperationCreate,
-								LastUpdateTime: metav1.Now(),
-							},
-							v1alpha1.CurrentStatus{
-								Phase:          v1alpha1.MachineFailed,
-								LastUpdateTime: metav1.Now(),
-							},
-							machine.Status.LastKnownState,
-						)
-
-						if updateErr != nil {
-							return updateRetryPeriod, updateErr
+						delErr := c.controlMachineClient.Machines(machine.Namespace).Delete(ctx, machine.Name, metav1.DeleteOptions{})
+						if delErr != nil {
+							if apierrors.IsNotFound(delErr) {
+								klog.V(2).Infof("Machine %q already deleted.", machine.Name)
+							}
+							klog.Errorf("could not delete the machine %q: %v", machine.Name, delErr)
+							return machineutils.ShortRetry, delErr
 						}
 
-						klog.V(2).Infof("Machine %q marked Failed as VM was referring to a stale node object", machine.Name)
+						klog.V(2).Infof("Successfully triggered deletion of machine %q", machine.Name)
 						return machineutils.ShortRetry, err
 					}
 				}
@@ -675,6 +663,25 @@ func (c *controller) initializeMachine(ctx context.Context, machine *v1alpha1.Ma
 		}
 		klog.Errorf("error occurred while initializing VM instance for machine %q: %s", machine.Name, err)
 
+		lastUpdateTime := metav1.Now()
+		machineCurrentStatus := v1alpha1.CurrentStatus{
+			Phase:          c.getCreateFailurePhase(machine),
+			LastUpdateTime: lastUpdateTime,
+		}
+		if machineCurrentStatus.Phase == v1alpha1.MachineFailed {
+			// check if preservation is needed for the failed machine
+			var node *corev1.Node
+			if c.nodeLister != nil {
+				node, err = c.nodeLister.Get(machine.Labels[v1alpha1.NodeLabelKey])
+				if err != nil {
+					klog.V(3).Infof("node %q not found.", machine.Labels[v1alpha1.NodeLabelKey])
+				}
+			}
+			if val, shouldHandlePreservation := machineutils.DeterminePreservationAction(machine, node); shouldHandlePreservation && val == machineutils.PreserveMachineAnnotationValueWhenFailed {
+				machineCurrentStatus.PreserveExpiryTime = &metav1.Time{Time: metav1.Now().Add(c.getEffectiveMachinePreserveTimeout(machine).Duration)}
+			}
+		}
+
 		updateRetryPeriod, updateErr := c.machineStatusUpdate(
 			ctx,
 			machine,
@@ -685,10 +692,7 @@ func (c *controller) initializeMachine(ctx context.Context, machine *v1alpha1.Ma
 				Type:           v1alpha1.MachineOperationCreate,
 				LastUpdateTime: metav1.Now(),
 			},
-			v1alpha1.CurrentStatus{
-				Phase:          c.getCreateFailurePhase(machine),
-				LastUpdateTime: metav1.Now(),
-			},
+			machineCurrentStatus,
 			machine.Status.LastKnownState,
 		)
 		if updateErr != nil {
