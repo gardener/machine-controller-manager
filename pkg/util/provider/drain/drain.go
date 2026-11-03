@@ -679,6 +679,8 @@ func (o *Options) evictPodsWithPv(ctx context.Context, attemptEvict bool, pods [
 	)
 
 	if attemptEvict {
+		// Without any eviction retries, all pods fall through to the force deletion below.
+		remainingPods = pods
 		for range nretries {
 			remainingPods, fastTrack = o.evictPodsWithPVInternal(ctx, attemptEvict, pods, podVolumeInfoMap, policyGroupVersion, getPodFn, returnCh)
 			if fastTrack || len(remainingPods) == 0 {
