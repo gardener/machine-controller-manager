@@ -298,7 +298,22 @@ func DeterminePreservationAction(
 	if val, ok := machine.Annotations[LastAppliedNodePreserveValueAnnotationKey]; ok {
 		// LastAppliedNodePreserveValueAnnotationKey annotation present
 		// Preservation to be done based on this annotation value
-		return val, true
+		if AllowedPreserveAnnotationValues.Has(val) {
+			return val, true
+		}
+		// invalid annotation value
+		klog.Warningf(
+			"Machine %q doesn't have a valid annotation:%q=%q",
+			machine.Name,
+			LastAppliedNodePreserveValueAnnotationKey,
+			machine.Annotations[LastAppliedNodePreserveValueAnnotationKey],
+		)
+		// Preservation has expired so stop preservation
+		if machine.Status.CurrentStatus.PreserveExpiryTime != nil && machine.Status.CurrentStatus.PreserveExpiryTime.Before(&metav1.Time{Time: time.Now()}) {
+			return "", true
+		}
+		// treat it as no-op
+		return "", false
 	}
 	if val, ok := machine.Annotations[PreserveMachineAnnotationKey]; ok {
 		// machine has PreserveMachineAnnotationKey present
