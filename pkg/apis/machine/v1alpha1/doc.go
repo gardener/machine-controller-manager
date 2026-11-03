@@ -9,5 +9,7 @@
 // +k8s:defaulter-gen=TypeMeta
 // +groupName=machine.sapcloud.io
 // +kubebuilder:object:generate=true
-// Package v1alpha1 is a version of the API.
+
+//go:generate crd-ref-docs --source-path=. --config=../../../../hack/api-reference/config.yaml --renderer=markdown --templates-dir=../../../../hack/api-reference/template --log-level=ERROR --output-path=../../../../docs/documents/apis.md
+
 package v1alpha1

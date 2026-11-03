@@ -2594,7 +2594,7 @@ var _ = Describe("machine_util", func() {
 				setup: setup{
 					machines: []*machinev1.Machine{
 						newMachine(
-							&machinev1.MachineTemplateSpec{ObjectMeta: *newObjectMeta(&metav1.ObjectMeta{GenerateName: machineSet1Deploy1}, 0), Spec: machinev1.MachineSpec{MachineConfiguration: &machinev1.MachineConfiguration{DisableHealthTimeout: ptr.To(true)}}},
+							&machinev1.MachineTemplateSpec{ObjectMeta: *newObjectMeta(&metav1.ObjectMeta{GenerateName: machineSet1Deploy1}, 0), Spec: machinev1.MachineSpec{MachineConfiguration: machinev1.MachineConfiguration{DisableHealthTimeout: ptr.To(true)}}},
 							&machinev1.MachineStatus{Conditions: nodeConditions(false, false, false, false, false), CurrentStatus: machinev1.CurrentStatus{Phase: machinev1.MachineUnknown, LastUpdateTime: metav1.NewTime(time.Now().Add(-15 * time.Minute))}},
 							&metav1.OwnerReference{Name: machineSet1Deploy1},
 							nil, map[string]string{machinev1.NodeLabelKey: "node-0"}, true, metav1.Now()),
@@ -2690,7 +2690,7 @@ var _ = Describe("machine_util", func() {
 				setup: setup{
 					machines: []*machinev1.Machine{
 						newMachine(
-							&machinev1.MachineTemplateSpec{ObjectMeta: *newObjectMeta(&metav1.ObjectMeta{GenerateName: machineSet1Deploy1}, 0), Spec: machinev1.MachineSpec{MachineConfiguration: &machinev1.MachineConfiguration{DisableHealthTimeout: ptr.To(true)}}},
+							&machinev1.MachineTemplateSpec{ObjectMeta: *newObjectMeta(&metav1.ObjectMeta{GenerateName: machineSet1Deploy1}, 0), Spec: machinev1.MachineSpec{MachineConfiguration: machinev1.MachineConfiguration{DisableHealthTimeout: ptr.To(true)}}},
 							&machinev1.MachineStatus{Conditions: nodeConditions(false, false, false, false, false), CurrentStatus: machinev1.CurrentStatus{Phase: machinev1.MachineInPlaceUpdateFailed, LastUpdateTime: metav1.NewTime(time.Now().Add(-15 * time.Minute))}},
 							&metav1.OwnerReference{Name: machineSet1Deploy1},
 							nil, map[string]string{machinev1.NodeLabelKey: "node-0"}, true, metav1.Now()),
