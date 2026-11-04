@@ -25,11 +25,6 @@ fi
 
 cd "${SOURCE_PATH}"
 
-GINKGO_COLOR_FLAG=""
-if [[ "${NO_COLOR:-}" == "true" ]]; then
-  GINKGO_COLOR_FLAG="--no-color"
-fi
-
 # Install Ginkgo (test framework) to be able to execute the tests.
 echo "Building Ginkgo framework"
 go install github.com/onsi/ginkgo/v2/ginkgo
@@ -69,6 +64,10 @@ if [[ "${SKIP_INTEGRATION_TESTS}" != "" ]]; then
   echo ">>>>> Skipping integration tests"
 else
   echo ">>>>> Invoking integration tests with the simulated provider"
+  GINKGO_COLOR_FLAG=""
+  if [[ "${NO_COLOR:-}" != "" ]]; then
+    GINKGO_COLOR_FLAG="--no-color"
+  fi
 	ginkgo -v $GINKGO_COLOR_FLAG --show-node-events --poll-progress-after=300s --poll-progress-interval=60s pkg/simulatedprovider/test/integration/controller
   echo ">>>>> Finished executing integration tests"
 fi
