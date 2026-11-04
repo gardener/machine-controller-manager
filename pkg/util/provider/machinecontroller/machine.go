@@ -676,7 +676,7 @@ func (c *controller) initializeMachine(ctx context.Context, machine *v1alpha1.Ma
 			ctx,
 			machine,
 			v1alpha1.LastOperation{
-				Description:    fmt.Sprintf("Provider error: %s. %s", err.Error(), machineutils.InstanceInitialization),
+				Description:    fmt.Sprintf("Provider error: %s. %s", errStatus.Code().Description(), machineutils.InstanceInitialization),
 				ErrorCode:      errStatus.Code().String(),
 				State:          v1alpha1.MachineStateFailed,
 				Type:           v1alpha1.MachineOperationCreate,
