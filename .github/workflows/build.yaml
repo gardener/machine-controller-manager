@@ -83,6 +83,7 @@ jobs:
         with:
           name: unit-test-log-${{ github.run_id }}-${{ github.run_attempt }}
           path: /tmp/logs/unit-test-log.txt
+          retention-days: 1
 
   integration-tests:
     runs-on: ubuntu-latest
@@ -98,7 +99,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p /tmp/logs
-          SKIP_UNIT_TESTS=true .ci/test |& tee /tmp/logs/integration-test-log.txt
+          SKIP_UNIT_TESTS=true NO_COLOR=true .ci/test |& tee /tmp/logs/integration-test-log.txt
       - name: upload-mc-mcm-logs-on-failure
         if: failure()
         uses: actions/upload-artifact@v4
@@ -115,6 +116,7 @@ jobs:
         with:
           name: integration-test-log-${{ github.run_id }}-${{ github.run_attempt }}
           path: /tmp/logs/integration-test-log.txt
+          retention-days: 1
 
   consolidate-report:
     runs-on: ubuntu-latest

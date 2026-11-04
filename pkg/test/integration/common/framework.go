@@ -199,12 +199,6 @@ func setGlobalsFromEnvVars() {
 	isTagsStrings = os.Getenv("TAGS_ARE_STRINGS")
 	gnaSecretNameLabelValue = os.Getenv("GNA_SECRET_NAME")
 	preserveCRDDuringCleanup = os.Getenv("PRESERVE_CRD_AT_END")
-	if p := os.Getenv("MCM_PORT"); p != "" {
-		mcmPort = p
-	}
-	if p := os.Getenv("MC_PORT"); p != "" {
-		mcPort = p
-	}
 }
 
 // freePort returns configured if set, else an available loopback TCP port.
@@ -2533,8 +2527,8 @@ func stopMCM(ctx context.Context) {
 	}
 }
 
-func findAndKillProcess(ctx context.Context, prefix string, mustContain string) (pids []int, err error) {
-	pids, err = findPidsByPrefix(ctx, prefix, mustContain)
+func findAndKillProcess(ctx context.Context, prefix string, controlKubeconfig string) (pids []int, err error) {
+	pids, err = findPidsByPrefix(ctx, prefix, controlKubeconfig)
 	if len(pids) != 0 {
 		var proc *os.Process
 		for _, pid := range pids {
@@ -2553,7 +2547,7 @@ func findAndKillProcess(ctx context.Context, prefix string, mustContain string) 
 	return
 }
 
-func findPidsByPrefix(ctx context.Context, prefix string, mustContain string) (pids []int, err error) {
+func findPidsByPrefix(ctx context.Context, prefix string, controlKubeconfig string) (pids []int, err error) {
 	cmd := exec.CommandContext(ctx, "ps", "-e", "-o", "pid,args")
 	psOutput, err := cmd.Output()
 	if err != nil {
@@ -2576,7 +2570,7 @@ func findPidsByPrefix(ctx context.Context, prefix string, mustContain string) (p
 			commandName = commandName + " " + strings.Join(fields[2:], " ")
 		}
 
-		if strings.HasPrefix(commandName, prefix) && (mustContain == "" || strings.Contains(commandName, mustContain)) {
+		if strings.HasPrefix(commandName, prefix) && strings.Contains(commandName, controlKubeconfig) {
 			log.Println(commandName)
 			pid, err = strconv.Atoi(pidStr)
 			if err != nil {
