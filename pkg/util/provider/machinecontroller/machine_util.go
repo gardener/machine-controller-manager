@@ -814,13 +814,17 @@ func (c *controller) machineCreateErrorHandler(ctx context.Context, machine *v1a
 		PreserveExpiryTime: machine.Status.CurrentStatus.PreserveExpiryTime,
 	}
 	if machineCurrentStatus.Phase == v1alpha1.MachineFailed {
-		// check if preservation is needed for the failed machine
+		var node *v1.Node
+		var gerr error
 		if c.nodeLister != nil {
-			node, _ := c.nodeLister.Get(machine.Labels[v1alpha1.NodeLabelKey])
-			if val, shouldHandlePreservation := machineutils.DeterminePreservationAction(machine, node); shouldHandlePreservation && val == machineutils.PreserveMachineAnnotationValueWhenFailed {
-				if machineCurrentStatus.PreserveExpiryTime == nil {
-					machineCurrentStatus.PreserveExpiryTime = &metav1.Time{Time: metav1.Now().Add(c.getEffectiveMachinePreserveTimeout(machine).Duration)}
-				}
+			node, gerr = c.nodeLister.Get(machine.Labels[v1alpha1.NodeLabelKey])
+			if gerr != nil {
+				klog.V(3).Infof("node %q not found.", machine.Labels[v1alpha1.NodeLabelKey])
+			}
+		}
+		if val, shouldHandlePreservation := machineutils.DeterminePreservationAction(machine, node); shouldHandlePreservation && val == machineutils.PreserveMachineAnnotationValueWhenFailed {
+			if machineCurrentStatus.PreserveExpiryTime == nil {
+				machineCurrentStatus.PreserveExpiryTime = &metav1.Time{Time: metav1.Now().Add(c.getEffectiveMachinePreserveTimeout(machine).Duration)}
 			}
 		}
 	}

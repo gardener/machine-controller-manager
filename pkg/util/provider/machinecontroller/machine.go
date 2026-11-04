@@ -467,7 +467,6 @@ func (c *controller) triggerCreationFlow(ctx context.Context, createMachineReque
 					// Ideally, the check should compare that the providerID of the machine and the node are matching, but since this is
 					// not enforced  for MCM extensions the current best option is to compare the names.
 					if _, err := c.nodeLister.Get(nodeName); err == nil && nodeName != machineName {
-						// mark the machine obj as `Failed`
 						klog.Errorf("stale node obj with name %q for machine %q has been found. Hence marking the created VM for deletion to trigger a new machine creation.", nodeName, machine.Name)
 
 						deleteMachineRequest := &driver.DeleteMachineRequest{
@@ -508,6 +507,7 @@ func (c *controller) triggerCreationFlow(ctx context.Context, createMachineReque
 							return updateRetryPeriod, updateErr
 						}
 
+						// setting deletion timestamp on the machine obj
 						delErr := c.controlMachineClient.Machines(machine.Namespace).Delete(ctx, machine.Name, metav1.DeleteOptions{})
 						if delErr != nil {
 							if apierrors.IsNotFound(delErr) {
@@ -691,14 +691,17 @@ func (c *controller) initializeMachine(ctx context.Context, machine *v1alpha1.Ma
 		if machineCurrentStatus.Phase == v1alpha1.MachineFailed {
 			// check if preservation is needed for the failed machine
 			var node *corev1.Node
+			var gerr error
 			if c.nodeLister != nil {
-				node, err = c.nodeLister.Get(machine.Labels[v1alpha1.NodeLabelKey])
-				if err != nil {
+				node, gerr = c.nodeLister.Get(machine.Labels[v1alpha1.NodeLabelKey])
+				if gerr != nil {
 					klog.V(3).Infof("node %q not found.", machine.Labels[v1alpha1.NodeLabelKey])
 				}
 			}
 			if val, shouldHandlePreservation := machineutils.DeterminePreservationAction(machine, node); shouldHandlePreservation && val == machineutils.PreserveMachineAnnotationValueWhenFailed {
-				machineCurrentStatus.PreserveExpiryTime = &metav1.Time{Time: metav1.Now().Add(c.getEffectiveMachinePreserveTimeout(machine).Duration)}
+				if machineCurrentStatus.PreserveExpiryTime == nil {
+					machineCurrentStatus.PreserveExpiryTime = &metav1.Time{Time: metav1.Now().Add(c.getEffectiveMachinePreserveTimeout(machine).Duration)}
+				}
 			}
 		}
 

@@ -969,7 +969,7 @@ var _ = Describe("machine", func() {
 					retry: machineutils.MediumRetry,
 				},
 			}),
-			Entry("Machine creation fails with Failure due to VM using stale node obj (case is for Provider AWS only)", &data{
+			Entry("Machine creation fails and the machine is deleted due to VM using stale node obj (case is for Provider AWS only)", &data{
 				setup: setup{
 					secrets: []*corev1.Secret{
 						{
