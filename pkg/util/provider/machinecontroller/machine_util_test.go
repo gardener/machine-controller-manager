@@ -19,6 +19,7 @@ import (
 	"github.com/gardener/machine-controller-manager/pkg/util/nodeops"
 	"github.com/gardener/machine-controller-manager/pkg/util/permits"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/machineutils"
+	"github.com/gardener/machine-controller-manager/pkg/util/provider/options"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
@@ -4925,6 +4926,79 @@ var _ = Describe("machine_util", func() {
 						autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationKey,
 						machineutils.PreserveMachineAnnotationKey,
 					},
+				},
+			}),
+		)
+	})
+
+	Describe("#isDrainTimeoutDisabled", func() {
+		type setup struct {
+			safetyOptions options.SafetyOptions
+			machine       *machinev1.Machine
+		}
+		type expect struct {
+			disabled bool
+		}
+		type data struct {
+			setup  setup
+			expect expect
+		}
+
+		DescribeTable("scenarios for disabling drain timeout",
+			func(d *data) {
+				c := &controller{
+					safetyOptions: d.setup.safetyOptions,
+				}
+				Expect(c.isDrainTimeoutDisabled(d.setup.machine)).To(Equal(d.expect.disabled))
+			},
+			Entry("when DisableMachineDrainTimeout is true", &data{
+				setup: setup{
+					safetyOptions: options.SafetyOptions{
+						DisableMachineDrainTimeout: true,
+					},
+				},
+				expect: expect{
+					disabled: true,
+				},
+			}),
+			Entry("when DisableMachineDrainTimeout is false and MachineDrainTimeout > 0", &data{
+				setup: setup{
+					safetyOptions: options.SafetyOptions{
+						DisableMachineDrainTimeout: false,
+						MachineDrainTimeout:        metav1.Duration{Duration: 5 * time.Minute},
+					},
+				},
+				expect: expect{
+					disabled: false,
+				},
+			}),
+			Entry("when DisableMachineDrainTimeout is false and machine MachineDrainTimeout is 0", &data{
+				setup: setup{
+					safetyOptions: options.SafetyOptions{
+						DisableMachineDrainTimeout: false,
+						MachineDrainTimeout:        metav1.Duration{Duration: 5 * time.Minute},
+					},
+					machine: &machinev1.Machine{
+						Spec: machinev1.MachineSpec{
+							MachineConfiguration: &machinev1.MachineConfiguration{
+								MachineDrainTimeout: &metav1.Duration{Duration: 0},
+							},
+						},
+					},
+				},
+				expect: expect{
+					disabled: true,
+				},
+			}),
+			Entry("when DisableMachineDrainTimeout is false and global MachineDrainTimeout is 0", &data{
+				setup: setup{
+					safetyOptions: options.SafetyOptions{
+						DisableMachineDrainTimeout: false,
+						MachineDrainTimeout:        metav1.Duration{Duration: 0},
+					},
+				},
+				expect: expect{
+					disabled: true,
 				},
 			}),
 		)

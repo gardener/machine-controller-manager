@@ -2949,6 +2949,119 @@ var _ = Describe("machine", func() {
 					),
 				},
 			}),
+			Entry("Drain machine failure when drain timeout is disabled does not trigger force deletion", &data{
+				setup: setup{
+					secrets: []*corev1.Secret{
+						{
+							ObjectMeta: *newObjectMeta(objMeta, 0),
+						},
+					},
+					machineClasses: []*v1alpha1.MachineClass{
+						{
+							ObjectMeta: *newObjectMeta(objMeta, 0),
+							SecretRef:  newSecretReference(objMeta, 0),
+						},
+					},
+					machines: newMachines(
+						1,
+						&v1alpha1.MachineTemplateSpec{
+							ObjectMeta: *newObjectMeta(objMeta, 0),
+							Spec: v1alpha1.MachineSpec{
+								Class: v1alpha1.ClassSpec{
+									Kind: "MachineClass",
+									Name: "machine-0",
+								},
+								ProviderID: "fakeID",
+								MachineConfiguration: &v1alpha1.MachineConfiguration{
+									MachineDrainTimeout: &metav1.Duration{Duration: 0},
+								},
+							},
+						},
+						&v1alpha1.MachineStatus{
+							CurrentStatus: v1alpha1.CurrentStatus{
+								Phase:          v1alpha1.MachineTerminating,
+								LastUpdateTime: metav1.NewTime(time.Now().Add(-2 * time.Hour)),
+							},
+							LastOperation: v1alpha1.LastOperation{
+								Description:    machineutils.InitiateDrain,
+								State:          v1alpha1.MachineStateProcessing,
+								Type:           v1alpha1.MachineOperationDelete,
+								LastUpdateTime: metav1.NewTime(time.Now().Add(-2 * time.Hour)),
+							},
+						},
+						nil,
+						map[string]string{
+							machineutils.MachinePriority: "3",
+						},
+						map[string]string{
+							v1alpha1.NodeLabelKey: "fakeID-0",
+						},
+						true,
+						metav1.NewTime(time.Now().Add(-3*time.Hour)),
+					),
+					nodes: []*corev1.Node{
+						{
+							ObjectMeta: metav1.ObjectMeta{
+								Name: "fakeID-0",
+							},
+						},
+					},
+					fakeResourceActions: &customfake.ResourceActions{
+						Node: customfake.Actions{
+							Update: "Failed to update node",
+						},
+					},
+				},
+				action: action{
+					machine: "machine-0",
+					fakeDriver: &driver.FakeDriver{
+						VMExists:   true,
+						ProviderID: "fakeID-0",
+						NodeName:   "fakeNode-0",
+						Err:        nil,
+					},
+				},
+				expect: expect{
+					err:   fmt.Errorf("failed to create/update conditions on node \"fakeID-0\": Failed to update node"),
+					retry: machineutils.ShortRetry,
+					machine: newMachine(
+						&v1alpha1.MachineTemplateSpec{
+							ObjectMeta: *newObjectMeta(objMeta, 0),
+							Spec: v1alpha1.MachineSpec{
+								Class: v1alpha1.ClassSpec{
+									Kind: "MachineClass",
+									Name: "machine-0",
+								},
+								ProviderID: "fakeID",
+								MachineConfiguration: &v1alpha1.MachineConfiguration{
+									MachineDrainTimeout: &metav1.Duration{Duration: 0},
+								},
+							},
+						},
+						&v1alpha1.MachineStatus{
+							CurrentStatus: v1alpha1.CurrentStatus{
+								Phase:          v1alpha1.MachineTerminating,
+								LastUpdateTime: metav1.Now(),
+							},
+							LastOperation: v1alpha1.LastOperation{
+								Description:    fmt.Sprintf("Drain failed due to failure in update of node conditions - %s. Will retry in next sync. %s", "failed to create/update conditions on node \"fakeID-0\": Failed to update node", machineutils.InitiateDrain),
+								State:          v1alpha1.MachineStateFailed,
+								Type:           v1alpha1.MachineOperationDelete,
+								LastUpdateTime: metav1.Now(),
+							},
+						},
+						nil,
+						map[string]string{
+							machineutils.MachinePriority: "3",
+						},
+						map[string]string{
+							v1alpha1.NodeLabelKey: "fakeID-0",
+						},
+						true,
+						metav1.Now(),
+					),
+				},
+			}),
 			Entry("Drain machine failure due to node update failure", &data{
 				setup: setup{
 					secrets: []*corev1.Secret{

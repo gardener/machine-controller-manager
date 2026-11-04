@@ -25,6 +25,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	coreinformers "k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
@@ -64,6 +65,7 @@ var _ = Describe("drain", func() {
 		terminationGracePeriod    time.Duration
 		pvReattachTimeout         time.Duration
 		force                     bool
+		disableDrainTimeout       bool
 		skipVolumeDetach          bool
 		evictError                error
 		deleteError               error
@@ -144,6 +146,11 @@ var _ = Describe("drain", func() {
 			pvReattachTimeout = 1 * time.Millisecond
 		}
 
+		drainTimeout := 2 * time.Minute
+		if setup.disableDrainTimeout {
+			drainTimeout = 0
+		}
+
 		d := &Options{
 			client:                       fakeTargetCoreClient,
 			DeleteLocalData:              true,
@@ -165,7 +172,7 @@ var _ = Describe("drain", func() {
 			pdbLister:                    nil,
 			nodeLister:                   fakeNodeLister,
 			podLister:                    fakePodLister,
-			Timeout:                      2 * time.Minute,
+			Timeout:                      drainTimeout,
 			volumeAttachmentHandler:      volumeAttachmentHandler,
 			podSynced:                    podSynced,
 			SkipVolumeDetach:             setup.skipVolumeDetach,
@@ -915,6 +922,64 @@ var _ = Describe("drain", func() {
 				timeout:          terminationGracePeriodShort,
 				drainTimeout:     false,
 				drainError:       nil,
+				nEvictions:       0,
+				minDrainDuration: 0,
+			}),
+		Entry("Drain with disabled drain timeout does not force delete pods without volume when eviction fails",
+			&setup{
+				stats: stats{
+					nPodsWithoutPV:                1,
+					nPodsWithOnlyExclusivePV:      0,
+					nPodsWithOnlySharedPV:         0,
+					nPodsWithExclusiveAndSharedPV: 0,
+					nPVsPerPodWithExclusivePV:     1,
+				},
+				maxEvictRetries:        1,
+				attemptEviction:        true,
+				disableDrainTimeout:    true,
+				terminationGracePeriod: terminationGracePeriodShort,
+				evictError:             apierrors.NewTooManyRequestsError(""),
+			},
+			nil,
+			&expectation{
+				stats: stats{
+					nPodsWithoutPV:                1,
+					nPodsWithOnlyExclusivePV:      0,
+					nPodsWithOnlySharedPV:         0,
+					nPodsWithExclusiveAndSharedPV: 0,
+				},
+				timeout:          terminationGracePeriodLong,
+				drainTimeout:     false,
+				drainError:       utilerrors.NewAggregate([]error{fmt.Errorf("error when evicting pod \"nopv-0\": eviction retries exhausted without force deletion scheduled on node old-node")}),
+				nEvictions:       0,
+				minDrainDuration: 0,
+			}),
+		Entry("Drain with disabled drain timeout does not force delete pods with exclusive volumes when eviction fails",
+			&setup{
+				stats: stats{
+					nPodsWithoutPV:                0,
+					nPodsWithOnlyExclusivePV:      1,
+					nPodsWithOnlySharedPV:         0,
+					nPodsWithExclusiveAndSharedPV: 0,
+					nPVsPerPodWithExclusivePV:     1,
+				},
+				maxEvictRetries:        1,
+				attemptEviction:        true,
+				disableDrainTimeout:    true,
+				terminationGracePeriod: terminationGracePeriodShort,
+				evictError:             apierrors.NewTooManyRequestsError(""),
+			},
+			nil,
+			&expectation{
+				stats: stats{
+					nPodsWithoutPV:                0,
+					nPodsWithOnlyExclusivePV:      1,
+					nPodsWithOnlySharedPV:         0,
+					nPodsWithExclusiveAndSharedPV: 0,
+				},
+				timeout:          terminationGracePeriodLong,
+				drainTimeout:     false,
+				drainError:       utilerrors.NewAggregate([]error{fmt.Errorf("error evicting pod test/expv-0 from node \"old-node\"")}),
 				nEvictions:       0,
 				minDrainDuration: 0,
 			}),

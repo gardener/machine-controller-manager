@@ -1437,15 +1437,29 @@ func (c *controller) drainNodeForInPlace(ctx context.Context, machine *v1alpha1.
 		readOnlyFileSystemCondition, nodeReadyCondition v1.NodeCondition
 
 		// Initialization
-		maxEvictRetries                             = int32(math.Min(float64(*c.getEffectiveMaxEvictRetries(machine)), c.getEffectiveDrainTimeout(machine).Seconds()/drain.PodEvictionRetryInterval.Seconds()))
 		pvDetachTimeOut                             = c.safetyOptions.PvDetachTimeout.Duration
 		pvReattachTimeOut                           = c.safetyOptions.PvReattachTimeout.Duration
-		timeOutDuration                             = c.getEffectiveDrainTimeout(machine).Duration
 		forceDrainLabelPresent                      = machine.Labels["force-drain"] == "True"
 		nodeName                                    = machine.Labels[v1alpha1.NodeLabelKey]
 		nodeNotReadyDuration                        = 5 * time.Minute
 		ReadonlyFilesystem     v1.NodeConditionType = "ReadonlyFilesystem"
+		maxEvictRetries        int32
+		timeOutDuration        time.Duration
 	)
+
+	// Check if the drain timeout is disabled to prevent division by 0 or calculating 0 retries.
+	if c.isDrainTimeoutDisabled(machine) {
+		// Set eviction retries directly to the configured value since they should not be bounded by the timeout duration when timeout is disabled.
+		maxEvictRetries = *c.getEffectiveMaxEvictRetries(machine)
+		// Set the timeout duration to 0 to signal to the drain logic that no timeout exists.
+		timeOutDuration = 0
+	} else {
+		// Set the variables as they were previously initialized by default.
+		// Calculate the maximum retries bounded by the timeout duration so that retries do not take longer than the timeout.
+		maxEvictRetries = int32(math.Min(float64(*c.getEffectiveMaxEvictRetries(machine)), c.getEffectiveDrainTimeout(machine).Seconds()/drain.PodEvictionRetryInterval.Seconds()))
+		// Use the effective timeout duration for the drain operation.
+		timeOutDuration = c.getEffectiveDrainTimeout(machine).Duration
+	}
 
 	for _, condition := range machine.Status.Conditions {
 		if condition.Type == v1.NodeReady {
@@ -1474,7 +1488,8 @@ func (c *controller) drainNodeForInPlace(ctx context.Context, machine *v1alpha1.
 
 	if node != nil {
 		cond := nodeops.GetCondition(node, v1alpha1.NodeInPlaceUpdate)
-		if cond != nil && cond.Reason == v1alpha1.SelectedForUpdate {
+		// Also check if the drain timeout is not disabled so that no timeout is triggered during in-place update when it is turned off.
+		if cond != nil && cond.Reason == v1alpha1.SelectedForUpdate && !c.isDrainTimeoutDisabled(machine) {
 			timeOutOccurred = utiltime.HasTimeOutOccurred(cond.LastTransitionTime, timeOutDuration)
 		}
 	}
@@ -1576,14 +1591,27 @@ func (c *controller) drainNode(ctx context.Context, deleteMachineRequest *driver
 
 		// Initialization
 		machine                                   = deleteMachineRequest.Machine
-		maxEvictRetries                           = int32(math.Min(float64(*c.getEffectiveMaxEvictRetries(machine)), c.getEffectiveDrainTimeout(machine).Seconds()/drain.PodEvictionRetryInterval.Seconds()))
 		pvDetachTimeOut                           = c.safetyOptions.PvDetachTimeout.Duration
 		pvReattachTimeOut                         = c.safetyOptions.PvReattachTimeout.Duration
-		timeOutDuration                           = c.getEffectiveDrainTimeout(deleteMachineRequest.Machine).Duration
 		nodeName                                  = machine.Labels[v1alpha1.NodeLabelKey]
 		nodeNotReadyDuration                      = 5 * time.Minute
 		ReadonlyFilesystem   v1.NodeConditionType = "ReadonlyFilesystem"
+		maxEvictRetries      int32
+		timeOutDuration      time.Duration
 	)
+
+	// Check if the drain timeout is disabled so that maxEvictRetries is not calculated as 0 when timeout is 0.
+	if c.isDrainTimeoutDisabled(machine) {
+		// Directly use the configured maximum eviction retries without bounding by a timeout.
+		maxEvictRetries = *c.getEffectiveMaxEvictRetries(machine)
+		// Set the timeout duration to 0 so that the drain runs without a time limit.
+		timeOutDuration = 0
+	} else {
+		// Bound the eviction retries based on the available drain timeout duration.
+		maxEvictRetries = int32(math.Min(float64(*c.getEffectiveMaxEvictRetries(machine)), c.getEffectiveDrainTimeout(machine).Seconds()/drain.PodEvictionRetryInterval.Seconds()))
+		// Set the timeout duration to the effective drain timeout for this machine.
+		timeOutDuration = c.getEffectiveDrainTimeout(deleteMachineRequest.Machine).Duration
+	}
 
 	if labelValue, exists := machine.Labels["force-deletion"]; exists {
 		forceDeleteLabelPresent, err = strconv.ParseBool(labelValue)
@@ -1629,7 +1657,11 @@ func (c *controller) drainNode(ctx context.Context, deleteMachineRequest *driver
 		printLogInitError(message, &err, &description, machine, false)
 	}
 
-	timeOutOccurred = utiltime.HasTimeOutOccurred(*machine.DeletionTimestamp, timeOutDuration)
+	// Check if the drain timeout is active, because when the timeout is disabled (0s), HasTimeOutOccurred would otherwise immediately return true and trigger a force deletion.
+	if !c.isDrainTimeoutDisabled(machine) {
+		// Determine based on the deletion timestamp whether the drain timeout has already expired.
+		timeOutOccurred = utiltime.HasTimeOutOccurred(*machine.DeletionTimestamp, timeOutDuration)
+	}
 
 	if forceDeleteLabelPresent || timeOutOccurred {
 		// To perform forceful machine drain/delete either one of the below conditions must be satisfied
@@ -2074,12 +2106,17 @@ func (c *controller) updateStatusForNodeDeletion(ctx context.Context, machine *v
 // getEffectiveDrainTimeout returns the drainTimeout set on the machine-object, otherwise returns the timeout set using the global-flag.
 func (c *controller) getEffectiveDrainTimeout(machine *v1alpha1.Machine) *metav1.Duration {
 	var effectiveDrainTimeout *metav1.Duration
-	if machine.Spec.MachineConfiguration != nil && machine.Spec.MachineDrainTimeout != nil {
+	if machine != nil && machine.Spec.MachineConfiguration != nil && machine.Spec.MachineDrainTimeout != nil {
 		effectiveDrainTimeout = machine.Spec.MachineDrainTimeout
 	} else {
 		effectiveDrainTimeout = &c.safetyOptions.MachineDrainTimeout
 	}
 	return effectiveDrainTimeout
+}
+
+// isDrainTimeoutDisabled returns true if machine drain timeout is disabled globally or for the specific machine.
+func (c *controller) isDrainTimeoutDisabled(machine *v1alpha1.Machine) bool {
+	return c.safetyOptions.DisableMachineDrainTimeout || c.getEffectiveDrainTimeout(machine).Duration <= 0
 }
 
 // getEffectiveMaxEvictRetries returns the maxEvictRetries set on the machine-object, otherwise returns the evict retries set using the global-flag.
@@ -2694,15 +2731,25 @@ func (c *controller) drainPreservedNode(ctx context.Context, machine *v1alpha1.M
 		readOnlyFileSystemCondition, nodeReadyCondition v1.NodeCondition
 
 		// Initialization
-		maxEvictRetries                             = int32(math.Min(float64(*c.getEffectiveMaxEvictRetries(machine)), c.getEffectiveDrainTimeout(machine).Seconds()/drain.PodEvictionRetryInterval.Seconds()))
 		pvDetachTimeOut                             = c.safetyOptions.PvDetachTimeout.Duration
 		pvReattachTimeOut                           = c.safetyOptions.PvReattachTimeout.Duration
-		timeOutDuration                             = c.getEffectiveDrainTimeout(machine).Duration
 		forceDrainLabelPresent                      = machine.Labels["force-drain"] == "True"
 		nodeName                                    = machine.Labels[v1alpha1.NodeLabelKey]
 		nodeNotReadyDuration                        = 5 * time.Minute
 		ReadonlyFilesystem     v1.NodeConditionType = "ReadonlyFilesystem"
+		maxEvictRetries        int32
+		timeOutDuration        time.Duration
 	)
+
+	// Also check when draining a preserved machine whether the timeout is disabled in order to avoid 0 retries.
+	if c.isDrainTimeoutDisabled(machine) {
+		// Use the full number of configured eviction retries since no timeout bounds them.
+		maxEvictRetries = *c.getEffectiveMaxEvictRetries(machine)
+		timeOutDuration = 0
+	} else {
+		maxEvictRetries = int32(math.Min(float64(*c.getEffectiveMaxEvictRetries(machine)), c.getEffectiveDrainTimeout(machine).Seconds()/drain.PodEvictionRetryInterval.Seconds()))
+		timeOutDuration = c.getEffectiveDrainTimeout(machine).Duration
+	}
 	if nodeName == "" {
 		klog.Warningf("(drainNode) machine %q has no node name. Skipping drain.", machine.Name)
 		return nil
@@ -2733,10 +2780,16 @@ func (c *controller) drainPreservedNode(ctx context.Context, machine *v1alpha1.M
 		forceDeletePods = true
 	}
 
+	// Check if the drain timeout is not disabled so that pods on a preserved machine are not force deleted due to timeout=0.
+	if !c.isDrainTimeoutDisabled(machine) {
+		// Check if the timeout duration has been exceeded since the last status update.
+		timeOutOccurred = utiltime.HasTimeOutOccurred(machine.Status.CurrentStatus.LastUpdateTime, timeOutDuration)
+	}
+
 	// TODO@thiyyakat: how to calculate timeout? In the case of preserve=now, PreserveExpiryTime will not coincide with time of failure in which case pods will get force
 	// drained.
 	// current solution: since we want to know when machine transitioned to Failed, the code uses LastUpdateTime.
-	timeOutOccurred = utiltime.HasTimeOutOccurred(machine.Status.CurrentStatus.LastUpdateTime, timeOutDuration)
+
 	if forceDrainLabelPresent || timeOutOccurred {
 		forceDeletePods = true
 		timeOutDuration = 1 * time.Minute
