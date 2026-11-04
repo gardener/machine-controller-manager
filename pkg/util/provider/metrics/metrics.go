@@ -88,7 +88,7 @@ var (
 		Subsystem: machineSubsystem,
 		Name:      "drain_duration_seconds",
 		Help:      "Duration in seconds to drain a Machine of a MachineDeployment.",
-	}, []string{"namespace", "machine_deployment"})
+	}, []string{"namespace", "machine_deployment", "instance_type", "zone"})
 
 	// MachineDeleteDurationSeconds is the Prometheus gauge metric representing the time duration
 	// in seconds to delete a Machine for a MachineDeployment.
@@ -272,15 +272,21 @@ func getDeploymentLabels(machine *v1alpha1.Machine) prometheus.Labels {
 
 // addPlacementLabels adds metric labels related to placement, currently instance_type and zone to the given prometheus metricLabels.
 func addPlacementLabels(metricLabels prometheus.Labels, machine *v1alpha1.Machine, machineClass *v1alpha1.MachineClass) {
-	if machine == nil || machineClass == nil {
-		return
+	instanceType := ""
+	zone := ""
+
+	if machineClass != nil {
+		if machineClass.NodeTemplate != nil {
+			instanceType = machineClass.NodeTemplate.InstanceType
+		} else {
+			klog.Warningf("MachineClass %q does not have NodeTemplate", machineClass.Name)
+		}
 	}
-	if machineClass.NodeTemplate == nil {
-		klog.Warningf("MachineClass %q does not have NodeTemplate", machineClass.Name)
-		return
+
+	if machine != nil {
+		zone = machine.Spec.NodeTemplateSpec.Labels[corev1.LabelTopologyZone]
 	}
-	instanceType := machineClass.NodeTemplate.InstanceType
-	zone := machine.Spec.NodeTemplateSpec.Labels[corev1.LabelTopologyZone]
+
 	metricLabels["instance_type"] = instanceType
 	metricLabels["zone"] = zone
 }
