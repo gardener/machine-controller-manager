@@ -76,7 +76,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p /tmp/logs
-          SKIP_INTEGRATION_TESTS=true .ci/test |& tee /tmp/logs/unit-test-log.txt
+          SKIP_INTEGRATION_TESTS=true NO_COLOR=true .ci/test |& tee /tmp/logs/unit-test-log.txt
       - name: upload-unit-test-log
         if: always()
         uses: actions/upload-artifact@v4

@@ -23,6 +23,11 @@ else
   export SOURCE_PATH="$(${READLINK_BIN} -f "${SOURCE_PATH}")"
 fi
 
+  GINKGO_COLOR_FLAG=""
+  if [[ "${NO_COLOR:-}" != "" ]]; then
+    GINKGO_COLOR_FLAG="--no-color"
+  fi
+
 cd "${SOURCE_PATH}"
 
 # Install Ginkgo (test framework) to be able to execute the tests.
@@ -36,7 +41,7 @@ function test_with_coverage() {
   local output_dir=test/output
   local coverprofile_file=coverprofile.out
   mkdir -p test/output
-  ginkgo $GINKGO_COMMON_FLAGS \
+  ginkgo $GINKGO_COMMON_FLAGS $GINKGO_COLOR_FLAG\
          --coverprofile ${coverprofile_file} -covermode=set \
          --skip-package ${SKIP_PACKAGES} \
          -output-dir ${output_dir} ${TEST_PACKAGES}
@@ -64,10 +69,6 @@ if [[ "${SKIP_INTEGRATION_TESTS}" != "" ]]; then
   echo ">>>>> Skipping integration tests"
 else
   echo ">>>>> Invoking integration tests with the simulated provider"
-  GINKGO_COLOR_FLAG=""
-  if [[ "${NO_COLOR:-}" != "" ]]; then
-    GINKGO_COLOR_FLAG="--no-color"
-  fi
 	ginkgo -v $GINKGO_COLOR_FLAG --show-node-events --poll-progress-after=300s --poll-progress-interval=60s pkg/simulatedprovider/test/integration/controller
   echo ">>>>> Finished executing integration tests"
 fi

@@ -200,8 +200,8 @@ func setGlobalsFromEnvVars() {
 	gnaSecretNameLabelValue = os.Getenv("GNA_SECRET_NAME")
 	preserveCRDDuringCleanup = os.Getenv("PRESERVE_CRD_AT_END")
 
-	mcmPort = os.Getenv("MCM_PORT")  
-    mcPort = os.Getenv("MC_PORT") 
+	mcmPort = os.Getenv("MCM_PORT")
+	mcPort = os.Getenv("MC_PORT")
 }
 
 // freePort returns configured if set, else an available loopback TCP port.
