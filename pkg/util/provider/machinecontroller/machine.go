@@ -488,6 +488,26 @@ func (c *controller) triggerCreationFlow(ctx context.Context, createMachineReque
 							klog.V(2).Infof("VM successfully deleted in context of stale node obj for machine %q", machine.Name)
 						}
 
+						// machine obj marked Failed for double security
+						updateRetryPeriod, updateErr := c.machineStatusUpdate(
+							ctx,
+							machine,
+							v1alpha1.LastOperation{
+								Description:    "VM using old node obj",
+								State:          v1alpha1.MachineStateFailed,
+								Type:           v1alpha1.MachineOperationCreate,
+								LastUpdateTime: metav1.Now(),
+							},
+							v1alpha1.CurrentStatus{
+								Phase:          v1alpha1.MachineFailed,
+								LastUpdateTime: metav1.Now(),
+							},
+							machine.Status.LastKnownState,
+						)
+						if updateErr != nil {
+							return updateRetryPeriod, updateErr
+						}
+
 						delErr := c.controlMachineClient.Machines(machine.Namespace).Delete(ctx, machine.Name, metav1.DeleteOptions{})
 						if delErr != nil {
 							if apierrors.IsNotFound(delErr) {
