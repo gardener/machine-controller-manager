@@ -31,13 +31,13 @@ else (no)
     else (no)
     endif
   else (no)
-    if (numJoinedInWindow ≥ successJoinThreshold\nAND effectiveCreationTimeout window elapsed?) then (yes)
+    if (numFailedJoinInWindow == 0\nAND numJoinedInWindow ≥ successJoinThreshold\nAND effectiveCreationTimeout window elapsed?) then (yes)
     note right
       effectiveCreationTimeout window elapses when
       now − effectiveCreationTimeoutLastAppliedAt
       > effectiveCreationTimeout
     end note
-      :newInfo.effectiveCreationTimeout =\nmax(specTimeout, maxJoinDurationInWindow)\nnewInfo.effectiveCreationTimeoutLastAppliedAt = now;
+      :newInfo.effectiveCreationTimeout =\nmax(specTimeout, maxJoinDurationInWindow)\nif value changed: newInfo.effectiveCreationTimeoutLastAppliedAt = now;
     else (no)
     endif
   endif

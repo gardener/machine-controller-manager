@@ -37,11 +37,13 @@ Join and failure activity is detected via `Machine.Status.Conditions`:
 
 ### Adjustment logic
 
-On every `MachineDeployment` reconcile, `checkAndAdjustMachineEffectiveCreationTimeout` scans all machines belonging to the MachineDeployment and counts, within the current failure window (`windowStartMark = replaceCycleCountLastAppliedAt`, `windowEndMark = windowStartMark + currentEffectiveCreationTimeout`):
+On every `MachineDeployment` reconcile, `checkAndAdjustMachineEffectiveCreationTimeout` scans all machines belonging to the MachineDeployment and counts, within the current failure window (`windowStartMark = replaceCycleCountLastAppliedAt`):
 
 - `numFailedJoinInWindow`: machines with a `FailedJoin` condition transition after `windowStartMark`
 - `numJoinedInWindow`: machines with a successful `MachineJoined` condition transition after `windowStartMark`
 - `maxJoinDurationInWindow`: maximum observed join duration across in-window joiners
+
+Note: the window has no upper bound. Any machine that joined or failed *after* `windowStartMark` is counted, including those that resolved after `windowStartMark + currentEffectiveCreationTimeout`. 
 
 Three outcomes are possible for each reconcile:
 
@@ -60,11 +62,15 @@ The cycle count resets to 0 after each growth step, so the threshold must be bre
 
 **2. Machines joined successfully (timeout shrink)**
 
-If at least `successJoinThreshold` (default `2`) machines joined within the window and the cooldown since the last timeout adjustment has elapsed (i.e. one full `effectiveCreationTimeout` duration), the effective timeout is reduced to reflect actual observed behaviour:
+If **no failures** are present in the window and at least `successJoinThreshold` (default `2`) machines joined within the window and the cooldown since the last timeout adjustment has elapsed (i.e. one full `effectiveCreationTimeout` duration), the effective timeout is reduced to reflect actual observed behaviour:
 
 ```
 effectiveCreationTimeout = max(specTimeout, maxJoinDurationInWindow)
 ```
+
+The `effectiveCreationTimeoutLastAppliedAt` timestamp is **only updated when the timeout value actually changes**. If the timeout has already shrunk to the floor (`specTimeout`) and machines continue joining successfully, the value stays the same and the timestamp is not refreshed. This prevents the idle-reset window (`isMaxTimeoutElapsed`) from being continuously deferred by healthy-join reconciles when the timeout is already at its minimum.
+
+The `numFailedJoinInWindow == 0` guard ensures the timeout is never shrunk while there are still machines actively failing to join within the current window — even if the replace-cycle window has not yet elapsed.
 
 This prevents the timeout from drifting below the spec value while allowing it to track real join durations. Using the maximum (rather than average) join duration minimises annotation updates, since the max is stable once the slowest machine in the window has joined.
 
