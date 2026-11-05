@@ -778,12 +778,6 @@ func (s ActiveMachines) Less(i, j int) bool {
 				return false
 			}
 		}
-
-		// if both are auto-preserved or both are explicitly preserved, we decide based on whichever machine
-		// has an earlier preserve expiry time
-		if !s[i].Status.CurrentStatus.PreserveExpiryTime.Equal(s[j].Status.CurrentStatus.PreserveExpiryTime) {
-			return s[i].Status.CurrentStatus.PreserveExpiryTime.Before(s[j].Status.CurrentStatus.PreserveExpiryTime)
-		}
 	}
 
 	// Default priority for machine objects
@@ -839,7 +833,11 @@ func (s ActiveMachines) Less(i, j int) bool {
 	// and prioritize as mentioned in the above map
 	case m[s[i].Status.CurrentStatus.Phase] != m[s[j].Status.CurrentStatus.Phase]:
 		return m[s[i].Status.CurrentStatus.Phase] < m[s[j].Status.CurrentStatus.Phase]
-	// Case-4: If all above cases are false, we prioritize based on creation time
+	// Case-4: If both are auto-preserved or both are explicitly preserved, we decide based on whichever machine
+	// has an earlier preserve expiry time
+	case !s[i].Status.CurrentStatus.PreserveExpiryTime.Equal(s[j].Status.CurrentStatus.PreserveExpiryTime):
+		return s[i].Status.CurrentStatus.PreserveExpiryTime.Before(s[j].Status.CurrentStatus.PreserveExpiryTime)
+	// Case-5: If all above cases are false, we prioritize based on creation time
 	case s[i].CreationTimestamp != s[j].CreationTimestamp:
 		return s[i].CreationTimestamp.Before(&s[j].CreationTimestamp)
 	}
