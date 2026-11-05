@@ -1461,3 +1461,31 @@ func GetCreationTimeoutGrowthPercentOrDefault(mcd *v1alpha1.MachineDeployment, d
 	}
 	return defVal
 }
+
+// computeMaxCreationTimeout returns the ceiling timeout: `specTimeout * (1 + growthPercent/100)^maxGrowthCount`.
+func computeMaxCreationTimeout(specTimeout metav1.Duration, growthPercent int32, maxGrowthCount int) metav1.Duration {
+	growthFactor := 1.0 + float64(growthPercent)/100.0
+	maxTimeout := specTimeout.Duration
+	for range maxGrowthCount {
+		maxTimeout = time.Duration(float64(maxTimeout) * growthFactor)
+	}
+	return metav1.Duration{Duration: maxTimeout.Round(time.Second)}
+}
+
+// increaseEffectiveCreationTimeout increases `currTimeout` by the factor derived from `growthPercent`
+// (i.e. `1 + growthPercent/100`), capped at `maxCreationTimeout`. Returns `maxCreationTimeout` if `currTimeout` is
+// already at or above the cap. Returns `currTimeout` unchanged if invalid values are specified.
+func increaseEffectiveCreationTimeout(currTimeout metav1.Duration, growthPercent int32, maxCreationTimeout metav1.Duration) metav1.Duration {
+	growthFactor := 1.0 + float64(growthPercent)/100.0
+	if growthFactor <= 1.0 || currTimeout.Duration <= 0 || maxCreationTimeout.Duration <= 0 {
+		return currTimeout
+	}
+	if currTimeout.Duration >= maxCreationTimeout.Duration {
+		return maxCreationTimeout
+	}
+	newDuration := time.Duration(float64(currTimeout.Duration) * growthFactor).Round(time.Second)
+	if newDuration > maxCreationTimeout.Duration {
+		newDuration = maxCreationTimeout.Duration
+	}
+	return metav1.Duration{Duration: newDuration}
+}

@@ -852,10 +852,12 @@ func (c *controller) checkAndAdjustMachineEffectiveCreationTimeout(ctx context.C
 			klog.V(4).Infof("For MachineDeployment %q, adjust threshold not breached (numFailedJoin:%d, numJoined:%d, replaceCycleCount:%d, replaceCycleCountLastAppliedAt: %s)",
 				mcd.Name, numFailedJoinInWindow, numJoinedInWindow, newInfo.replaceCycleCount, newInfo.replaceCycleCountLastAppliedAt.Format(time.RFC3339))
 		}
-	} else if numJoinedInWindow >= constants.DefaultSuccessJoinCountThreshold && oldInfo.isEffectiveCreationTimeoutWindowElapsed(now) {
+	} else if numFailedJoinInWindow == 0 && numJoinedInWindow >= constants.DefaultSuccessJoinCountThreshold && oldInfo.isEffectiveCreationTimeoutWindowElapsed(now) {
 		// Machines are joining healthily; thus shrink the timeout back towards the observed max join duration, floored at the spec timeout.
 		newInfo.effectiveCreationTimeout.Duration = max(specCreationTimeout.Duration, maxJoinDurationInWindow.Duration)
-		newInfo.effectiveCreationTimeoutLastAppliedAt = now
+		if newInfo.effectiveCreationTimeout != oldInfo.effectiveCreationTimeout {
+			newInfo.effectiveCreationTimeoutLastAppliedAt = now
+		}
 	}
 	klog.V(5).Infof("For MachineDeployment %q, old CreationTimeoutAdjustInfo=%s, new CreationTimeoutAdjustInfo=%s", mcd.Name, oldInfo, newInfo)
 	modifiedAnnotations, deletedAnnotationKeys := diffCreationTimeoutAnnotations(oldInfo, newInfo)
@@ -976,34 +978,6 @@ func getMachineJoinWindowStats(machines []v1alpha1.Machine, windowStartMark time
 		}
 	}
 	return
-}
-
-// computeMaxCreationTimeout returns the ceiling timeout: `specTimeout * (1 + growthPercent/100)^maxGrowthCount`.
-func computeMaxCreationTimeout(specTimeout metav1.Duration, growthPercent int32, maxGrowthCount int) metav1.Duration {
-	growthFactor := 1.0 + float64(growthPercent)/100.0
-	maxTimeout := specTimeout.Duration
-	for range maxGrowthCount {
-		maxTimeout = time.Duration(float64(maxTimeout) * growthFactor)
-	}
-	return metav1.Duration{Duration: maxTimeout.Round(time.Second)}
-}
-
-// increaseEffectiveCreationTimeout increases `currTimeout` by the factor derived from `growthPercent`
-// (i.e. `1 + growthPercent/100`), capped at `maxCreationTimeout`. Returns `maxCreationTimeout` if `currTimeout` is
-// already at or above the cap. Returns `currTimeout` unchanged if invalid values are specified.
-func increaseEffectiveCreationTimeout(currTimeout metav1.Duration, growthPercent int32, maxCreationTimeout metav1.Duration) metav1.Duration {
-	growthFactor := 1.0 + float64(growthPercent)/100.0
-	if growthFactor <= 1.0 || currTimeout.Duration <= 0 || maxCreationTimeout.Duration <= 0 {
-		return currTimeout
-	}
-	if currTimeout.Duration >= maxCreationTimeout.Duration {
-		return maxCreationTimeout
-	}
-	newDuration := time.Duration(float64(currTimeout.Duration) * growthFactor).Round(time.Second)
-	if newDuration > maxCreationTimeout.Duration {
-		newDuration = maxCreationTimeout.Duration
-	}
-	return metav1.Duration{Duration: newDuration}
 }
 
 type creationTimeoutAdjustInfo struct {

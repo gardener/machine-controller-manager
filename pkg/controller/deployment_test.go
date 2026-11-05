@@ -3030,6 +3030,94 @@ var _ = Describe("machineDeployment", func() {
 				},
 			),
 
+			Entry("mixed window: no shrink when machines are both joining and failing even if replace-cycle window has not elapsed",
+				func(d *machinev1.MachineDeployment) {
+					// Timeout was previously grown to 30m; last applied 35m ago (cooldown satisfied).
+					// Replace-cycle window started only 5m ago — not yet elapsed, so branch 2 is skipped.
+					d.Annotations[machinev1.AnnotationKeyMachineEffectiveCreationTimeout] = "30m"
+					d.Annotations[machinev1.AnnotationKeyMachineEffectiveCreationTimeoutLastAppliedAt] = now.Add(-35 * time.Minute).Format(time.RFC3339)
+					d.Annotations[machinev1.AnnotationKeyMachineReplaceCycleCountLastAppliedAt] = now.Add(-5 * time.Minute).Format(time.RFC3339)
+				},
+				func() map[types.UID]*machinev1.MachineList {
+					// 2 machines joined successfully + 1 failed — mixed window.
+					return map[types.UID]*machinev1.MachineList{
+						"ms1": {Items: []machinev1.Machine{
+							newMachineInSet("m1", "ms1", 25*time.Minute, machineJoinedCond(now.Add(-3*time.Minute))),
+							newMachineInSet("m2", "ms1", 28*time.Minute, machineJoinedCond(now.Add(-3*time.Minute))),
+							newMachineInSet("m3", "ms1", 5*time.Minute, machineFailedJoinCond(now.Add(-1*time.Minute))),
+						}},
+					}
+				},
+				func(result *machinev1.MachineDeployment) {
+					// Shrink must NOT fire: failures present in window even though enough machines joined.
+					// Timeout stays at 30m and LastAppliedAt is unchanged.
+					effectiveTimeout, err := annotations.GetMachineEffectiveCreationTimeout(result)
+					Expect(err).NotTo(HaveOccurred())
+					Expect(effectiveTimeout.Duration).To(Equal(30 * time.Minute))
+					lastAppliedAt, err := annotations.GetMachineEffectiveCreationTimeoutLastAppliedAt(result)
+					Expect(err).NotTo(HaveOccurred())
+					// "~" with 1s tolerance: annotation is stored as RFC3339 (second precision), so sub-second drift is expected.
+					// The value must still equal the preset -35m, proving LastAppliedAt was not refreshed.
+					Expect(lastAppliedAt.Time).To(BeTemporally("~", now.Add(-35*time.Minute), time.Second))
+				},
+			),
+
+			Entry("shrink at floor: effectiveCreationTimeoutLastAppliedAt not updated when timeout is already at spec default",
+				func(d *machinev1.MachineDeployment) {
+					// Timeout was previously grown to 30m and has since shrunk back to the spec default (20m floor).
+					// Last applied is 35m ago (> current effectiveTimeout of 20m, so cooldown is satisfied).
+					d.Annotations[machinev1.AnnotationKeyMachineEffectiveCreationTimeout] = "20m"
+					d.Annotations[machinev1.AnnotationKeyMachineEffectiveCreationTimeoutLastAppliedAt] = now.Add(-35 * time.Minute).Format(time.RFC3339)
+				},
+				func() map[types.UID]*machinev1.MachineList {
+					// Both machines joined quickly — max join duration (6m) is below spec default (20m), so floor wins.
+					return map[types.UID]*machinev1.MachineList{
+						"ms1": {Items: []machinev1.Machine{
+							newMachineInSet("m1", "ms1", 5*time.Minute, machineJoinedCond(now.Add(-1*time.Minute))),
+							newMachineInSet("m2", "ms1", 7*time.Minute, machineJoinedCond(now.Add(-1*time.Minute))),
+						}},
+					}
+				},
+				func(result *machinev1.MachineDeployment) {
+					// Timeout stays at 20m (floor — no change), so LastAppliedAt must NOT have been refreshed.
+					// If it were refreshed, isMaxTimeoutElapsed would never fire and the idle reset would be blocked.
+					effectiveTimeout, err := annotations.GetMachineEffectiveCreationTimeout(result)
+					Expect(err).NotTo(HaveOccurred())
+					Expect(effectiveTimeout.Duration).To(Equal(20 * time.Minute))
+					lastAppliedAt, err := annotations.GetMachineEffectiveCreationTimeoutLastAppliedAt(result)
+					Expect(err).NotTo(HaveOccurred())
+					// "~" with 1s tolerance: annotation is stored as RFC3339 (second precision), so sub-second drift is expected.
+					// The value must still equal the preset -35m, proving LastAppliedAt was not refreshed.
+					Expect(lastAppliedAt.Time).To(BeTemporally("~", now.Add(-35*time.Minute), time.Second))
+				},
+			),
+
+			Entry("shrink above floor: effectiveCreationTimeoutLastAppliedAt updated when timeout actually decreases",
+				func(d *machinev1.MachineDeployment) {
+					// Timeout was grown to 40m; last applied 50m ago (cooldown satisfied).
+					d.Annotations[machinev1.AnnotationKeyMachineEffectiveCreationTimeout] = "40m"
+					d.Annotations[machinev1.AnnotationKeyMachineEffectiveCreationTimeoutLastAppliedAt] = now.Add(-50 * time.Minute).Format(time.RFC3339)
+				},
+				func() map[types.UID]*machinev1.MachineList {
+					// m1: join duration 22m, m2: join duration 25m — max = 25m > spec default (20m), so shrinks to 25m.
+					return map[types.UID]*machinev1.MachineList{
+						"ms1": {Items: []machinev1.Machine{
+							newMachineInSet("m1", "ms1", 25*time.Minute, machineJoinedCond(now.Add(-3*time.Minute))),
+							newMachineInSet("m2", "ms1", 28*time.Minute, machineJoinedCond(now.Add(-3*time.Minute))),
+						}},
+					}
+				},
+				func(result *machinev1.MachineDeployment) {
+					// Timeout changed from 40m to 25m, so LastAppliedAt must be refreshed to now.
+					effectiveTimeout, err := annotations.GetMachineEffectiveCreationTimeout(result)
+					Expect(err).NotTo(HaveOccurred())
+					Expect(effectiveTimeout.Duration).To(Equal(25 * time.Minute))
+					lastAppliedAt, err := annotations.GetMachineEffectiveCreationTimeoutLastAppliedAt(result)
+					Expect(err).NotTo(HaveOccurred())
+					Expect(lastAppliedAt.Time).To(BeTemporally("~", time.Now(), 5*time.Second))
+				},
+			),
+
 			Entry("machines joined after previous timeout increase: effective-creation-timeout reduces to actual max join duration",
 				func(d *machinev1.MachineDeployment) {
 					// MCD previously had timeout grown to 40m; last adjusted 50m ago (cooldown satisfied)
