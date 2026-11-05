@@ -150,8 +150,7 @@ const (
 	// [github.com/gardener/machine-controller-manager/pkg/util/provider/driver.Driver.GetMachineStatus]
 	Uninitialized Code = 17
 
-	// FailedJoin indicates that the instance failed to join the cluster (create a Ready Node) despite being created
-	// and initialized.
+	// FailedJoin indicates that the instance failed to join the cluster (create a Ready Node) within the effective creation timeout.
 	FailedJoin Code = 18
 )
 

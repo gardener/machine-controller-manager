@@ -25,7 +25,6 @@ package controller
 import (
 	"context"
 	"fmt"
-	"maps"
 	"reflect"
 	"strconv"
 	"strings"
@@ -949,7 +948,7 @@ func getCreationTimeoutAdjustInfo(mcd *v1alpha1.MachineDeployment) (adjustInfo c
 
 func flattenMachineMap(machineMap map[types.UID]*v1alpha1.MachineList) []v1alpha1.Machine {
 	var machines []v1alpha1.Machine
-	for mList := range maps.Values(machineMap) {
+	for _, mList := range machineMap {
 		machines = append(machines, mList.Items...)
 	}
 	return machines
