@@ -685,8 +685,9 @@ func (c *controller) initializeMachine(ctx context.Context, machine *v1alpha1.Ma
 
 		lastUpdateTime := metav1.Now()
 		machineCurrentStatus := v1alpha1.CurrentStatus{
-			Phase:          c.getCreateFailurePhase(machine),
-			LastUpdateTime: lastUpdateTime,
+			Phase:              c.getCreateFailurePhase(machine),
+			LastUpdateTime:     lastUpdateTime,
+			PreserveExpiryTime: machine.Status.CurrentStatus.PreserveExpiryTime,
 		}
 		if machineCurrentStatus.Phase == v1alpha1.MachineFailed {
 			// check if preservation is needed for the failed machine
