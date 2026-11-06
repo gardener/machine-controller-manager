@@ -3056,13 +3056,11 @@ var _ = Describe("machineDeployment", func() {
 					Expect(effectiveTimeout.Duration).To(Equal(30 * time.Minute))
 					lastAppliedAt, err := annotations.GetMachineEffectiveCreationTimeoutLastAppliedAt(result)
 					Expect(err).NotTo(HaveOccurred())
-					// "~" with 1s tolerance: annotation is stored as RFC3339 (second precision), so sub-second drift is expected.
-					// The value must still equal the preset -35m, proving LastAppliedAt was not refreshed.
-					Expect(lastAppliedAt.Time).To(BeTemporally("~", now.Add(-35*time.Minute), time.Second))
+					Expect(lastAppliedAt.Time).To(Equal(now.Add(-35*time.Minute).Truncate(time.Second)))
 				},
 			),
 
-			Entry("shrink at floor: effectiveCreationTimeoutLastAppliedAt not updated when timeout is already at spec default",
+			Entry("healthy joins with timeout at spec floor leave annotations unchanged",
 				func(d *machinev1.MachineDeployment) {
 					// Timeout was previously grown to 30m and has since shrunk back to the spec default (20m floor).
 					// Last applied is 35m ago (> current effectiveTimeout of 20m, so cooldown is satisfied).
@@ -3086,13 +3084,11 @@ var _ = Describe("machineDeployment", func() {
 					Expect(effectiveTimeout.Duration).To(Equal(20 * time.Minute))
 					lastAppliedAt, err := annotations.GetMachineEffectiveCreationTimeoutLastAppliedAt(result)
 					Expect(err).NotTo(HaveOccurred())
-					// "~" with 1s tolerance: annotation is stored as RFC3339 (second precision), so sub-second drift is expected.
-					// The value must still equal the preset -35m, proving LastAppliedAt was not refreshed.
-					Expect(lastAppliedAt.Time).To(BeTemporally("~", now.Add(-35*time.Minute), time.Second))
+					Expect(lastAppliedAt.Time).To(Equal(now.Add(-35*time.Minute).Truncate(time.Second)))
 				},
 			),
 
-			Entry("shrink above floor: effectiveCreationTimeoutLastAppliedAt updated when timeout actually decreases",
+			Entry("healthy joins above spec floor shrink timeout to max join duration",
 				func(d *machinev1.MachineDeployment) {
 					// Timeout was grown to 40m; last applied 50m ago (cooldown satisfied).
 					d.Annotations[machinev1.AnnotationKeyMachineEffectiveCreationTimeout] = "40m"
@@ -3114,7 +3110,7 @@ var _ = Describe("machineDeployment", func() {
 					Expect(effectiveTimeout.Duration).To(Equal(25 * time.Minute))
 					lastAppliedAt, err := annotations.GetMachineEffectiveCreationTimeoutLastAppliedAt(result)
 					Expect(err).NotTo(HaveOccurred())
-					Expect(lastAppliedAt.Time).To(BeTemporally("~", time.Now(), 5*time.Second))
+					Expect(lastAppliedAt.Time).To(Equal(now.Truncate(time.Second)))
 				},
 			),
 
