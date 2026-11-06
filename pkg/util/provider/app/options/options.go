@@ -69,7 +69,7 @@ func NewMCServer() *MCServer {
 			LeaderElection:          leaderelectionconfig.DefaultLeaderElectionConfiguration(),
 			ControllerStartInterval: metav1.Duration{Duration: 0 * time.Second},
 			SafetyOptions: machineconfig.SafetyOptions{
-				MachineCreationTimeout:                   metav1.Duration{Duration: 20 * time.Minute},
+				MachineCreationTimeout:                   metav1.Duration{Duration: constants.DefaultMachineCreationTimeout},
 				MachineHealthTimeout:                     metav1.Duration{Duration: 10 * time.Minute},
 				MachineDrainTimeout:                      metav1.Duration{Duration: drain.DefaultMachineDrainTimeout},
 				MachineInPlaceUpdateTimeout:              metav1.Duration{Duration: 20 * time.Minute},
