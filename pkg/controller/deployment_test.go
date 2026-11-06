@@ -2904,7 +2904,7 @@ var _ = Describe("machineDeployment", func() {
 		}
 
 		BeforeEach(func() {
-			now = time.Now()
+			now = time.Now().UTC()
 			mcd = &machinev1.MachineDeployment{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:              "MachineDeployment-adjust-test",
@@ -2951,7 +2951,7 @@ var _ = Describe("machineDeployment", func() {
 			c.safetyOptions.MachineCreationTimeoutGrowthPercent = constants.DefaultCreationTimeoutGrowthPercent
 			defer trackers.Stop()
 			waitForCacheSync(stop, c)
-			_, adjustErr := c.checkAndAdjustMachineEffectiveCreationTimeout(context.Background(), mcdIn, machineMap)
+			_, adjustErr := c.checkAndAdjustMachineEffectiveCreationTimeout(context.Background(), mcdIn, metav1.NewTime(now), machineMap)
 			Expect(adjustErr).NotTo(HaveOccurred())
 			waitForCacheSync(stop, c)
 			result, err := c.controlMachineClient.MachineDeployments(testNamespace).Get(context.Background(), mcdIn.Name, metav1.GetOptions{})

@@ -579,7 +579,7 @@ func (c *controller) reconcileClusterMachineDeployment(key string) error {
 		return c.rollback(ctx, d, machineSets, machineMap)
 	}
 
-	if adjusted, err := c.checkAndAdjustMachineEffectiveCreationTimeout(ctx, d, machineMap); adjusted {
+	if adjusted, err := c.checkAndAdjustMachineEffectiveCreationTimeout(ctx, d, metav1.Now(), machineMap); adjusted {
 		c.enqueueRateLimited(d)
 		return nil
 	} else if err != nil {
@@ -816,7 +816,9 @@ func (c *controller) adjustingMachineDeploymentDeletionAnnotations(ctx context.C
 // failures, it shrinks the timeout back to the average observed join duration (floored at the spec creation timeout).
 // If no machines have joined or failed for a full max-creation-timeout window, all adjust annotations are cleared
 // and the timeout resets to the spec creation timeout.
-func (c *controller) checkAndAdjustMachineEffectiveCreationTimeout(ctx context.Context, mcd *v1alpha1.MachineDeployment, machineMap map[types.UID]*v1alpha1.MachineList) (adjusted bool, err error) {
+//
+// now is passed in to allow deterministic testing.
+func (c *controller) checkAndAdjustMachineEffectiveCreationTimeout(ctx context.Context, mcd *v1alpha1.MachineDeployment, now metav1.Time, machineMap map[types.UID]*v1alpha1.MachineList) (adjusted bool, err error) {
 	oldInfo, err := getCreationTimeoutAdjustInfo(mcd)
 	if err != nil {
 		return
@@ -826,7 +828,6 @@ func (c *controller) checkAndAdjustMachineEffectiveCreationTimeout(ctx context.C
 	specCreationTimeout := GetSpecCreationTimeoutOrDefault(mcd, constants.DefaultMachineCreationTimeout)
 	maxCreationTimeout := computeMaxCreationTimeout(specCreationTimeout, creationTimeoutGrowthPercent, constants.DefaultMaxCreationTimeoutGrowthCount)
 	windowStartMark := oldInfo.replaceCycleCountLastAppliedAt.Time
-	now := metav1.Now()
 
 	numFailedJoinInWindow, numJoinedInWindow, maxJoinDurationInWindow := getMachineJoinWindowStats(flattenMachineMap(machineMap), windowStartMark)
 	klog.V(4).Infof("For MachineDeployment %q, numFailedJoinInWindow=%d, numJoinedInWindow=%d, maxJoinDurationInWindow=%s, replaceCount=%d, replaceCycleCountLastAppliedAt=%s",
