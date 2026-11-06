@@ -1426,7 +1426,7 @@ func MergeStringMaps[T any](oldMap map[string]T, newMaps ...map[string]T) map[st
 
 // GetEffectiveCreationTimeout gets the effective creation timeout as a [metav1.Duration] for this MachineDeployment object, first checking
 // the [v1alpha1.AnnotationKeyMachineEffectiveCreationTimeout], then falling back to machine deployment spec template and then falling back
-// to [v1alpha1.DefaultCreationTimeout]
+// to [constants.DefaultMachineCreationTimeout]
 func GetEffectiveCreationTimeout(mcd *v1alpha1.MachineDeployment) (duration metav1.Duration, err error) {
 	duration, err = annotations.GetMachineEffectiveCreationTimeout(mcd)
 	if err != nil || duration.Duration != 0 {
