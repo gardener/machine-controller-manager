@@ -756,16 +756,27 @@ func (s ActiveMachines) Less(i, j int) bool {
 	if isPreservedI != isPreservedJ {
 		return !isPreservedI // if s[i] preserved, it is "greater" and should not be deleted first, therefore, "less" is false, and vice versa
 	}
-	if isPreservedI { // both machines are preserved, in which case deprioritize explicitly preserved machines over auto-preserved
-		isAutoPreservedI := machineutils.IsAutoPreserved(s[i])
-		isAutoPreservedJ := machineutils.IsAutoPreserved(s[j])
-		if isAutoPreservedI != isAutoPreservedJ {
-			return isAutoPreservedI // if s[i] is auto-preserved, it is "less", and should be deleted first
+	// TODO: the check for preserve value only expects the annotation to be on machine. But the annotation can only be present at the node
+	// which breaks this logic. This problem should be solved once we implement the annotation movement from machine to node.
+	if isPreservedI {
+		// both machines have preserve-expiry-time set, in which case deletion priority goes as
+		// - machine whose preserve annotation was removed as part of stop preservation
+		// - machine with auto-preservation annotation
+		// - machine with manual-preservation annotation
+		valI, okI := s[i].Annotations[machineutils.PreserveMachineAnnotationKey]
+		valJ, okJ := s[j].Annotations[machineutils.PreserveMachineAnnotationKey]
+		if okI != okJ {
+			return !okI
 		}
-		// if both are auto-preserved or both are explicitly preserved, we decide based on whichever machine
-		// has an earlier preserve expiry time
-		if !s[i].Status.CurrentStatus.PreserveExpiryTime.Equal(s[j].Status.CurrentStatus.PreserveExpiryTime) {
-			return s[i].Status.CurrentStatus.PreserveExpiryTime.Before(s[j].Status.CurrentStatus.PreserveExpiryTime)
+
+		// has auto-preservation annotation
+		if valI != valJ {
+			if valI == machineutils.PreserveMachineAnnotationValueAutoPreserved {
+				return true
+			}
+			if valJ == machineutils.PreserveMachineAnnotationValueAutoPreserved {
+				return false
+			}
 		}
 	}
 
@@ -822,7 +833,11 @@ func (s ActiveMachines) Less(i, j int) bool {
 	// and prioritize as mentioned in the above map
 	case m[s[i].Status.CurrentStatus.Phase] != m[s[j].Status.CurrentStatus.Phase]:
 		return m[s[i].Status.CurrentStatus.Phase] < m[s[j].Status.CurrentStatus.Phase]
-	// Case-4: If all above cases are false, we prioritize based on creation time
+	// Case-4: If both are auto-preserved or both are explicitly preserved, we decide based on whichever machine
+	// has an earlier preserve expiry time
+	case !s[i].Status.CurrentStatus.PreserveExpiryTime.Equal(s[j].Status.CurrentStatus.PreserveExpiryTime):
+		return s[i].Status.CurrentStatus.PreserveExpiryTime.Before(s[j].Status.CurrentStatus.PreserveExpiryTime)
+	// Case-5: If all above cases are false, we prioritize based on creation time
 	case s[i].CreationTimestamp != s[j].CreationTimestamp:
 		return s[i].CreationTimestamp.Before(&s[j].CreationTimestamp)
 	}

@@ -12,8 +12,6 @@ import (
 	"sync"
 	"time"
 
-	corev1 "k8s.io/api/core/v1"
-
 	machinev1 "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	faketyped "github.com/gardener/machine-controller-manager/pkg/client/clientset/versioned/typed/machine/v1alpha1/fake"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/machineutils"
@@ -44,9 +42,10 @@ var _ = Describe("machineset", func() {
 
 			testMachine := &machinev1.Machine{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "Machine-test",
-					Namespace: testNamespace,
-					Labels:    nil,
+					Name:            "Machine-test",
+					Namespace:       testNamespace,
+					ResourceVersion: "1",
+					Labels:          nil,
 				},
 			}
 			MachineSet, err := c.getMachineMachineSets(testMachine)
@@ -79,8 +78,9 @@ var _ = Describe("machineset", func() {
 
 			testMachine := &machinev1.Machine{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "Machine-test",
-					Namespace: testNamespace,
+					Name:            "Machine-test",
+					Namespace:       testNamespace,
+					ResourceVersion: "1",
 					Labels: map[string]string{
 						"test-label": "test-label",
 					},
@@ -173,8 +173,9 @@ var _ = Describe("machineset", func() {
 		BeforeEach(func() {
 			testMachine = &machinev1.Machine{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "Machine-test",
-					Namespace: testNamespace,
+					Name:            "Machine-test",
+					Namespace:       testNamespace,
+					ResourceVersion: "1",
 					Labels: map[string]string{
 						"test-label": "test-label",
 					},
@@ -608,9 +609,10 @@ var _ = Describe("machineset", func() {
 
 			testActiveMachine1 = &machinev1.Machine{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "machine-1",
-					Namespace: testNamespace,
-					UID:       "1234568",
+					Name:            "machine-1",
+					Namespace:       testNamespace,
+					UID:             "1234568",
+					ResourceVersion: "1",
 					Labels: map[string]string{
 						"test-label": "test-label",
 					},
@@ -629,9 +631,10 @@ var _ = Describe("machineset", func() {
 
 			testActiveMachine2 = &machinev1.Machine{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "machine-2",
-					Namespace: testNamespace,
-					UID:       "1234569",
+					Name:            "machine-2",
+					Namespace:       testNamespace,
+					UID:             "1234569",
+					ResourceVersion: "1",
 					Labels: map[string]string{
 						"test-label": "test-label",
 					},
@@ -649,9 +652,10 @@ var _ = Describe("machineset", func() {
 
 			testActiveMachine3 = &machinev1.Machine{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "machine-3",
-					Namespace: testNamespace,
-					UID:       "12345610",
+					Name:            "machine-3",
+					Namespace:       testNamespace,
+					UID:             "12345610",
+					ResourceVersion: "1",
 					Labels: map[string]string{
 						"test-label": "test-label",
 					},
@@ -669,9 +673,10 @@ var _ = Describe("machineset", func() {
 
 			testActiveMachine4 = &machinev1.Machine{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "machine-4",
-					Namespace: testNamespace,
-					UID:       "12345611",
+					Name:            "machine-4",
+					Namespace:       testNamespace,
+					UID:             "12345611",
+					ResourceVersion: "1",
 					Labels: map[string]string{
 						"test-label": "test-label",
 					},
@@ -788,9 +793,10 @@ var _ = Describe("machineset", func() {
 
 			testActiveMachine3 = &machinev1.Machine{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "machine-3",
-					Namespace: testNamespace,
-					UID:       "12345610",
+					Name:            "machine-3",
+					Namespace:       testNamespace,
+					UID:             "12345610",
+					ResourceVersion: "1",
 					Labels: map[string]string{
 						"test-label": "test-label",
 					},
@@ -924,9 +930,10 @@ var _ = Describe("machineset", func() {
 
 				testActiveMachine3 = &machinev1.Machine{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      "machine-3",
-						Namespace: testNamespace,
-						UID:       "12345610",
+						Name:            "machine-3",
+						Namespace:       testNamespace,
+						UID:             "12345610",
+						ResourceVersion: "1",
 						Labels: map[string]string{
 							"test-label":                             "test-label",
 							"node.machine.sapcloud.io/update-result": "successful",
@@ -967,9 +974,10 @@ var _ = Describe("machineset", func() {
 
 				testActiveMachine3 = &machinev1.Machine{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      "machine-3",
-						Namespace: testNamespace,
-						UID:       "12345610",
+						Name:            "machine-3",
+						Namespace:       testNamespace,
+						UID:             "12345610",
+						ResourceVersion: "1",
 						Labels: map[string]string{
 							"test-label":                             "test-label",
 							"node.machine.sapcloud.io/update-result": "successful",
@@ -1010,9 +1018,10 @@ var _ = Describe("machineset", func() {
 
 				testActiveMachine3 = &machinev1.Machine{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      "machine-3",
-						Namespace: testNamespace,
-						UID:       "12345610",
+						Name:            "machine-3",
+						Namespace:       testNamespace,
+						UID:             "12345610",
+						ResourceVersion: "1",
 						Labels: map[string]string{
 							"test-label":                             "test-label",
 							"node.machine.sapcloud.io/update-result": "successful",
@@ -1031,9 +1040,10 @@ var _ = Describe("machineset", func() {
 
 				testActiveMachine4 = &machinev1.Machine{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      "machine-4",
-						Namespace: testNamespace,
-						UID:       "12345611",
+						Name:            "machine-4",
+						Namespace:       testNamespace,
+						UID:             "12345611",
+						ResourceVersion: "1",
 						Labels: map[string]string{
 							"test-label": "test-label",
 						},
@@ -1051,9 +1061,10 @@ var _ = Describe("machineset", func() {
 
 				testActiveMachine5 = &machinev1.Machine{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      "machine-5",
-						Namespace: testNamespace,
-						UID:       "12345612",
+						Name:            "machine-5",
+						Namespace:       testNamespace,
+						UID:             "12345612",
+						ResourceVersion: "1",
 						Labels: map[string]string{
 							"test-label": "test-label",
 						},
@@ -1229,9 +1240,10 @@ var _ = Describe("machineset", func() {
 			objects := []runtime.Object{}
 			testPreservedFailedMachine := &machinev1.Machine{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "machine-1",
-					Namespace: testNamespace,
-					UID:       "1234568",
+					Name:            "machine-1",
+					Namespace:       testNamespace,
+					UID:             "1234568",
+					ResourceVersion: "1",
 					Labels: map[string]string{
 						"test-label": "test-label",
 					},
@@ -1293,9 +1305,10 @@ var _ = Describe("machineset", func() {
 
 			testActiveMachine1 = &machinev1.Machine{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "machine-1",
-					Namespace: testNamespace,
-					UID:       "1234568",
+					Name:            "machine-1",
+					Namespace:       testNamespace,
+					UID:             "1234568",
+					ResourceVersion: "1",
 					Labels: map[string]string{
 						"test-label": "test-label",
 					},
@@ -1422,9 +1435,10 @@ var _ = Describe("machineset", func() {
 		BeforeEach(func() {
 			testMachine1 = &machinev1.Machine{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "machine-1",
-					Namespace: testNamespace,
-					UID:       "1234561",
+					Name:            "machine-1",
+					Namespace:       testNamespace,
+					UID:             "1234561",
+					ResourceVersion: "1",
 					Labels: map[string]string{
 						"test-label": "test-label",
 					},
@@ -1441,9 +1455,10 @@ var _ = Describe("machineset", func() {
 
 			testMachine2 = &machinev1.Machine{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "machine-2",
-					Namespace: testNamespace,
-					UID:       "1234562",
+					Name:            "machine-2",
+					Namespace:       testNamespace,
+					UID:             "1234562",
+					ResourceVersion: "1",
 					Labels: map[string]string{
 						"test-label": "test-label",
 					},
@@ -1461,9 +1476,10 @@ var _ = Describe("machineset", func() {
 
 			testMachine3 = &machinev1.Machine{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "machine-3",
-					Namespace: testNamespace,
-					UID:       "1234563",
+					Name:            "machine-3",
+					Namespace:       testNamespace,
+					UID:             "1234563",
+					ResourceVersion: "1",
 					Labels: map[string]string{
 						"test-label": "test-label",
 					},
@@ -1481,9 +1497,10 @@ var _ = Describe("machineset", func() {
 
 			testMachine4 = &machinev1.Machine{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "machine-4",
-					Namespace: testNamespace,
-					UID:       "1234564",
+					Name:            "machine-4",
+					Namespace:       testNamespace,
+					UID:             "1234564",
+					ResourceVersion: "1",
 					Labels: map[string]string{
 						"test-label": "test-label",
 					},
@@ -1501,9 +1518,10 @@ var _ = Describe("machineset", func() {
 
 			testMachine5 = &machinev1.Machine{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "machine-5",
-					Namespace: testNamespace,
-					UID:       "1234561",
+					Name:            "machine-5",
+					Namespace:       testNamespace,
+					UID:             "1234561",
+					ResourceVersion: "1",
 					Labels: map[string]string{
 						"test-label": "test-label",
 					},
@@ -1655,15 +1673,17 @@ var _ = Describe("machineset", func() {
 
 			testMachine1 = &machinev1.Machine{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "machine-1",
-					Namespace: testNamespace,
+					Name:            "machine-1",
+					Namespace:       testNamespace,
+					ResourceVersion: "1",
 				},
 			}
 
 			testMachine2 = &machinev1.Machine{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "machine-2",
-					Namespace: testNamespace,
+					Name:            "machine-2",
+					Namespace:       testNamespace,
+					ResourceVersion: "1",
 				},
 			}
 		})
@@ -1715,9 +1735,10 @@ var _ = Describe("machineset", func() {
 
 			targetMachine = &machinev1.Machine{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "machine-1",
-					Namespace: testNamespace,
-					UID:       "1234568",
+					Name:            "machine-1",
+					Namespace:       testNamespace,
+					UID:             "1234568",
+					ResourceVersion: "1",
 					Labels: map[string]string{
 						"test-label": "test-label",
 					},
@@ -1789,9 +1810,10 @@ var _ = Describe("machineset", func() {
 
 			testFailedMachine1 = &machinev1.Machine{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "machine-1",
-					Namespace: testNamespace,
-					UID:       "1234568",
+					Name:            "machine-1",
+					Namespace:       testNamespace,
+					UID:             "1234568",
+					ResourceVersion: "1",
 					Labels: map[string]string{
 						"test-label": "test-label",
 					},
@@ -1805,9 +1827,10 @@ var _ = Describe("machineset", func() {
 
 			testFailedMachine2 = &machinev1.Machine{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "machine-2",
-					Namespace: testNamespace,
-					UID:       "1234569",
+					Name:            "machine-2",
+					Namespace:       testNamespace,
+					UID:             "1234569",
+					ResourceVersion: "1",
 					Labels: map[string]string{
 						"test-label": "test-label",
 					},
@@ -1821,9 +1844,10 @@ var _ = Describe("machineset", func() {
 
 			testRunningMachine = &machinev1.Machine{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "machine-t",
-					Namespace: testNamespace,
-					UID:       "1234560",
+					Name:            "machine-t",
+					Namespace:       testNamespace,
+					UID:             "1234560",
+					ResourceVersion: "1",
 					Labels: map[string]string{
 						"test-label": "test-label",
 					},
@@ -2071,10 +2095,9 @@ var _ = Describe("machineset", func() {
 
 	Describe("#manageAutoPreservationOfFailedMachines", func() {
 		type setup struct {
-			autoPreserveFailedMachineCount int32
-			autoPreserveFailedMachineMax   int32
-			additionalMachines             []*machinev1.Machine
-			replicas                       int32
+			autoPreserveFailedMachineMax int32
+			additionalMachines           []*machinev1.Machine
+			replicas                     int32
 		}
 		type expect struct {
 			preservedMachineCount int
@@ -2112,14 +2135,12 @@ var _ = Describe("machineset", func() {
 					},
 					AutoPreserveFailedMachineMax: tc.setup.autoPreserveFailedMachineMax,
 				},
-				Status: machinev1.MachineSetStatus{
-					AutoPreserveFailedMachineCount: tc.setup.autoPreserveFailedMachineCount,
-				},
 			}
 			testMachine1 := &machinev1.Machine{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:              "machine-1",
 					Namespace:         testNamespace,
+					ResourceVersion:   "1",
 					CreationTimestamp: metav1.Time{Time: time.Now().Add(-2 * time.Hour)},
 				},
 				Status: machinev1.MachineStatus{
@@ -2132,6 +2153,7 @@ var _ = Describe("machineset", func() {
 				ObjectMeta: metav1.ObjectMeta{
 					Name:              "machine-2",
 					Namespace:         testNamespace,
+					ResourceVersion:   "1",
 					CreationTimestamp: metav1.Time{Time: time.Now().Add(-1 * time.Hour)},
 				},
 				Status: machinev1.MachineStatus{
@@ -2144,6 +2166,7 @@ var _ = Describe("machineset", func() {
 				ObjectMeta: metav1.ObjectMeta{
 					Name:              "machine-3",
 					Namespace:         testNamespace,
+					ResourceVersion:   "1",
 					CreationTimestamp: metav1.Time{Time: time.Now().Add(-2 * time.Hour)},
 				},
 				Status: machinev1.MachineStatus{
@@ -2156,6 +2179,7 @@ var _ = Describe("machineset", func() {
 				ObjectMeta: metav1.ObjectMeta{
 					Name:              "machine-4",
 					Namespace:         testNamespace,
+					ResourceVersion:   "1",
 					CreationTimestamp: metav1.Time{Time: time.Now().Add(-2 * time.Hour)},
 					Annotations: map[string]string{
 						machineutils.PreserveMachineAnnotationKey: machineutils.PreserveMachineAnnotationValueFalse,
@@ -2176,7 +2200,8 @@ var _ = Describe("machineset", func() {
 			waitForCacheSync(stop, c)
 			machinesList := []*machinev1.Machine{testMachine1, testMachine2, testMachine3, testMachine4}
 			machinesList = append(machinesList, tc.setup.additionalMachines...)
-			c.manageAutoPreservationOfFailedMachines(context.TODO(), machinesList, testMachineSet)
+			_, err := c.manageAutoPreservationOfFailedMachines(context.TODO(), machinesList, testMachineSet)
+			Expect(err).To(BeNil())
 			waitForCacheSync(stop, c)
 			updatedMachine1, _ := c.controlMachineClient.Machines(testNamespace).Get(context.TODO(), testMachine1.Name, metav1.GetOptions{})
 			updatedMachine2, _ := c.controlMachineClient.Machines(testNamespace).Get(context.TODO(), testMachine2.Name, metav1.GetOptions{})
@@ -2204,8 +2229,7 @@ var _ = Describe("machineset", func() {
 		},
 			Entry("should trigger auto preservation of 1 failed machine if AutoPreserveFailedMachineMax is 1 and AutoPreserveFailedMachineCount is 0", testCase{
 				setup: setup{
-					autoPreserveFailedMachineCount: 0,
-					autoPreserveFailedMachineMax:   1,
+					autoPreserveFailedMachineMax: 1,
 				},
 				expect: expect{
 					preservedMachineCount: 1,
@@ -2213,26 +2237,61 @@ var _ = Describe("machineset", func() {
 			}),
 			Entry("should not trigger auto preservation of failed machines if AutoPreserveFailedMachineMax is 0", testCase{
 				setup: setup{
-					autoPreserveFailedMachineCount: 0,
-					autoPreserveFailedMachineMax:   0,
+					autoPreserveFailedMachineMax: 0,
 				},
 				expect: expect{
 					preservedMachineCount: 0,
 				},
 			}),
-			Entry("should not trigger auto preservation of failed machines if AutoPreserveFailedMachineCount has reached AutoPreserveFailedMachineMax", testCase{
+			Entry("should not trigger auto preservation of additional failed machines if AutoPreserveFailedMachineCount has reached AutoPreserveFailedMachineMax", testCase{
 				setup: setup{
-					autoPreserveFailedMachineCount: 2,
-					autoPreserveFailedMachineMax:   2,
+					autoPreserveFailedMachineMax: 2,
+					// Two machines below are already auto-preserved, so the machineset is at capacity.
+					// machine-1 and machine-2 must therefore NOT get preserved now.
+					additionalMachines: []*machinev1.Machine{
+						{
+							ObjectMeta: metav1.ObjectMeta{
+								Name:              "machine-5",
+								Namespace:         testNamespace,
+								ResourceVersion:   "1",
+								CreationTimestamp: metav1.Time{Time: time.Now().Add(-2 * time.Hour)},
+								Annotations: map[string]string{
+									machineutils.PreserveMachineAnnotationKey: machineutils.PreserveMachineAnnotationValueAutoPreserved,
+								},
+							},
+							Status: machinev1.MachineStatus{
+								CurrentStatus: machinev1.CurrentStatus{
+									Phase:              MachineFailed,
+									PreserveExpiryTime: &metav1.Time{Time: time.Now().Add(1 * time.Hour)},
+								},
+							},
+						},
+						{
+							ObjectMeta: metav1.ObjectMeta{
+								Name:              "machine-6",
+								Namespace:         testNamespace,
+								ResourceVersion:   "1",
+								CreationTimestamp: metav1.Time{Time: time.Now().Add(-2 * time.Hour)},
+								Annotations: map[string]string{
+									machineutils.PreserveMachineAnnotationKey: machineutils.PreserveMachineAnnotationValueAutoPreserved,
+								},
+							},
+							Status: machinev1.MachineStatus{
+								CurrentStatus: machinev1.CurrentStatus{
+									Phase:              MachineFailed,
+									PreserveExpiryTime: &metav1.Time{Time: time.Now().Add(1 * time.Hour)},
+								},
+							},
+						},
+					},
 				},
 				expect: expect{
-					preservedMachineCount: 0,
+					preservedMachineCount: 2,
 				},
 			}),
 			Entry("should trigger auto preservation of both failed machines if AutoPreserveFailedMachineCount is 0 and AutoPreserveFailedMachineMax is 2", testCase{
 				setup: setup{
-					autoPreserveFailedMachineCount: 0,
-					autoPreserveFailedMachineMax:   2,
+					autoPreserveFailedMachineMax: 2,
 				},
 				expect: expect{
 					preservedMachineCount: 2,
@@ -2240,8 +2299,7 @@ var _ = Describe("machineset", func() {
 			}),
 			Entry("should not trigger auto preservation of failed machine annotated with preserve=false even if AutoPreserveFailedMachineCount < AutoPreserveFailedMachineMax", testCase{
 				setup: setup{
-					autoPreserveFailedMachineCount: 0,
-					autoPreserveFailedMachineMax:   3,
+					autoPreserveFailedMachineMax: 3,
 				},
 				expect: expect{
 					preservedMachineCount: 2,
@@ -2249,13 +2307,13 @@ var _ = Describe("machineset", func() {
 			}),
 			Entry("should stop auto preservation of machines annotated with preserve=auto-preserve if AutoPreserveFailedMachineCount > AutoPreserveFailedMachineMax", testCase{
 				setup: setup{
-					autoPreserveFailedMachineCount: 1,
-					autoPreserveFailedMachineMax:   0,
+					autoPreserveFailedMachineMax: 0,
 					additionalMachines: []*machinev1.Machine{
 						{
 							ObjectMeta: metav1.ObjectMeta{
-								Name:      "machine-5",
-								Namespace: testNamespace,
+								Name:            "machine-5",
+								Namespace:       testNamespace,
+								ResourceVersion: "1",
 								Annotations: map[string]string{
 									machineutils.PreserveMachineAnnotationKey: machineutils.PreserveMachineAnnotationValueAutoPreserved,
 								},
@@ -2273,6 +2331,50 @@ var _ = Describe("machineset", func() {
 					preservedMachineCount: 0,
 				},
 			}),
+			Entry("should reduce auto-preserved machines to the new lower AutoPreserveFailedMachineMax", testCase{
+				setup: setup{
+					autoPreserveFailedMachineMax: 1,
+					additionalMachines: []*machinev1.Machine{
+						{
+							ObjectMeta: metav1.ObjectMeta{
+								Name:              "machine-5",
+								Namespace:         testNamespace,
+								ResourceVersion:   "1",
+								CreationTimestamp: metav1.Time{Time: time.Now().Add(-3 * time.Hour)},
+								Annotations: map[string]string{
+									machineutils.PreserveMachineAnnotationKey: machineutils.PreserveMachineAnnotationValueAutoPreserved,
+								},
+							},
+							Status: machinev1.MachineStatus{
+								CurrentStatus: machinev1.CurrentStatus{
+									Phase:              MachineFailed,
+									PreserveExpiryTime: &metav1.Time{Time: time.Now().Add(1 * time.Hour)},
+								},
+							},
+						},
+						{
+							ObjectMeta: metav1.ObjectMeta{
+								Name:              "machine-6",
+								Namespace:         testNamespace,
+								ResourceVersion:   "1",
+								CreationTimestamp: metav1.Time{Time: time.Now().Add(-1 * time.Hour)},
+								Annotations: map[string]string{
+									machineutils.PreserveMachineAnnotationKey: machineutils.PreserveMachineAnnotationValueAutoPreserved,
+								},
+							},
+							Status: machinev1.MachineStatus{
+								CurrentStatus: machinev1.CurrentStatus{
+									Phase:              MachineFailed,
+									PreserveExpiryTime: &metav1.Time{Time: time.Now().Add(1 * time.Hour)},
+								},
+							},
+						},
+					},
+				},
+				expect: expect{
+					preservedMachineCount: 1,
+				},
+			}),
 		)
 
 		It("should remove auto-preservation from machine with earlier PreserveExpiryTime first", func() {
@@ -2282,8 +2384,9 @@ var _ = Describe("machineset", func() {
 			// machine-a: created recently, but expires sooner — should lose annotation first
 			machineA := &machinev1.Machine{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "machine-a",
-					Namespace: testNamespace,
+					Name:            "machine-a",
+					Namespace:       testNamespace,
+					ResourceVersion: "1",
 					Annotations: map[string]string{
 						machineutils.PreserveMachineAnnotationKey: machineutils.PreserveMachineAnnotationValueAutoPreserved,
 					},
@@ -2299,8 +2402,9 @@ var _ = Describe("machineset", func() {
 			// machine-b: created earlier, but expires later — should keep annotation
 			machineB := &machinev1.Machine{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "machine-b",
-					Namespace: testNamespace,
+					Name:            "machine-b",
+					Namespace:       testNamespace,
+					ResourceVersion: "1",
 					Annotations: map[string]string{
 						machineutils.PreserveMachineAnnotationKey: machineutils.PreserveMachineAnnotationValueAutoPreserved,
 					},
@@ -2340,7 +2444,8 @@ var _ = Describe("machineset", func() {
 			defer trackers.Stop()
 			waitForCacheSync(stop, c)
 
-			c.manageAutoPreservationOfFailedMachines(context.TODO(), []*machinev1.Machine{machineA, machineB}, testMachineSet)
+			_, err := c.manageAutoPreservationOfFailedMachines(context.TODO(), []*machinev1.Machine{machineA, machineB}, testMachineSet)
+			Expect(err).To(BeNil())
 			waitForCacheSync(stop, c)
 
 			updatedA, _ := c.controlMachineClient.Machines(testNamespace).Get(context.TODO(), machineA.Name, metav1.GetOptions{})
@@ -2351,157 +2456,187 @@ var _ = Describe("machineset", func() {
 			// machine-b has later expiry so it should retain auto-preservation
 			Expect(updatedB.Annotations[machineutils.PreserveMachineAnnotationKey]).To(Equal(machineutils.PreserveMachineAnnotationValueAutoPreserved))
 		})
-	})
 
-	Describe("#shouldFailedMachineBeTerminated", func() {
-		type setup struct {
-			preserveExpiryTime     *metav1.Time
-			nodeName               string
-			nodeAnnotationValue    string
-			machineAnnotationValue string
-			laNodeAnnotationValue  string
-		}
-		type expect struct {
-			result bool
-		}
-		type testCase struct {
-			setup  setup
-			expect expect
-		}
-
-		DescribeTable("shouldFailedMachineBeTerminated test cases", func(tc testCase) {
+		It("should treat failed machine with auto-preserved annotation but no PreserveExpiryTime as a preservation candidate and set PreserveExpiryTime", func() {
 			stop := make(chan struct{})
 			defer close(stop)
 
-			var controlMachineObjects []runtime.Object
-			var targetCoreObjects []runtime.Object
-
-			machine := machinev1.Machine{
+			// machine has auto-preserved annotation but PreserveExpiryTime was never set (e.g. status update failed)
+			machine := &machinev1.Machine{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "test-machine",
-					Namespace: "default",
+					Name:            "machine-no-expiry",
+					Namespace:       testNamespace,
+					ResourceVersion: "1",
 					Annotations: map[string]string{
-						machineutils.PreserveMachineAnnotationKey:              tc.setup.machineAnnotationValue,
-						machineutils.LastAppliedNodePreserveValueAnnotationKey: tc.setup.laNodeAnnotationValue,
+						machineutils.PreserveMachineAnnotationKey: machineutils.PreserveMachineAnnotationValueAutoPreserved,
 					},
-					Labels: map[string]string{
-						machinev1.NodeLabelKey: tc.setup.nodeName,
-					},
+					CreationTimestamp: metav1.Time{Time: time.Now().Add(-1 * time.Hour)},
 				},
 				Status: machinev1.MachineStatus{
 					CurrentStatus: machinev1.CurrentStatus{
-						Phase:              machinev1.MachineFailed,
-						PreserveExpiryTime: tc.setup.preserveExpiryTime,
+						Phase:              MachineFailed,
+						PreserveExpiryTime: nil,
 					},
 				},
 			}
-			controlMachineObjects = append(controlMachineObjects, &machine)
-			if tc.setup.nodeName != "" {
-				node := &corev1.Node{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: tc.setup.nodeName,
-						Annotations: map[string]string{
-							machineutils.PreserveMachineAnnotationKey: tc.setup.nodeAnnotationValue,
+			testMachineSet := &machinev1.MachineSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "MachineSet-test",
+					Namespace: testNamespace,
+					UID:       "1234567",
+				},
+				Spec: machinev1.MachineSetSpec{
+					Replicas:                     1,
+					AutoPreserveFailedMachineMax: 1,
+					Selector: &metav1.LabelSelector{
+						MatchLabels: map[string]string{"test-label": "test-label"},
+					},
+					Template: machinev1.MachineTemplateSpec{
+						ObjectMeta: metav1.ObjectMeta{
+							Labels: map[string]string{"test-label": "test-label"},
 						},
 					},
-					Status: corev1.NodeStatus{
-						Conditions: []corev1.NodeCondition{},
-					},
-				}
-				targetCoreObjects = append(targetCoreObjects, node)
+				},
+				Status: machinev1.MachineSetStatus{
+					AutoPreserveFailedMachineCount: 0,
+				},
 			}
-			c, trackers := createController(stop, testNamespace, controlMachineObjects, nil, targetCoreObjects)
+
+			c, trackers := createController(stop, testNamespace, []runtime.Object{testMachineSet, machine}, nil, nil)
 			defer trackers.Stop()
 			waitForCacheSync(stop, c)
-			result := c.shouldFailedMachineBeTerminated(&machine)
 
-			Expect(result).To(Equal(tc.expect.result))
-		},
-			Entry("should return false if preserve expiry time is in the future", testCase{
-				setup: setup{
-					preserveExpiryTime:     &metav1.Time{Time: metav1.Now().Add(1 * time.Hour)},
-					machineAnnotationValue: machineutils.PreserveMachineAnnotationValueNow,
-					nodeName:               "test-node",
+			_, err := c.manageAutoPreservationOfFailedMachines(context.TODO(), []*machinev1.Machine{machine}, testMachineSet)
+			Expect(err).To(BeNil())
+			waitForCacheSync(stop, c)
+
+			updated, _ := c.controlMachineClient.Machines(testNamespace).Get(context.TODO(), machine.Name, metav1.GetOptions{})
+			Expect(updated.Annotations[machineutils.PreserveMachineAnnotationKey]).To(Equal(machineutils.PreserveMachineAnnotationValueAutoPreserved))
+			Expect(updated.Status.CurrentStatus.PreserveExpiryTime).ToNot(BeNil())
+		})
+	})
+
+	Describe("#stopAutoPreservationForMachines", func() {
+		makeMachine := func(name string, autoPreserved bool, expiryOffset time.Duration) *machinev1.Machine {
+			m := &machinev1.Machine{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:            name,
+					Namespace:       testNamespace,
+					ResourceVersion: "1",
 				},
-				expect: expect{
-					result: false,
+				Status: machinev1.MachineStatus{
+					CurrentStatus: machinev1.CurrentStatus{
+						Phase: MachineFailed,
+					},
 				},
-			}),
-			Entry("should return true if machine is annotated with preserve=false", testCase{
-				setup: setup{
-					machineAnnotationValue: machineutils.PreserveMachineAnnotationValueFalse,
-					nodeName:               "test-node",
-				},
-				expect: expect{
-					result: true,
-				},
-			}),
-			Entry("should return true if node is annotated with preserve=false", testCase{
-				setup: setup{
-					nodeAnnotationValue: machineutils.PreserveMachineAnnotationValueFalse,
-					nodeName:            "test-node",
-				},
-				expect: expect{
-					result: true,
-				},
-			}),
-			Entry("should return false if machine is annotated with preserve=now, and node has not been annotated, and preserveExpiryTime is not yet set", testCase{
-				setup: setup{
-					machineAnnotationValue: machineutils.PreserveMachineAnnotationValueNow,
-					nodeName:               "test-node",
-				},
-				expect: expect{
-					result: false,
-				},
-			}),
-			Entry("should return false if node is annotated with preserve=now, and preserveExpiryTime is not yet set", testCase{
-				setup: setup{
-					nodeAnnotationValue: machineutils.PreserveMachineAnnotationValueNow,
-					nodeName:            "test-node",
-				},
-				expect: expect{
-					result: false,
-				},
-			}),
-			Entry("should return false if machine is annotated with preserve=when-failed, and node has not been annotated", testCase{
-				setup: setup{
-					machineAnnotationValue: machineutils.PreserveMachineAnnotationValueWhenFailed,
-					nodeName:               "test-node",
-				},
-				expect: expect{
-					result: false,
-				},
-			}),
-			Entry("should return false if node is annotated with preserve=when-failed", testCase{
-				setup: setup{
-					nodeAnnotationValue: machineutils.PreserveMachineAnnotationValueWhenFailed,
-					nodeName:            "test-node",
-				},
-				expect: expect{
-					result: false,
-				},
-			}),
-			Entry("should return true if preservation has timed out", testCase{
-				setup: setup{
-					preserveExpiryTime:  &metav1.Time{Time: metav1.Now().Add(-1 * time.Second)},
-					nodeAnnotationValue: machineutils.PreserveMachineAnnotationValueNow,
-					nodeName:            "test-node",
-				},
-				expect: expect{
-					result: true,
-				},
-			}),
-			Entry("should return true if laNodePreserveValue is not empty, machineAnnotationValue is not empty and nodeAnnotationValue is empty, indicating that node Annotation Value was deleted", testCase{
-				setup: setup{
-					laNodeAnnotationValue:  machineutils.PreserveMachineAnnotationValueNow,
-					machineAnnotationValue: machineutils.PreserveMachineAnnotationValueWhenFailed,
-					nodeName:               "test-node",
-					nodeAnnotationValue:    "",
-				},
-				expect: expect{
-					result: true,
-				},
-			}),
-		)
+			}
+			if autoPreserved {
+				m.Annotations = map[string]string{
+					machineutils.PreserveMachineAnnotationKey: machineutils.PreserveMachineAnnotationValueAutoPreserved,
+				}
+				m.Status.CurrentStatus.PreserveExpiryTime = &metav1.Time{Time: time.Now().Add(expiryOffset)}
+			}
+			return m
+		}
+
+		It("should return machines unchanged when numToStop is 0", func() {
+			stop := make(chan struct{})
+			defer close(stop)
+
+			m := makeMachine("machine-1", true, time.Hour)
+			c, trackers := createController(stop, testNamespace, []runtime.Object{m}, nil, nil)
+			defer trackers.Stop()
+			waitForCacheSync(stop, c)
+
+			result, err := c.stopAutoPreservationForMachines(context.TODO(), []*machinev1.Machine{m}, 0)
+			Expect(err).To(BeNil())
+			Expect(result).To(HaveLen(1))
+			updated, _ := c.controlMachineClient.Machines(testNamespace).Get(context.TODO(), m.Name, metav1.GetOptions{})
+			Expect(updated.Annotations[machineutils.PreserveMachineAnnotationKey]).To(Equal(machineutils.PreserveMachineAnnotationValueAutoPreserved))
+			Expect(updated.Status.CurrentStatus.PreserveExpiryTime).ToNot(BeNil())
+		})
+
+		It("should return machines unchanged when there are no auto-preserved machines", func() {
+			stop := make(chan struct{})
+			defer close(stop)
+
+			m := makeMachine("machine-1", false, 0)
+			c, trackers := createController(stop, testNamespace, []runtime.Object{m}, nil, nil)
+			defer trackers.Stop()
+			waitForCacheSync(stop, c)
+
+			result, err := c.stopAutoPreservationForMachines(context.TODO(), []*machinev1.Machine{m}, 1)
+			Expect(err).To(BeNil())
+			Expect(result).To(HaveLen(1))
+			updated, _ := c.controlMachineClient.Machines(testNamespace).Get(context.TODO(), m.Name, metav1.GetOptions{})
+			Expect(updated.Annotations[machineutils.PreserveMachineAnnotationKey]).To(BeEmpty())
+		})
+
+		It("should remove annotation but not clear PreserveExpiryTime from all auto-preserved machines when numToStop >= count", func() {
+			stop := make(chan struct{})
+			defer close(stop)
+
+			m1 := makeMachine("machine-1", true, time.Hour)
+			m2 := makeMachine("machine-2", true, 2*time.Hour)
+			c, trackers := createController(stop, testNamespace, []runtime.Object{m1, m2}, nil, nil)
+			defer trackers.Stop()
+			waitForCacheSync(stop, c)
+
+			result, err := c.stopAutoPreservationForMachines(context.TODO(), []*machinev1.Machine{m1, m2}, 2)
+			Expect(err).To(BeNil())
+			Expect(result).To(HaveLen(2))
+			waitForCacheSync(stop, c)
+			for _, name := range []string{m1.Name, m2.Name} {
+				updated, _ := c.controlMachineClient.Machines(testNamespace).Get(context.TODO(), name, metav1.GetOptions{})
+				Expect(updated.Annotations[machineutils.PreserveMachineAnnotationKey]).ToNot(Equal(machineutils.PreserveMachineAnnotationValueAutoPreserved))
+				Expect(updated.Status.CurrentStatus.PreserveExpiryTime).NotTo(BeNil())
+			}
+		})
+
+		It("should remove annotation from the machine with the earliest PreserveExpiryTime first when numToStop < count", func() {
+			stop := make(chan struct{})
+			defer close(stop)
+
+			// machine-early expires sooner — should be de-preserved first
+			machineEarly := makeMachine("machine-early", true, 1*time.Hour)
+			// machine-late expires later — should keep the annotation
+			machineLate := makeMachine("machine-late", true, 3*time.Hour)
+
+			c, trackers := createController(stop, testNamespace, []runtime.Object{machineEarly, machineLate}, nil, nil)
+			defer trackers.Stop()
+			waitForCacheSync(stop, c)
+
+			result, err := c.stopAutoPreservationForMachines(context.TODO(), []*machinev1.Machine{machineEarly, machineLate}, 1)
+			Expect(err).To(BeNil())
+			Expect(result).To(HaveLen(2))
+			waitForCacheSync(stop, c)
+
+			updatedEarly, _ := c.controlMachineClient.Machines(testNamespace).Get(context.TODO(), machineEarly.Name, metav1.GetOptions{})
+			updatedLate, _ := c.controlMachineClient.Machines(testNamespace).Get(context.TODO(), machineLate.Name, metav1.GetOptions{})
+
+			Expect(updatedEarly.Annotations[machineutils.PreserveMachineAnnotationKey]).ToNot(Equal(machineutils.PreserveMachineAnnotationValueAutoPreserved))
+			Expect(updatedEarly.Status.CurrentStatus.PreserveExpiryTime).NotTo(BeNil())
+
+			Expect(updatedLate.Annotations[machineutils.PreserveMachineAnnotationKey]).To(Equal(machineutils.PreserveMachineAnnotationValueAutoPreserved))
+			Expect(updatedLate.Status.CurrentStatus.PreserveExpiryTime).ToNot(BeNil())
+		})
+
+		It("should return error and stop patching when annotation patch fails", func() {
+			stop := make(chan struct{})
+			defer close(stop)
+
+			m := makeMachine("machine-1", true, time.Hour)
+			c, trackers := createController(stop, testNamespace, []runtime.Object{m}, nil, nil)
+			defer trackers.Stop()
+			waitForCacheSync(stop, c)
+
+			fakeClient := c.controlMachineClient.(*faketyped.FakeMachineV1alpha1)
+			fakeClient.PrependReactor("patch", "machines", func(_ testing.Action) (bool, runtime.Object, error) {
+				return true, nil, fmt.Errorf("patch failed")
+			})
+
+			_, err := c.stopAutoPreservationForMachines(context.TODO(), []*machinev1.Machine{m}, 1)
+			Expect(err).To(HaveOccurred())
+		})
 	})
 })
