@@ -507,7 +507,7 @@ func (c *controller) triggerCreationFlow(ctx context.Context, createMachineReque
 							return updateRetryPeriod, updateErr
 						}
 
-						// setting deletion timestamp on the machine obj
+						// setting deletion timestamp on the machine obj so that this machine is not preserved
 						delErr := c.controlMachineClient.Machines(machine.Namespace).Delete(ctx, machine.Name, metav1.DeleteOptions{})
 						if delErr != nil {
 							if apierrors.IsNotFound(delErr) {
