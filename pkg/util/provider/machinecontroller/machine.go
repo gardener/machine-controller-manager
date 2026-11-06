@@ -512,8 +512,9 @@ func (c *controller) triggerCreationFlow(ctx context.Context, createMachineReque
 						if delErr != nil {
 							if apierrors.IsNotFound(delErr) {
 								klog.V(2).Infof("Machine %q already deleted.", machine.Name)
+							} else {
+								klog.Errorf("could not delete the machine %q: %v", machine.Name, delErr)
 							}
-							klog.Errorf("could not delete the machine %q: %v", machine.Name, delErr)
 							return machineutils.ShortRetry, delErr
 						}
 
