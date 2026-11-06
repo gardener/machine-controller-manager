@@ -345,7 +345,7 @@ spec:
   template:
     spec:
       machineConfiguration:
-        creationTimeoutGrowthPercent: 50    # percentage growth per step; 50 means 1.5× factor. Must be > 0.
+        creationTimeoutGrowthPercent: 50    # percentage growth per step; 50 means 1.5× factor. Must be >= 0.
         replaceCycleCountThreshold: 2       # consecutive failure cycles before growing. Must be >= 2.
 ```
 
