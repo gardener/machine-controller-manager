@@ -3,11 +3,10 @@ package main
 import (
 	"bytes"
 	"embed"
-	"encoding/json"
 	"fmt"
-	"html/template"
 	"path/filepath"
-	"slices"
+	"strings"
+	"text/template"
 
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	"github.com/gardener/machine-controller-manager/pkg/client/clientset/versioned/scheme"
@@ -16,13 +15,11 @@ import (
 )
 
 //go:embed templates/*.tmpl
-//go:embed templates/*.json
 var content embed.FS
 
 const (
-	mccTemplatePath         = "templates/mcc.tmpl"
-	mcdTemplatePath         = "templates/mcd.tmpl"
-	instanceDetailsFilePath = "templates/instances.json"
+	mccTemplatePath = "templates/mcc.tmpl"
+	mcdTemplatePath = "templates/mcd.tmpl"
 )
 
 type GenClusterFlags struct {
@@ -32,6 +29,7 @@ type GenClusterFlags struct {
 
 type TemplateParams struct {
 	ClusterName string
+	Region      string
 	Zone        string
 	InstanceDetails
 }
@@ -44,28 +42,32 @@ type InstanceDetails struct {
 	Instance string `json:"name"`
 }
 
-var genClusterFlags GenClusterFlags
+var (
+	genClusterFlags GenClusterFlags
+	instanceList    []InstanceDetails
+)
 
 var genClusterCmd = &cobra.Command{
-	Use:                   "gencluster {--clusters name} {--zones zone}... {--instances inst}...",
+	Use:                   "gencluster {--clusters name} {--zones zone}... {--instance inst}...",
 	Short:                 "Generates MachineClasses and MachineDeployments with the specified parameters.",
+	Example:               `clustersim gencluster --clusters "test" --zones "eu-west1,eu-east2" --instance name=m5.xlarge;cpu=2;gpu=0;mem=8Gi;arch=amd64`,
 	DisableFlagsInUseLine: true,
-	PreRunE: func(cmd *cobra.Command, _ []string) error {
+	PreRunE: func(cmd *cobra.Command, _ []string) (err error) {
 		if genClusterFlags.Zones == nil || genClusterFlags.Instances == nil {
 			return fmt.Errorf("required flags not passed")
+		}
+		instanceList, err = parseInstanceList(genClusterFlags.Instances)
+		if err != nil {
+			return fmt.Errorf("could not parse instances list: %v", err)
 		}
 
 		return prepareClusterDirs(getClustersDir(cmd), getClusterNames(cmd))
 	},
-	RunE: func(cmd *cobra.Command, _ []string) error {
+	RunE: func(cmd *cobra.Command, _ []string) (err error) {
 		cmd.SilenceUsage = true
 
 		clustersDir := getClustersDir(cmd)
 		scheme := scheme.Scheme
-		instanceList, err := getInstanceDetails()
-		if err != nil {
-			return fmt.Errorf("could not parse instances list: %v", err)
-		}
 
 		for _, clusterName := range getClusterNames(cmd) {
 			clusterPath := filepath.Join(clustersDir, clusterName)
@@ -75,16 +77,13 @@ var genClusterCmd = &cobra.Command{
 				mccFilePath = filepath.Join(clusterPath, fileNameMachineClass)
 				mcdFilePath = filepath.Join(clusterPath, fileNameMachineDeployment)
 			)
-			for _, instance := range genClusterFlags.Instances {
+			for _, instance := range instanceList {
 				for _, zone := range genClusterFlags.Zones {
-					idx := slices.IndexFunc(instanceList, func(details InstanceDetails) bool {
-						return details.Instance == instance
-					})
-
 					templateParams := TemplateParams{
 						ClusterName:     clusterName,
+						Region:          getRegionFromZone(zone),
 						Zone:            zone,
-						InstanceDetails: instanceList[idx],
+						InstanceDetails: instance,
 					}
 
 					mcc, err := generateObject[v1alpha1.MachineClass](templateParams, mccTemplatePath)
@@ -128,21 +127,61 @@ func init() {
 	_ = genClusterCmd.MarkFlagRequired("zones")
 
 	genClusterCmd.PersistentFlags().StringSliceVarP(
-		&genClusterFlags.Instances, "instances", "i", nil,
+		&genClusterFlags.Instances, "instance", "i", nil,
 		"comma separated list of instances to use (required)",
 	)
 	_ = genClusterCmd.MarkFlagRequired("instances")
 }
 
-func getInstanceDetails() (details []InstanceDetails, err error) {
-	var data []byte
-	data, err = content.ReadFile(instanceDetailsFilePath)
-	if err != nil {
-		err = fmt.Errorf("cannot read %s from content FS: %w", instanceDetailsFilePath, err)
-		return
+// parses an instance list of the form:
+//
+//	name=m5.xlarge;cpu=2;gpu=0;mem=8Gi;arch=amd64
+func parseInstanceList(instances []string) (details []InstanceDetails, err error) {
+	details = make([]InstanceDetails, len(instances))
+	for i, instance := range instances {
+		for params := range strings.SplitSeq(instance, ";") {
+			detail := strings.Split(params, "=")
+			if len(detail) != 2 {
+				err = fmt.Errorf("could not parse instance list")
+				return
+			}
+			switch detail[0] {
+			case "name":
+				details[i].Instance = detail[1]
+			case "arch":
+				details[i].Arch = detail[1]
+			case "cpu":
+				details[i].Cpu = detail[1]
+			case "gpu":
+				details[i].Gpu = detail[1]
+			case "mem":
+				details[i].Mem = detail[1]
+			default:
+				return nil, fmt.Errorf("invalid instance key: %q", detail[0])
+			}
+		}
+
+		if details[i].Instance == "" || details[i].Cpu == "" || details[i].Mem == "" {
+			err = fmt.Errorf("could not parse instance: %+v", instance)
+			return
+		}
+
+		if details[i].Gpu == "" {
+			details[i].Gpu = "0"
+		}
+		if details[i].Arch == "" {
+			details[i].Arch = "amd64"
+		}
+
+		fmt.Printf("Parsed instance: %+v\n", details[i])
 	}
-	err = json.Unmarshal(data, &details)
 	return
+}
+
+func getRegionFromZone(zone string) string {
+	// TODO: consider different CSP based zone formats
+	idx := strings.LastIndex(zone, "-")
+	return zone[:idx]
 }
 
 func generateObject[T any](params TemplateParams, templatePath string) (obj T, err error) {
