@@ -101,7 +101,7 @@ Flags:
 -z, --zones strings       comma separated list of zones to use (required)
 ```
 
-It utilizes the templates present in [./templates](./templates) in order to construct the required mcc and mcd. And uses the data present in [./templates/instances.json](./templates/instances.json) to get the required `arch` and the `capacity` for the specified instances.
+It utilizes the templates present in [./templates](./templates) in order to construct the required mcc and mcd.
 
 ### `start`
 

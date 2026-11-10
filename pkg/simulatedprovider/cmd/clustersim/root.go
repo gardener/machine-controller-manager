@@ -23,13 +23,9 @@ var rootFlags RootArgs
 
 func newRootCommand() (*cobra.Command, error) {
 	rootCmd := &cobra.Command{
+		Short: "Manages and sets up virtual cluster running simulated Machine Controller Manager.",
 		// Cluster name is the argument that needs to be passed to all subcommands
 		// except 'build'. Hence it's added to the root command args.
-		Use:                   "clustersim {--clusters name}... command [--dir /tmp]",
-		Short:                 "Manages and sets up virtual cluster running simulated Machine Controller Manager.",
-		Example:               `clustersim --clusters "test" setup`,
-		Args:                  cobra.ExactArgs(1),
-		DisableFlagsInUseLine: true,
 		// The same validation happens to the subcommands since the argument is reused
 		// for all of them.
 		PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
