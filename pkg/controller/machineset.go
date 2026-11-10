@@ -964,6 +964,7 @@ func (c *controller) manageAutoPreservationOfFailedMachines(ctx context.Context,
 			return nil, err
 		}
 
+		klog.V(2).Infof("Machine %q auto-preserved till %q", machine.Name, preservedMachine.Status.CurrentStatus.PreserveExpiryTime)
 		autoPreservationCandidates[index] = preservedMachine
 		autoPreservationCapacityRemaining--
 	}

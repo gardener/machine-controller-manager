@@ -747,17 +747,18 @@ func (s ActiveMachines) Len() int      { return len(s) }
 func (s ActiveMachines) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
 
 func (s ActiveMachines) Less(i, j int) bool {
-	// Preserved machines have higher priority than other machines and will be deleted last.
+	// Preserved machines are placed `higher` than other machines and will be deleted last.
 	// So, we check if either of the machines is preserved first.
-	// If one is preserved and the other is not, the preserved one is "greater"
+	// If one is preserved and the other is not, the preserved one is placed `higher`
 	// If both are preserved or both are not preserved, we move to the next criteria.
 	isPreservedI := machineutils.IsPreserved(s[i])
 	isPreservedJ := machineutils.IsPreserved(s[j])
 	if isPreservedI != isPreservedJ {
-		return !isPreservedI // if s[i] preserved, it is "greater" and should not be deleted first, therefore, "less" is false, and vice versa
+		// if s[i] preserved, it is placed `higher` and should not be deleted first, therefore, `less` is false, and vice versa
+		return !isPreservedI
 	}
-	// TODO: the check for preserve value only expects the annotation to be on machine. But the annotation can only be present at the node
-	// which breaks this logic. This problem should be solved once we implement the annotation movement from machine to node.
+	// TODO: the check for preserve value only expects the annotation to be on machine.
+	// But the annotation can only be present at the node which breaks this logic. This problem needs to be resolved.
 	if isPreservedI {
 		// both machines have preserve-expiry-time set, in which case deletion priority goes as
 		// - machine whose preserve annotation was removed as part of stop preservation
