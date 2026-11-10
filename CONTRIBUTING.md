@@ -18,7 +18,7 @@ The guidelines below cover contribution expectations specific to this repository
   - [conventionalcommits.org](https://www.conventionalcommits.org/en/v1.0.0)
   - [refactoringenglish.com/excerpts/commit-messages](https://refactoringenglish.com/excerpts/commit-messages)
 - Add automated tests for your changes (unit or integration as appropriate). List them in the PR description so reviewers know what coverage you've added. Automated tests reduce the effort of repeated manual verification by maintainers.
-- If manual testing is necessary, document it in the PR description: what you tested, how you tested it, and the result. Also explain **why** it cannot be automated — this helps reviewers understand the testing limitations and informs future test infrastructure improvements.
+- If manual testing is necessary, document it using the template in [docs/testing/manual-testing.md](docs/testing/manual-testing.md), which also contains guidance on how manual tests must be recorded.
 - If the PR is not ready for review, open it as a draft. Convert to ready only when you want eyes on it.
 - Keep the PR focused on one thing. Fix unrelated issues in a separate PR rather than bundling them.
 - If your PR depends on another PR being merged first, say so clearly in the PR description and link to it.
