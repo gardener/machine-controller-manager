@@ -138,7 +138,9 @@ func (dc *controller) syncMachineSets(ctx context.Context, oldMachineSets []*v1a
 	}
 
 	machinesWithUpdateSuccessfulLabel := filterMachinesWithUpdateSuccessfulLabel(newMachines)
-	klog.V(3).Infof("Found %d machine(s) with label %q=%q in new machine set %q", len(machinesWithUpdateSuccessfulLabel), v1alpha1.LabelKeyNodeUpdateResult, v1alpha1.LabelValueNodeUpdateSuccessful, newMachineSet.Name)
+	if len(machinesWithUpdateSuccessfulLabel) > 0 {
+		klog.V(3).Infof("Found %d machine(s) with label %q=%q in new machine set %q", len(machinesWithUpdateSuccessfulLabel), v1alpha1.LabelKeyNodeUpdateResult, v1alpha1.LabelValueNodeUpdateSuccessful, newMachineSet.Name)
+	}
 
 	if len(newMachines) > int(newMachineSet.Spec.Replicas) && len(machinesWithUpdateSuccessfulLabel) > 0 {
 		// scale up the new machine set to the number of machines with the update successful label.
