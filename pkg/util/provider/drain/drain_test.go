@@ -31,6 +31,7 @@ import (
 	corelisters "k8s.io/client-go/listers/core/v1"
 	k8stesting "k8s.io/client-go/testing"
 	"k8s.io/client-go/tools/cache"
+	"k8s.io/utils/ptr"
 
 	"github.com/gardener/machine-controller-manager/pkg/fakeclient"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/driver"
@@ -60,7 +61,7 @@ var _ = Describe("drain", func() {
 		stats
 		attemptEviction           bool
 		volumeAttachmentSupported bool
-		maxEvictRetries           int32
+		maxEvictRetries           *int32
 		terminationGracePeriod    time.Duration
 		pvReattachTimeout         time.Duration
 		force                     bool
@@ -132,9 +133,9 @@ var _ = Describe("drain", func() {
 		// Waiting for cache sync
 		Expect(cache.WaitForCacheSync(stop, pvcSynced, pvSynced, nodeSynced)).To(BeTrue())
 
-		maxEvictRetries := setup.maxEvictRetries
-		if maxEvictRetries <= 0 {
-			maxEvictRetries = 3
+		maxEvictRetries := int32(3)
+		if setup.maxEvictRetries != nil {
+			maxEvictRetries = *setup.maxEvictRetries
 		}
 
 		pvReattachTimeout := setup.pvReattachTimeout
@@ -317,8 +318,11 @@ var _ = Describe("drain", func() {
 					return
 				}
 			})
-		} else {
+		}
+
+		{
 			// Work-around: Use a non-handling reactor in place of watch (because watch is not working).
+			// Pods may be deleted even when eviction is supported, for example, when eviction retries are exhausted.
 			fakeTargetCoreClient := fakeTargetCoreClient.(*fakeclient.Clientset)
 			fakeTargetCoreClient.PrependReactor("delete", "pods", func(action k8stesting.Action) (handled bool, ret runtime.Object, err error) {
 				if setup.deleteError != nil {
@@ -480,6 +484,35 @@ var _ = Describe("drain", func() {
 					nPVsPerPodWithExclusivePV:     1,
 				},
 				attemptEviction:        false,
+				terminationGracePeriod: terminationGracePeriodShort,
+			},
+			[]podDrainHandler{sleepFor(terminationGracePeriodShortBy8), detachExclusiveVolumes},
+			&expectation{
+				stats: stats{
+					nPodsWithoutPV:                0,
+					nPodsWithOnlyExclusivePV:      0,
+					nPodsWithOnlySharedPV:         0,
+					nPodsWithExclusiveAndSharedPV: 0,
+				},
+				// Because waitForDetach polling Interval is equal to terminationGracePeriodShort
+				timeout:      terminationGracePeriodDefault,
+				drainTimeout: false,
+				drainError:   nil,
+				nEvictions:   0,
+				// Because waitForDetach polling Interval is equal to terminationGracePeriodShort
+				minDrainDuration: terminationGracePeriodMedium,
+			}),
+		Entry("Successful drain with support for eviction of pods with exclusive volumes when max evict retries is zero",
+			&setup{
+				stats: stats{
+					nPodsWithoutPV:                0,
+					nPodsWithOnlyExclusivePV:      2,
+					nPodsWithOnlySharedPV:         0,
+					nPodsWithExclusiveAndSharedPV: 0,
+					nPVsPerPodWithExclusivePV:     1,
+				},
+				attemptEviction:        true,
+				maxEvictRetries:        ptr.To[int32](0),
 				terminationGracePeriod: terminationGracePeriodShort,
 			},
 			[]podDrainHandler{sleepFor(terminationGracePeriodShortBy8), detachExclusiveVolumes},
@@ -813,7 +846,7 @@ var _ = Describe("drain", func() {
 					nPodsWithExclusiveAndSharedPV: 0,
 					nPVsPerPodWithExclusivePV:     1,
 				},
-				maxEvictRetries:        1,
+				maxEvictRetries:        ptr.To[int32](1),
 				attemptEviction:        true,
 				terminationGracePeriod: terminationGracePeriodShort,
 				force:                  true,
