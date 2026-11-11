@@ -1073,7 +1073,7 @@ func (c *controller) reconcileMachineHealth(ctx context.Context, machine *v1alph
 
 		isMachinePending := machine.Status.CurrentStatus.Phase == v1alpha1.MachinePending
 		isMachineInPlaceUpdating := machine.Status.CurrentStatus.Phase == v1alpha1.MachineInPlaceUpdating
-		disableHealthTimeout := machine.Spec.MachineConfiguration != nil && ptr.Deref(machine.Spec.DisableHealthTimeout, false)
+		disableHealthTimeout := ptr.Deref(machine.Spec.DisableHealthTimeout, false)
 		sleepTime := 1 * time.Minute
 		if isMachinePending {
 			timeOutDuration = c.getEffectiveCreationTimeout(machine).Duration
@@ -2074,7 +2074,7 @@ func (c *controller) updateStatusForNodeDeletion(ctx context.Context, machine *v
 // getEffectiveDrainTimeout returns the drainTimeout set on the machine-object, otherwise returns the timeout set using the global-flag.
 func (c *controller) getEffectiveDrainTimeout(machine *v1alpha1.Machine) *metav1.Duration {
 	var effectiveDrainTimeout *metav1.Duration
-	if machine.Spec.MachineConfiguration != nil && machine.Spec.MachineDrainTimeout != nil {
+	if machine.Spec.MachineDrainTimeout != nil {
 		effectiveDrainTimeout = machine.Spec.MachineDrainTimeout
 	} else {
 		effectiveDrainTimeout = &c.safetyOptions.MachineDrainTimeout
@@ -2085,7 +2085,7 @@ func (c *controller) getEffectiveDrainTimeout(machine *v1alpha1.Machine) *metav1
 // getEffectiveMaxEvictRetries returns the maxEvictRetries set on the machine-object, otherwise returns the evict retries set using the global-flag.
 func (c *controller) getEffectiveMaxEvictRetries(machine *v1alpha1.Machine) *int32 {
 	var maxEvictRetries *int32
-	if machine.Spec.MachineConfiguration != nil && machine.Spec.MaxEvictRetries != nil {
+	if machine.Spec.MaxEvictRetries != nil {
 		maxEvictRetries = machine.Spec.MaxEvictRetries
 	} else {
 		maxEvictRetries = &c.safetyOptions.MaxEvictRetries
@@ -2096,7 +2096,7 @@ func (c *controller) getEffectiveMaxEvictRetries(machine *v1alpha1.Machine) *int
 // getEffectiveHealthTimeout returns the healthTimeout set on the machine-object, otherwise returns the timeout set using the global-flag.
 func (c *controller) getEffectiveHealthTimeout(machine *v1alpha1.Machine) *metav1.Duration {
 	var effectiveHealthTimeout *metav1.Duration
-	if machine.Spec.MachineConfiguration != nil && machine.Spec.MachineHealthTimeout != nil {
+	if machine.Spec.MachineHealthTimeout != nil {
 		effectiveHealthTimeout = machine.Spec.MachineHealthTimeout
 	} else {
 		effectiveHealthTimeout = &c.safetyOptions.MachineHealthTimeout
@@ -2115,7 +2115,7 @@ func (c *controller) getEffectiveCreationTimeout(machine *v1alpha1.Machine) *met
 		klog.Warningf("error obtaining effectiveCreationTimeout from annotation %q (if any) on machine %q: %v",
 			v1alpha1.AnnotationKeyMachineEffectiveCreationTimeout, machine.Name, err)
 	}
-	if machine.Spec.MachineConfiguration != nil && machine.Spec.MachineCreationTimeout != nil {
+	if machine.Spec.MachineCreationTimeout != nil {
 		effectiveCreationTimeout = machine.Spec.MachineCreationTimeout
 	} else {
 		effectiveCreationTimeout = &c.safetyOptions.MachineCreationTimeout
@@ -2126,7 +2126,7 @@ func (c *controller) getEffectiveCreationTimeout(machine *v1alpha1.Machine) *met
 
 func (c *controller) getEffectiveInPlaceUpdateTimeout(machine *v1alpha1.Machine) *metav1.Duration {
 	var effectiveDependenciesUpdateTimeout *metav1.Duration
-	if machine.Spec.MachineConfiguration != nil && machine.Spec.MachineConfiguration.MachineInPlaceUpdateTimeout != nil {
+	if machine.Spec.MachineConfiguration.MachineInPlaceUpdateTimeout != nil {
 		effectiveDependenciesUpdateTimeout = machine.Spec.MachineConfiguration.MachineInPlaceUpdateTimeout
 	} else {
 		effectiveDependenciesUpdateTimeout = &c.safetyOptions.MachineInPlaceUpdateTimeout
@@ -2137,7 +2137,7 @@ func (c *controller) getEffectiveInPlaceUpdateTimeout(machine *v1alpha1.Machine)
 // getEffectiveMachinePreserveTimeout returns the MachinePreserveTimeout set on the machine-object, otherwise returns the timeout set using the global-flag.
 func (c *controller) getEffectiveMachinePreserveTimeout(machine *v1alpha1.Machine) *metav1.Duration {
 	var effectivePreserveTimeout *metav1.Duration
-	if machine.Spec.MachineConfiguration != nil && machine.Spec.MachineConfiguration.MachinePreserveTimeout != nil {
+	if machine.Spec.MachineConfiguration.MachinePreserveTimeout != nil {
 		effectivePreserveTimeout = machine.Spec.MachineConfiguration.MachinePreserveTimeout
 	} else {
 		effectivePreserveTimeout = &c.safetyOptions.MachinePreserveTimeout
@@ -2148,7 +2148,7 @@ func (c *controller) getEffectiveMachinePreserveTimeout(machine *v1alpha1.Machin
 // getEffectiveNodeConditions returns the nodeConditions set on the machine-object, otherwise returns the conditions set using the global-flag.
 func (c *controller) getEffectiveNodeConditions(machine *v1alpha1.Machine) *string {
 	var effectiveNodeConditions *string
-	if machine.Spec.MachineConfiguration != nil && machine.Spec.MachineConfiguration.NodeConditions != nil {
+	if machine.Spec.MachineConfiguration.NodeConditions != nil {
 		effectiveNodeConditions = machine.Spec.MachineConfiguration.NodeConditions
 	} else {
 		effectiveNodeConditions = &c.nodeConditions

@@ -562,11 +562,7 @@ func GetMachineFromTemplate(template *v1alpha1.MachineTemplateSpec, parentObject
 			v1alpha1.AnnotationKeyMachineEffectiveCreationTimeout, controllerRef, err)
 	}
 	if effectiveCreationTimeout != nil {
-		if machine.Spec.MachineConfiguration == nil {
-			machine.Spec.MachineConfiguration = &v1alpha1.MachineConfiguration{MachineCreationTimeout: effectiveCreationTimeout}
-		} else {
-			machine.Spec.MachineConfiguration.MachineCreationTimeout = effectiveCreationTimeout
-		}
+		machine.Spec.MachineConfiguration.MachineCreationTimeout = effectiveCreationTimeout
 		klog.V(2).Infof("MachineCreationTimeout overridden on new Machine with GenerateName %q and parent MachineSet %q to %q",
 			machine.ObjectMeta.GenerateName, parentMetaObj.GetName(), effectiveCreationTimeout.Duration)
 	}
