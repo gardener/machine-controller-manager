@@ -747,25 +747,36 @@ func (s ActiveMachines) Len() int      { return len(s) }
 func (s ActiveMachines) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
 
 func (s ActiveMachines) Less(i, j int) bool {
-	// Preserved machines have higher priority than other machines and will be deleted last.
-	// So, we check if either of the machines is preserved first.
-	// If one is preserved and the other is not, the preserved one is "greater"
-	// If both are preserved or both are not preserved, we move to the next criteria.
+	// Preserved machines are considered `greater` than other machines.
+	// If one is preserved and the other is not, the preserved one is `greater`.
+	// If both are preserved or both are not preserved, we check for other criteria.
 	isPreservedI := machineutils.IsPreserved(s[i])
 	isPreservedJ := machineutils.IsPreserved(s[j])
 	if isPreservedI != isPreservedJ {
-		return !isPreservedI // if s[i] preserved, it is "greater" and should not be deleted first, therefore, "less" is false, and vice versa
+		// if s[i] preserved, it is `greater`, therefore, `less` is false
+		return !isPreservedI
 	}
-	if isPreservedI { // both machines are preserved, in which case deprioritize explicitly preserved machines over auto-preserved
-		isAutoPreservedI := machineutils.IsAutoPreserved(s[i])
-		isAutoPreservedJ := machineutils.IsAutoPreserved(s[j])
-		if isAutoPreservedI != isAutoPreservedJ {
-			return isAutoPreservedI // if s[i] is auto-preserved, it is "less", and should be deleted first
+	// TODO: the check for preserve value only expects the annotation to be on machine.
+	// But the annotation can only be present at the node which breaks this logic. This problem needs to be resolved.
+	if isPreservedI {
+		// both machines have preserve-expiry-time set, in which case order goes as
+		// - machine whose preserve annotation was removed as part of stop preservation
+		// - machine with auto-preservation annotation
+		// - machine with manual-preservation annotation
+		valI, okI := s[i].Annotations[machineutils.PreserveMachineAnnotationKey]
+		valJ, okJ := s[j].Annotations[machineutils.PreserveMachineAnnotationKey]
+		if okI != okJ {
+			return !okI
 		}
-		// if both are auto-preserved or both are explicitly preserved, we decide based on whichever machine
-		// has an earlier preserve expiry time
-		if !s[i].Status.CurrentStatus.PreserveExpiryTime.Equal(s[j].Status.CurrentStatus.PreserveExpiryTime) {
-			return s[i].Status.CurrentStatus.PreserveExpiryTime.Before(s[j].Status.CurrentStatus.PreserveExpiryTime)
+
+		// has auto-preservation annotation
+		if valI != valJ {
+			if valI == machineutils.PreserveMachineAnnotationValueAutoPreserved {
+				return true
+			}
+			if valJ == machineutils.PreserveMachineAnnotationValueAutoPreserved {
+				return false
+			}
 		}
 	}
 
@@ -778,7 +789,7 @@ func (s ActiveMachines) Less(i, j int) bool {
 		if err == nil {
 			machineIPriority = num
 		} else {
-			klog.Errorf("Machine priority is taken to be the default value (3). Couldn't convert machine priority to integer for machine:%s. Error message - %s", s[i].Name, err)
+			klog.Errorf("machine priority is taken to be the default value (3). Couldn't convert machine priority to integer for machine:%s. Error message - %s", s[i].Name, err)
 		}
 	}
 
@@ -787,7 +798,7 @@ func (s ActiveMachines) Less(i, j int) bool {
 		if err == nil {
 			machineJPriority = num
 		} else {
-			klog.Errorf("Machine priority is taken to be the default value (3). Couldn't convert machine priority to integer for machine:%s. Error message - %s", s[j].Name, err)
+			klog.Errorf("machine priority is taken to be the default value (3). Couldn't convert machine priority to integer for machine:%s. Error message - %s", s[j].Name, err)
 		}
 	}
 
@@ -795,8 +806,7 @@ func (s ActiveMachines) Less(i, j int) bool {
 	machineDeletionTimeJ, perrj := time.Parse(time.RFC3339, s[j].Annotations[machineutils.MarkedForDeletionTime])
 
 	// Map containing machinePhase priority
-	// the lower the priority, the more likely
-	// it is to be deleted
+	// Lower the priority, `lesser` the machine
 	m := map[v1alpha1.MachinePhase]int{
 		v1alpha1.MachineTerminating:      0,
 		v1alpha1.MachineFailed:           1,
@@ -808,21 +818,24 @@ func (s ActiveMachines) Less(i, j int) bool {
 	}
 
 	switch {
-	// Case-1: Initially we try to prioritize machine deletion based on machinePriority annotation.
+	// Case-1: Initially we try to prioritize machine based on machinePriority annotation.
 	case machineIPriority != machineJPriority:
 		return machineIPriority < machineJPriority
-	// Case-2: If both priorities are equal, then we pick the one with older MarkedForDeletionTime annotation
+	// Case-2: If both priorities are equal, then we order machines with older `MarkedForDeletionTime` annotation before the newer machines
 	case perri == nil && perrj != nil:
 		return true
 	case perri != nil && perrj == nil:
 		return false
 	case perri == nil && perrj == nil && !machineDeletionTimeI.Equal(machineDeletionTimeJ):
 		return machineDeletionTimeI.Before(machineDeletionTimeJ)
-	// Case-3: If both don't have the MarkedForDeletionTime annotation, then we look at their machinePhase
+	// Case-3: If both don't have the `MarkedForDeletionTime` annotation, then we look at their machinePhase
 	// and prioritize as mentioned in the above map
 	case m[s[i].Status.CurrentStatus.Phase] != m[s[j].Status.CurrentStatus.Phase]:
 		return m[s[i].Status.CurrentStatus.Phase] < m[s[j].Status.CurrentStatus.Phase]
-	// Case-4: If all above cases are false, we prioritize based on creation time
+	// Case-4: If both are auto-preserved or both are explicitly preserved, we order machines with older preserve-expiry-time before the newer machines
+	case !s[i].Status.CurrentStatus.PreserveExpiryTime.Equal(s[j].Status.CurrentStatus.PreserveExpiryTime):
+		return s[i].Status.CurrentStatus.PreserveExpiryTime.Before(s[j].Status.CurrentStatus.PreserveExpiryTime)
+	// Case-5: If all above cases are false, we order machines with older `CreationTimestamp` before the newer machines
 	case s[i].CreationTimestamp != s[j].CreationTimestamp:
 		return s[i].CreationTimestamp.Before(&s[j].CreationTimestamp)
 	}
