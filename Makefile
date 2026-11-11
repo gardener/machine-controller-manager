@@ -109,6 +109,11 @@ start:
 			--leader-elect=$(LEADER_ELECT) \
 			--v=3
 
+.PHONY: build-clustersim
+build-clustersim:
+	@mkdir -p bin
+	go build -C ./pkg/simulatedprovider -v -o ${PWD}/bin/clustersim ./cmd/clustersim
+
 #################################################################
 # Rules related to binary build, Docker image build and release #
 #################################################################
