@@ -79,6 +79,7 @@ type Options struct {
 	volumeAttachmentHandler      *VolumeAttachmentHandler
 	Timeout                      time.Duration
 	podSynced                    cache.InformerSynced
+	DisableDrainTimeout          bool
 
 	// AdditionalPodFilters are extra predicates evaluated alongside the built-in filters when selecting pods to
 	// drain.
@@ -266,7 +267,8 @@ func (p *podProvider) PodsForNode(_ context.Context, nodeName string) ([]corev1.
 // RunDrain runs the 'drain' command
 func (o *Options) RunDrain(ctx context.Context) error {
 	o.drainStartedOn = time.Now()
-	drainContext, cancelFn := context.WithDeadline(ctx, o.drainStartedOn.Add(o.Timeout))
+	// separate drain context to function to decide which cancelFn to use.
+	drainContext, cancelFn := o.getDrainContext(ctx)
 	klog.V(4).Infof(
 		"Machine drain started on %s for %q",
 		o.drainStartedOn,
@@ -291,6 +293,15 @@ func (o *Options) RunDrain(ctx context.Context) error {
 
 	err := o.deleteOrEvictPodsSimple(drainContext)
 	return err
+}
+
+func (o *Options) getDrainContext(ctx context.Context) (context.Context, context.CancelFunc) {
+	if o.DisableDrainTimeout {
+		// indefinitely wait for the context to be canceled or returned to never continue with the pod eviction.
+		return context.WithCancel(ctx)
+	}
+	// if the flag DisableDrainTimeout is not enabled it should add the default timeout of 2 hours until force evicting pods from the node.
+	return context.WithDeadline(ctx, o.drainStartedOn.Add(o.Timeout))
 }
 
 func (o *Options) deleteOrEvictPodsSimple(ctx context.Context) error {
@@ -695,7 +706,8 @@ func (o *Options) evictPodsWithPv(ctx context.Context, attemptEvict bool, pods [
 			time.Sleep(PodEvictionRetryInterval)
 		}
 
-		if !fastTrack && len(remainingPods) > 0 {
+		// only allow force deletion of pods if DisableDrainTimeout is set to false.
+		if !o.DisableDrainTimeout && !fastTrack && len(remainingPods) > 0 {
 			// Force delete the pods remaining after evict retries.
 			pods = remainingPods
 			remainingPods, _ = o.evictPodsWithPVInternal(ctx, false, pods, podVolumeInfoMap, policyGroupVersion, getPodFn, returnCh)
@@ -1088,6 +1100,11 @@ func (o *Options) evictPodWithoutPVInternal(ctx context.Context, attemptEvict bo
 	nretries := int(o.MaxEvictRetries)
 	for i := 0; ; i++ {
 		if i >= nretries {
+			// do not force delete pods if DisableDrainTimeout is set to true.
+			if o.DisableDrainTimeout {
+				returnCh <- fmt.Errorf("error when evicting pod %q: retries exhausted scheduled on node %v", pod.Name, pod.Spec.NodeName)
+				return
+			}
 			attemptEvict = false
 		}
 
@@ -1138,7 +1155,8 @@ func (o *Options) evictPodWithoutPVInternal(ctx context.Context, attemptEvict bo
 	podArray := []*corev1.Pod{pod}
 
 	timeout := o.getTerminationGracePeriod(pod)
-	if timeout > o.Timeout {
+	// if DisableDrainTimeout is disabled do not set timeout to o.Timeout
+	if !o.DisableDrainTimeout && timeout > o.Timeout {
 		klog.V(3).Infof("Overriding large termination grace period (%s) for the pod %s/%s and setting it to %s", timeout.String(), pod.Namespace, pod.Name, o.Timeout)
 		timeout = o.Timeout
 	}

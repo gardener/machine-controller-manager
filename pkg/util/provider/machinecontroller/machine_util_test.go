@@ -18,6 +18,7 @@ import (
 	"github.com/gardener/machine-controller-manager/pkg/fakeclient"
 	"github.com/gardener/machine-controller-manager/pkg/util/nodeops"
 	"github.com/gardener/machine-controller-manager/pkg/util/permits"
+	"github.com/gardener/machine-controller-manager/pkg/util/provider/driver"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/machineutils"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -3965,6 +3966,89 @@ var _ = Describe("machine_util", func() {
 			}),
 		)
 	})
+
+	Describe("#drainNode", func() {
+		var (
+			stop                 chan struct{}
+			c                    *controller
+			trackers             *fakeclient.FakeObjectTrackers
+			machine              *machinev1.Machine
+			node                 *corev1.Node
+			deleteMachineRequest *driver.DeleteMachineRequest
+		)
+
+		BeforeEach(func() {
+			stop = make(chan struct{})
+			pastDeletionTime := metav1.NewTime(time.Now().Add(-10 * time.Minute))
+			machine = newMachine(
+				&machinev1.MachineTemplateSpec{ObjectMeta: *newObjectMeta(&metav1.ObjectMeta{GenerateName: machineSet1Deploy1}, 0)},
+				&machinev1.MachineStatus{
+					CurrentStatus: machinev1.CurrentStatus{
+						Phase: machinev1.MachineTerminating,
+					},
+					LastOperation: machinev1.LastOperation{
+						Description: machineutils.InitiateDrain,
+						State:       machinev1.MachineStateProcessing,
+						Type:        machinev1.MachineOperationDelete,
+					},
+				},
+				nil, nil, map[string]string{machinev1.NodeLabelKey: "node-0"}, true, pastDeletionTime,
+			)
+			machine.DeletionTimestamp = &pastDeletionTime
+			node = newNode(0, nil, nil, &corev1.NodeSpec{}, &corev1.NodeStatus{})
+
+			c, trackers = createController(stop, testNamespace, []runtime.Object{machine}, nil, []runtime.Object{node}, nil, false)
+			c.permitGiver = permits.NewPermitGiver(5*time.Second, 1*time.Second)
+			waitForCacheSync(stop, c)
+
+			deleteMachineRequest = &driver.DeleteMachineRequest{
+				Machine:      machine,
+				MachineClass: &machinev1.MachineClass{},
+				Secret:       &corev1.Secret{},
+			}
+		})
+
+		AfterEach(func() {
+			c.permitGiver.Close()
+			trackers.Stop()
+			close(stop)
+		})
+
+		It("should trigger force drain when timeout occurred and DisableMachineDrainTimeout is false", func() {
+			c.safetyOptions.DisableMachineDrainTimeout = false
+
+			_, err := c.drainNode(context.TODO(), deleteMachineRequest)
+			Expect(err).To(HaveOccurred())
+
+			updatedMachine, getErr := c.controlMachineClient.Machines(testNamespace).Get(context.TODO(), machine.Name, metav1.GetOptions{})
+			Expect(getErr).NotTo(HaveOccurred())
+			Expect(updatedMachine.Status.LastOperation.Description).To(ContainSubstring(machineutils.DelVolumesAttachments))
+		})
+
+		It("should trigger normal drain when timeout occurred but DisableMachineDrainTimeout is true", func() {
+			c.safetyOptions.DisableMachineDrainTimeout = true
+
+			_, err := c.drainNode(context.TODO(), deleteMachineRequest)
+			Expect(err).To(HaveOccurred())
+
+			updatedMachine, getErr := c.controlMachineClient.Machines(testNamespace).Get(context.TODO(), machine.Name, metav1.GetOptions{})
+			Expect(getErr).NotTo(HaveOccurred())
+			Expect(updatedMachine.Status.LastOperation.Description).To(ContainSubstring(machineutils.InitiateVMDeletion))
+		})
+
+		It("should still trigger force drain when DisableMachineDrainTimeout is true if force-deletion label is present", func() {
+			c.safetyOptions.DisableMachineDrainTimeout = true
+			machine.Labels["force-deletion"] = "True"
+
+			_, err := c.drainNode(context.TODO(), deleteMachineRequest)
+			Expect(err).To(HaveOccurred())
+
+			updatedMachine, getErr := c.controlMachineClient.Machines(testNamespace).Get(context.TODO(), machine.Name, metav1.GetOptions{})
+			Expect(getErr).NotTo(HaveOccurred())
+			Expect(updatedMachine.Status.LastOperation.Description).To(ContainSubstring(machineutils.DelVolumesAttachments))
+		})
+	})
+
 	Describe("#preserveMachine", func() {
 		type setup struct {
 			machinePhase            machinev1.MachinePhase
