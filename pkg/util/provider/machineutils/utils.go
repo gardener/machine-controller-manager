@@ -294,7 +294,7 @@ func DeterminePreservationAction(
 			return "", true
 		}
 	}
-	// node doesn't exist or the node is/was not annotated for preservation
+	// node doesn't exist or the node is not annotated for preservation
 	if val, ok := machine.Annotations[LastAppliedNodePreserveValueAnnotationKey]; ok {
 		// LastAppliedNodePreserveValueAnnotationKey annotation present
 		// Preservation to be done based on this annotation value
