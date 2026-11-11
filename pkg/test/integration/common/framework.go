@@ -11,6 +11,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"net"
 	"os"
 	"os/exec"
 	"path"
@@ -105,6 +106,9 @@ var (
 	controlKubeConfigPath string
 	// Path to the target cluster's kubeconfig
 	targetKubeConfigPath string
+
+	// Ports MCM and MC bind to when run locally.
+	mcmPort, mcPort string
 )
 
 // ProviderSpecPatch struct holds tags for provider, which we want to patch the  machineclass with
@@ -195,6 +199,22 @@ func setGlobalsFromEnvVars() {
 	isTagsStrings = os.Getenv("TAGS_ARE_STRINGS")
 	gnaSecretNameLabelValue = os.Getenv("GNA_SECRET_NAME")
 	preserveCRDDuringCleanup = os.Getenv("PRESERVE_CRD_AT_END")
+
+	mcmPort = os.Getenv("MCM_PORT")
+	mcPort = os.Getenv("MC_PORT")
+}
+
+// freePort returns configured if set, else an available loopback TCP port.
+func freePort(configured string) string {
+	if configured != "" {
+		return configured
+	}
+	l, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		panic(fmt.Sprintf("freePort: %v", err))
+	}
+	defer l.Close()
+	return strconv.Itoa(l.Addr().(*net.TCPAddr).Port)
 }
 
 func (c *IntegrationTestFramework) initializeClusters() error {
@@ -544,24 +564,26 @@ func (c *IntegrationTestFramework) buildMCMStartArgs() []string {
 	}
 	return strings.Fields(
 		fmt.Sprintf(
-			"make --directory=%s start CONTROL_KUBECONFIG=%s TARGET_KUBECONFIG=%s CONTROL_NAMESPACE=%s LEADER_ELECT=false MACHINE_SAFETY_OVERSHOOTING_PERIOD=300ms"+mcmQPSArgs,
+			"make --directory=%s start CONTROL_KUBECONFIG=%s TARGET_KUBECONFIG=%s CONTROL_NAMESPACE=%s LEADER_ELECT=false MACHINE_SAFETY_OVERSHOOTING_PERIOD=300ms MCM_PORT=%s"+mcmQPSArgs,
 			mcmRepoPath,
 			c.ControlCluster.KubeConfigFilePath,
 			c.TargetCluster.KubeConfigFilePath,
-			controlClusterNamespace),
+			controlClusterNamespace,
+			freePort(mcmPort)),
 	)
 }
 
 // runControllersLocally run the machine controller and machine controller manager binary locally
 func (c *IntegrationTestFramework) runControllersLocally() {
-	ginkgo.By("Starting Machine Controller ")
+	ginkgo.By("Starting Machine Controller")
 	args := strings.Fields(
 		fmt.Sprintf(
-			"make --directory=%s start CONTROL_KUBECONFIG=%s TARGET_KUBECONFIG=%s CONTROL_NAMESPACE=%s LEADER_ELECT=false ",
+			"make --directory=%s start CONTROL_KUBECONFIG=%s TARGET_KUBECONFIG=%s CONTROL_NAMESPACE=%s LEADER_ELECT=false MC_PORT=%s ",
 			"../../..",
 			c.ControlCluster.KubeConfigFilePath,
 			c.TargetCluster.KubeConfigFilePath,
-			controlClusterNamespace),
+			controlClusterNamespace,
+			freePort(mcPort)),
 	)
 	outputFile, err := rotateOrAppendLogFile(mcLogFile, true)
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
@@ -2288,14 +2310,18 @@ func (c *IntegrationTestFramework) Cleanup() {
 			gomega.Expect(err).NotTo(gomega.HaveOccurred())
 			args := strings.Fields(
 				fmt.Sprintf(
-					"make --directory=%s start CONTROL_KUBECONFIG=%s TARGET_KUBECONFIG=%s CONTROL_NAMESPACE=%s LEADER_ELECT=false ",
+					"make --directory=%s start CONTROL_KUBECONFIG=%s TARGET_KUBECONFIG=%s CONTROL_NAMESPACE=%s LEADER_ELECT=false MC_PORT=%s ",
 					"../../..",
 					c.ControlCluster.KubeConfigFilePath,
 					c.TargetCluster.KubeConfigFilePath,
-					controlClusterNamespace),
+					controlClusterNamespace,
+					freePort(mcPort)),
 			)
 			mcsession, err = gexec.Start(exec.Command(args[0], args[1:]...), outputFile, outputFile) // #nosec G204 -- Test only
 			gomega.Expect(err).NotTo(gomega.HaveOccurred())
+			// Verify the restarted MC stays alive.
+			gomega.Consistently(mcsession.ExitCode, 5*time.Second, time.Second).
+				Should(gomega.Equal(-1), "restarted MC exited unexpectedly; see "+mcLogFile)
 			break
 		}
 		time.Sleep(2 * time.Second)
@@ -2310,6 +2336,9 @@ func (c *IntegrationTestFramework) Cleanup() {
 			args := c.buildMCMStartArgs()
 			mcmsession, err = gexec.Start(exec.Command(args[0], args[1:]...), outputFile, outputFile) // #nosec G204 -- Test only
 			gomega.Expect(err).NotTo(gomega.HaveOccurred())
+			// Verify the restarted MCM stays alive.
+			gomega.Consistently(mcmsession.ExitCode, 5*time.Second, time.Second).
+				Should(gomega.Equal(-1), "restarted MCM exited unexpectedly; see "+mcmLogFile)
 			break
 		}
 		time.Sleep(2 * time.Second)
@@ -2489,7 +2518,9 @@ func stopMCM(ctx context.Context) {
 		"make --directory=../../..",
 	}
 	for _, proc := range processesToKill {
-		pids, err := findAndKillProcess(ctx, proc)
+		// Pass controlKubeConfigPath as a guard so that stopMCM only kills processes belonging
+		// to this run. This prevents stopMCM from killing a sibling provider's controllers.
+		pids, err := findAndKillProcess(ctx, proc, controlKubeConfigPath)
 		if err != nil {
 			log.Println(err.Error())
 		}
@@ -2499,8 +2530,8 @@ func stopMCM(ctx context.Context) {
 	}
 }
 
-func findAndKillProcess(ctx context.Context, prefix string) (pids []int, err error) {
-	pids, err = findPidsByPrefix(ctx, prefix)
+func findAndKillProcess(ctx context.Context, prefix string, controlKubeconfig string) (pids []int, err error) {
+	pids, err = findPidsByPrefix(ctx, prefix, controlKubeconfig)
 	if len(pids) != 0 {
 		var proc *os.Process
 		for _, pid := range pids {
@@ -2519,7 +2550,7 @@ func findAndKillProcess(ctx context.Context, prefix string) (pids []int, err err
 	return
 }
 
-func findPidsByPrefix(ctx context.Context, prefix string) (pids []int, err error) {
+func findPidsByPrefix(ctx context.Context, prefix string, controlKubeconfig string) (pids []int, err error) {
 	cmd := exec.CommandContext(ctx, "ps", "-e", "-o", "pid,args")
 	psOutput, err := cmd.Output()
 	if err != nil {
@@ -2542,7 +2573,7 @@ func findPidsByPrefix(ctx context.Context, prefix string) (pids []int, err error
 			commandName = commandName + " " + strings.Join(fields[2:], " ")
 		}
 
-		if strings.HasPrefix(commandName, prefix) {
+		if strings.HasPrefix(commandName, prefix) && strings.Contains(commandName, controlKubeconfig) {
 			log.Println(commandName)
 			pid, err = strconv.Atoi(pidStr)
 			if err != nil {
