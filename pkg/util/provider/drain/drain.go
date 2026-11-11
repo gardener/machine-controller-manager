@@ -784,6 +784,19 @@ func (o *Options) evictPodsWithPVInternal(
 					o.checkAndDeleteWorker(volumeAttachmentEventCh)
 					continue
 				}
+
+				if isPdbViolatedByUnhealthyWorkload(pdb) {
+					pdbErr := fmt.Errorf("error while evicting pod %q: pod disruption budget %s/%s is violated due to unhealthy pods (%d/%d healthy) and no more pods can be evicted",
+						pod.Name,
+						pdb.Namespace,
+						pdb.Name,
+						pdb.Status.CurrentHealthy,
+						pdb.Status.ExpectedPods,
+					)
+					returnCh <- pdbErr
+					o.checkAndDeleteWorker(volumeAttachmentEventCh)
+					return
+				}
 			}
 
 			retryPods = append(retryPods, pod)
@@ -1124,6 +1137,17 @@ func (o *Options) evictPodWithoutPVInternal(ctx context.Context, attemptEvict bo
 				returnCh <- pdbErr
 				return
 			}
+			if isPdbViolatedByUnhealthyWorkload(pdb) {
+				pdbErr := fmt.Errorf("error while evicting pod %q: pod disruption budget %s/%s is violated due to unhealthy pods (%d/%d healthy) and no more pods can be evicted",
+					pod.Name,
+					pdb.Namespace,
+					pdb.Name,
+					pdb.Status.CurrentHealthy,
+					pdb.Status.ExpectedPods,
+				)
+				returnCh <- pdbErr
+				return
+			}
 		}
 
 		time.Sleep(PodEvictionRetryInterval)
@@ -1252,4 +1276,25 @@ func isMisconfiguredPdb(pdb *policyv1.PodDisruptionBudget) bool {
 		allPodsReady && // Only check PDBs where all Pods are ready
 		noDisruptedPods && // Only check PDBs that have **no** `DisruptedPods`
 		pdb.Status.DisruptionsAllowed == 0 // PDB is misconfigured
+}
+
+// isPdbViolatedByUnhealthyWorkload returns true if the PDB would allow disruptions under normal
+// healthy conditions, but currently blocks eviction (DisruptionsAllowed == 0) because one or
+// more pods are unready/unhealthy.
+func isPdbViolatedByUnhealthyWorkload(pdb *policyv1.PodDisruptionBudget) bool {
+	if pdb.ObjectMeta.Generation != pdb.Status.ObservedGeneration {
+		return false
+	}
+
+	hasPods := pdb.Status.ExpectedPods > 0
+	isProperlyConfigured := pdb.Status.ExpectedPods > pdb.Status.DesiredHealthy
+	hasUnhealthyPods := pdb.Status.CurrentHealthy < pdb.Status.ExpectedPods
+	cannotDisrupt := pdb.Status.DisruptionsAllowed == 0
+	noDisruptedPods := len(pdb.Status.DisruptedPods) == 0
+
+	return hasPods && // Only check PDBs that currently have Pods
+		isProperlyConfigured && // Only check PDBs that mathematically allow disruptions
+		hasUnhealthyPods && // Only check PDBs where worflow is degraded
+		cannotDisrupt && // Only check PDBs where eviction is currently blocked by the budget
+		noDisruptedPods // Only check PDBs that have **no** `DisruptedPods`
 }
