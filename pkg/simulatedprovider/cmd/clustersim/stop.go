@@ -19,8 +19,6 @@ type StopFlags struct {
 
 var stopFlags StopFlags
 
-const dummyNamespace = "dummy-namespace"
-
 var stopCmd = &cobra.Command{
 	Use:                   "stop {--clusters name}... [--components mcm]... [--killall true|false]",
 	Short:                 "Stops specified components using their pid and destroys the kwok cluster.",
@@ -50,7 +48,12 @@ var stopCmd = &cobra.Command{
 				}
 			}
 
-			clusterEnv := cluster.New(name, dummyNamespace)
+			clusterNS, err := getClusterNamespace(clusterPath)
+			if err != nil {
+				logErr(err)
+			}
+
+			clusterEnv := cluster.New(name, clusterNS)
 
 			if stopFlags.KillAll {
 				err := clusterEnv.DeleteCluster()
