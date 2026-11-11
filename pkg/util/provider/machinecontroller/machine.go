@@ -849,8 +849,9 @@ func (c *controller) isCreationProcessing(machine *v1alpha1.Machine) bool {
 func (c *controller) manageMachinePreservation(ctx context.Context, machine *v1alpha1.Machine) (clone *v1alpha1.Machine, err error) {
 	var node *corev1.Node
 	if c.nodeLister != nil {
-		n, gerr := c.nodeLister.Get(machine.Labels[v1alpha1.NodeLabelKey])
-		if gerr == nil {
+		var n *corev1.Node
+		n, err = c.nodeLister.Get(machine.Labels[v1alpha1.NodeLabelKey])
+		if err == nil {
 			node = n.DeepCopy()
 		} else {
 			klog.V(3).Infof("node %q not found. Will check the machine %q for annotation:%q", machine.Labels[v1alpha1.NodeLabelKey], machine.Name, machineutils.PreserveMachineAnnotationKey)
