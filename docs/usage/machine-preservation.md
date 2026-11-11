@@ -63,7 +63,10 @@ Preservation is enabled and controlled per **worker pool**:
 apiVersion: core.gardener.cloud/v1beta1  
 kind: Shoot  
 ...  
-spec:  
+spec:
+  kubernetes:
+    clusterAutoscaler:
+      maxTotalUnreadyPercentage: 45
   workers:  
   - cri:      
       name: containerd    
@@ -75,6 +78,7 @@ spec:
 
 #### Configuration Semantics
 - `AutoPreserveFailedMachineMax`: Maximum number of failed machines that can be auto-preserved concurrently in a worker pool. This value is distributed across `machineDeployments` (zones) in the worker pool. If the limit is reached, additional failed machines will not be preserved and will be terminated normally. On worker pools where `workers[i].systemComponents.allow: true`, `AutoPreserveFailedMachineMax` cannot exceed `worker[i].Maximum - 1`. If `workers[i].systemComponents.allow: false`, `AutoPreserveFailedMachineMax` can be at most `worker[i].Maximum`.
+- `maxTotalUnreadyPercentage`: Maximum percentage of unready nodes in the cluster. If the unready nodes percentage crosses this, autoscaling activities are stopped. Since auto-preserved nodes are unready, the value `AutoPreserveFailedMachineMax/Worker.Maximum * 100` must be lower than `maxTotalUnreadyPercentage` to prevent these nodes from halting autoscaling. Cluster Autoscaler performs this readiness check both at the cluster level and at the worker level.
 - `machinePreserveTimeout` : Duration after which preserved machines are automatically released. This defaults to `96h` (4 days).
 
 > Note: ⚠️ Changes to machinePreserveTimeout apply only to preservations that occur after the change.
