@@ -84,6 +84,8 @@ Flags:
 -s, --shoot string       gardener shoot name (required)
 ```
 
+**NOTE**: `copyshoot` only works with one `--clusters` name at a time since it has to access data for an actual cluster.
+
 ### `gencluster`
 
 In case a developer needs to quickly generate some dummy data for testing, a `gencluster` helper command is provided, which takes specified `zones` and `instances` and constructs MCCs and MCDs for their cross-product. Additionally it generates the required launch configuration as well.

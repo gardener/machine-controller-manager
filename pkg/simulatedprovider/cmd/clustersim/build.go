@@ -3,18 +3,19 @@ package main
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
-	"slices"
+	"strings"
 
 	"github.com/spf13/cobra"
 )
 
 type BuildFlags struct {
-	SourceDir  string
-	Components []string
+	SourceMCM string
+	SourceCA  string
 }
 
 var buildFlags BuildFlags
@@ -22,20 +23,21 @@ var buildFlags BuildFlags
 const (
 	mcmCmdFile      = "cmd/machine-controller-manager/controller_manager.go"
 	providerCmdFile = "cmd/machine-controller/main.go"
+	caCmdFile       = "main.go"
 )
 
 var buildCmd = &cobra.Command{
-	Use:                   "build {--source-dir ..} [--components mcm]...",
-	Short:                 "Builds the specified components (machine-controller-manager, simulated provider).",
-	Example:               `clustersim build --source-dir ../../../../ --components "mcm,mc"`,
+	Use:                   "build {--source-mcm ...} [--source-ca ...]",
+	Short:                 "Builds the specified components (machine-controller-manager, simulated provider, cluster-autoscaler).",
+	Example:               `clustersim build --source-mcm ../../ --source-ca $HOME/go/src/github.com/gardener/autoscaler/cluster-autoscaler`,
 	DisableFlagsInUseLine: true,
 	PreRunE: func(cmd *cobra.Command, _ []string) error {
-		if buildFlags.SourceDir == "" {
-			return fmt.Errorf("required flag --source-dir not passed")
+		if buildFlags.SourceMCM == "" && buildFlags.SourceCA == "" {
+			return fmt.Errorf("source directories not passed")
 		}
 
-		if err := validateComponents(buildFlags.Components); err != nil {
-			return err
+		if !strings.HasSuffix(buildFlags.SourceCA, "cluster-autoscaler") {
+			buildFlags.SourceCA = filepath.Join(buildFlags.SourceCA, "cluster-autoscaler")
 		}
 
 		binDir := filepath.Join(getClustersDir(cmd), "bin")
@@ -46,39 +48,55 @@ var buildCmd = &cobra.Command{
 
 		ctx := cmd.Context()
 		binDir := filepath.Join(getClustersDir(cmd), "bin")
+		var outputPath string
 
-		if slices.Contains(buildFlags.Components, componentMCM) {
-			outputPath := filepath.Join(binDir, binaryNameMCM)
-			err := goBuild(ctx, buildFlags.SourceDir, mcmCmdFile, outputPath)
+		if buildFlags.SourceMCM != "" {
+			if _, err := os.Stat(buildFlags.SourceMCM); err != nil && errors.Is(err, os.ErrNotExist) {
+				return fmt.Errorf("specified dir %q not found", buildFlags.SourceMCM)
+			}
+
+			outputPath = filepath.Join(binDir, binaryNameMCM)
+			err := goBuild(ctx, buildFlags.SourceMCM, mcmCmdFile, outputPath)
 			if err != nil {
 				return err
 			}
-		}
 
-		if slices.Contains(buildFlags.Components, componentMC) {
-			providerPkgPath, err := getProviderRoot(buildFlags.SourceDir)
+			providerPkgPath, err := getProviderRoot(buildFlags.SourceMCM)
 			if err != nil {
 				return err
 			}
 
-			outputPath := filepath.Join(binDir, binaryNameMC)
+			outputPath = filepath.Join(binDir, binaryNameMC)
 			err = goBuild(ctx, providerPkgPath, providerCmdFile, outputPath)
 			if err != nil {
 				return err
 			}
 		}
+
+		if buildFlags.SourceCA != "" {
+			if _, err := os.Stat(buildFlags.SourceCA); err != nil && errors.Is(err, os.ErrNotExist) {
+				return fmt.Errorf("specified dir %q not found", buildFlags.SourceCA)
+			}
+
+			outputPath = filepath.Join(binDir, binaryNameCA)
+			err := goBuild(ctx, buildFlags.SourceCA, caCmdFile, outputPath)
+			if err != nil {
+				return err
+			}
+		}
+
 		return nil
 	},
 }
 
 func init() {
-	buildCmd.PersistentFlags().StringSliceVarP(
-		&buildFlags.Components, "components", "c", allComponents,
-		"comma separated list of components to build",
+	buildCmd.PersistentFlags().StringVar(
+		&buildFlags.SourceMCM, "source-mcm", "",
+		"machine-controller-manager source root directory path",
 	)
 	buildCmd.PersistentFlags().StringVar(
-		&buildFlags.SourceDir, "source-dir", "",
-		"machine-controller-manager source root directory path (required)",
+		&buildFlags.SourceCA, "source-ca", "",
+		"autoscaler source root directory path",
 	)
 }
 

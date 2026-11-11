@@ -19,8 +19,10 @@ const (
 
 	binaryNameMCM = "machine-controller-manager"
 	binaryNameMC  = "machine-controller"
+	binaryNameCA  = "cluster-autoscaler"
 
 	fileNameKubeconfig        = "kubeconfig.yaml"
+	fileNameSimulationConfig  = "sim-config.yaml"
 	fileNameMachineDeployment = "mcd.yaml"
 	fileNameMachineClass      = "mcc.yaml"
 
