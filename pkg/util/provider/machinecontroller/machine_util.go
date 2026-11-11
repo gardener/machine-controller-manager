@@ -807,11 +807,12 @@ func (c *controller) machineCreateErrorHandler(ctx context.Context, machine *v1a
 		lastKnownState = createMachineResponse.LastKnownState
 	}
 
+	klog.V(2).Infof("Machine creation failed for %q, cloud provider error: %v", machine.Name, err)
 	updateRetryPeriod, updateErr := c.machineStatusUpdate(
 		ctx,
 		machine,
 		v1alpha1.LastOperation{
-			Description:    "Cloud provider message - " + err.Error(),
+			Description:    machineErr.Code().Description(),
 			ErrorCode:      machineErr.Code().String(),
 			State:          v1alpha1.MachineStateFailed,
 			Type:           v1alpha1.MachineOperationCreate,
@@ -1343,12 +1344,14 @@ func (c *controller) updateMachineStatusAndNodeLabel(ctx context.Context, getMac
 			}
 			isNodeLabelUpdated = true
 		} else {
+			klog.V(2).Infof("error fetching node name for %q, cloud provider error: %v", getMachineStatusRequest.Machine.Name, err)
 			if machineErr, ok := status.FromError(err); !ok {
 				// Error occurred with decoding machine error status, aborting without retry.
-				description = "Error occurred with decoding machine error status while getting VM status, aborting without retry. " + err.Error() + " " + machineutils.GetVMStatus
+				rawErr := err
+				description = "Error occurred with decoding machine error status while getting VM status, aborting without retry. " + machineErr.Code().Description() + " " + machineutils.GetVMStatus
 				state = v1alpha1.MachineStateFailed
 				retry = machineutils.LongRetry
-				err = fmt.Errorf("machine deletion has failed. %s", description)
+				err = fmt.Errorf("machine deletion has failed. %s. Raw error: %v", description, rawErr)
 			} else {
 				// Decoding machine error code
 				switch machineErr.Code() {
@@ -1373,7 +1376,7 @@ func (c *controller) updateMachineStatusAndNodeLabel(ctx context.Context, getMac
 					retry = machineutils.ShortRetry
 				default:
 					// Error occurred with decoding machine error status, abort with retry.
-					description = "Error occurred with decoding machine error status while getting VM status, aborting without retry. machine code: " + err.Error() + " " + machineutils.GetVMStatus
+					description = "Error occurred with decoding machine error status while getting VM status, aborting without retry. machine error: " + machineErr.Code().Description() + " " + machineutils.GetVMStatus
 					state = v1alpha1.MachineStateFailed
 					retry = machineutils.MediumRetry
 				}
@@ -1886,7 +1889,7 @@ func (c *controller) deleteVM(ctx context.Context, deleteMachineRequest *driver.
 			switch machineErr.Code() {
 			case codes.Unknown, codes.DeadlineExceeded, codes.Aborted, codes.Unavailable:
 				retryRequired = machineutils.ShortRetry
-				description = fmt.Sprintf("VM deletion failed due to - %s. However, will re-try in the next resync. %s", err.Error(), machineutils.InitiateVMDeletion)
+				description = fmt.Sprintf("VM deletion failed due to - %s. However, will re-try in the next resync. %s", machineErr.Code().Description(), machineutils.InitiateVMDeletion)
 				state = v1alpha1.MachineStateFailed
 			case codes.NotFound:
 				retryRequired = machineutils.ShortRetry
@@ -1894,12 +1897,12 @@ func (c *controller) deleteVM(ctx context.Context, deleteMachineRequest *driver.
 				state = v1alpha1.MachineStateProcessing
 			default:
 				retryRequired = machineutils.LongRetry
-				description = fmt.Sprintf("VM deletion failed due to - %s. Aborting operation. %s", err.Error(), machineutils.InitiateVMDeletion)
+				description = fmt.Sprintf("VM deletion failed due to - %s. Aborting operation. %s", machineErr.Code().Description(), machineutils.InitiateVMDeletion)
 				state = v1alpha1.MachineStateFailed
 			}
 		} else {
 			retryRequired = machineutils.LongRetry
-			description = fmt.Sprintf("Error occurred while decoding machine error: %s. %s", err.Error(), machineutils.InitiateVMDeletion)
+			description = fmt.Sprintf("Error occurred while decoding machine error: %s. %s", machineErr.Code().Description(), machineutils.InitiateVMDeletion)
 			state = v1alpha1.MachineStateFailed
 		}
 

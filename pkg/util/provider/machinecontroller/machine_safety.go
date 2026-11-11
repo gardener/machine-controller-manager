@@ -7,7 +7,6 @@ package controller
 
 import (
 	"context"
-	"strings"
 	"time"
 
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
@@ -323,7 +322,7 @@ func (c *controller) updateMachineToSafety(oldObj, newObj any) {
 		return
 	}
 
-	if !strings.Contains(oldMachine.Status.LastOperation.Description, codes.OutOfRange.String()) && strings.Contains(newMachine.Status.LastOperation.Description, codes.OutOfRange.String()) {
+	if oldMachine.Status.LastOperation.ErrorCode != codes.OutOfRange.String() && newMachine.Status.LastOperation.ErrorCode == codes.OutOfRange.String() {
 		klog.Warningf("Multiple VMs backing machine obj %q found, triggering orphan collection.", newMachine.Name)
 		c.enqueueMachineSafetyOrphanVMsKey(newMachine)
 	}
