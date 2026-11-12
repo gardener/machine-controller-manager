@@ -4508,7 +4508,7 @@ var _ = Describe("machine", func() {
 					nodeTainted:            true,
 				},
 			}),
-			Entry("when machine is annotated with preserve=now and preservation times out, should stop preservation, and remove annotation", testCase{
+			Entry("when machine is annotated with preserve=now and preservation times out while not Failed, should stop preservation", testCase{
 				setup: setup{
 					machineAnnotationValue: machineutils.PreserveMachineAnnotationValueNow,
 					machineAnnotated:       true,
@@ -4521,7 +4521,7 @@ var _ = Describe("machine", func() {
 					nodeCondition:           &corev1.NodeCondition{Type: v1alpha1.NodePreserved, Status: corev1.ConditionFalse},
 				},
 			}),
-			Entry("when machine is annotated with preserve=when-failed and preservation times out, should stop preservation, and remove annotation", testCase{
+			Entry("when machine is annotated with preserve=when-failed and preservation times out while Failed, preservation is not stopped (left for machineSet to terminate)", testCase{
 				setup: setup{
 					machineAnnotationValue: machineutils.PreserveMachineAnnotationValueWhenFailed,
 					machineAnnotated:       true,
@@ -4531,8 +4531,10 @@ var _ = Describe("machine", func() {
 					nodeTainted:            true,
 				},
 				expect: expect{
-					preserveExpiryTimeIsSet: false,
-					nodeCondition:           &corev1.NodeCondition{Type: v1alpha1.NodePreserved, Status: corev1.ConditionFalse},
+					preserveExpiryTimeIsSet: true,
+					nodeCondition:           nil,
+					machineAnnotationValue:  "",
+					nodeTainted:             true,
 				},
 			}),
 			Entry("when invalid preserve annotation is added on un-preserved machine, and node is not annotated should do nothing  ", testCase{
@@ -4576,7 +4578,7 @@ var _ = Describe("machine", func() {
 					err:                     nil,
 				},
 			}),
-			Entry("when preservation times out for a machine annotated with preserve=now, but has no backing node, should stop preservation", testCase{
+			Entry("when preservation times out for a machine annotated with preserve=now but has no backing node and is not Failed, should stop preservation", testCase{
 				setup: setup{
 					machineAnnotationValue: machineutils.PreserveMachineAnnotationValueNow,
 					machineAnnotated:       true,
@@ -4587,6 +4589,7 @@ var _ = Describe("machine", func() {
 				expect: expect{
 					preserveExpiryTimeIsSet: false,
 					nodeCondition:           nil,
+					machineAnnotationValue:  "",
 					err:                     nil,
 				},
 			}),
@@ -4675,7 +4678,7 @@ var _ = Describe("machine", func() {
 					},
 				}
 			}()),
-			Entry("when preserved machine with preserve=when-failed has expired preservation while in Failed phase, should stop preservation and untaint node", func() testCase {
+			Entry("when preserved machine with preserve=when-failed has expired preservation while in Failed phase, preservation is not stopped and node stays tainted", func() testCase {
 				return testCase{
 					setup: setup{
 						machineAnnotationValue: machineutils.PreserveMachineAnnotationValueWhenFailed,
@@ -4686,10 +4689,10 @@ var _ = Describe("machine", func() {
 						nodeTainted:            true,
 					},
 					expect: expect{
-						preserveExpiryTimeIsSet: false,
-						nodeCondition:           &corev1.NodeCondition{Type: v1alpha1.NodePreserved, Status: corev1.ConditionFalse},
+						preserveExpiryTimeIsSet: true,
+						nodeCondition:           nil,
 						machineAnnotationValue:  "",
-						nodeTainted:             false,
+						nodeTainted:             true,
 					},
 				}
 			}()),
@@ -4726,7 +4729,7 @@ var _ = Describe("machine", func() {
 					},
 				}
 			}()),
-			Entry("when node has preserve=now annotation and preservation times out, should stop preservation and clear the machine's preserve annotation", testCase{
+			Entry("when node has preserve=now annotation and preservation times out while not Failed, should stop preservation", testCase{
 				setup: setup{
 					nodeAnnotationValue: machineutils.PreserveMachineAnnotationValueNow,
 					nodeAnnotated:       true,
