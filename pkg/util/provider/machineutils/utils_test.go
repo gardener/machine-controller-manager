@@ -49,18 +49,6 @@ func TestDeterminePreservationAction(t *testing.T) {
 			shouldHandlePreservation: false,
 		},
 		{
-			name: "node nil, machine has no preserve annotation",
-			node: nil,
-			machine: &v1alpha1.Machine{
-				ObjectMeta: metav1.ObjectMeta{
-					ResourceVersion: "1",
-					Annotations:     map[string]string{},
-				},
-			},
-			expectedValue:            "",
-			shouldHandlePreservation: false,
-		},
-		{
 			name: "node nil, machine annotations nil",
 			node: nil,
 			machine: &v1alpha1.Machine{
@@ -125,7 +113,7 @@ func TestDeterminePreservationAction(t *testing.T) {
 			shouldHandlePreservation: true,
 		},
 		{
-			name: "node has no preserve annotation, machine has LastAppliedNodePreserveValue annotation",
+			name: "node exists but has no preserve annotation, removal is a no-op",
 			node: &corev1.Node{
 				ObjectMeta: metav1.ObjectMeta{
 					Annotations: map[string]string{},
@@ -134,29 +122,13 @@ func TestDeterminePreservationAction(t *testing.T) {
 			machine: &v1alpha1.Machine{
 				ObjectMeta: metav1.ObjectMeta{
 					ResourceVersion: "1",
-					Annotations: map[string]string{
-						LastAppliedNodePreserveValueAnnotationKey: PreserveMachineAnnotationValueNow,
-					},
 				},
-			},
-			expectedValue:            "",
-			shouldHandlePreservation: true,
-		},
-		{
-			name: "node has no preserve annotation, machine has no annotations",
-			node: &corev1.Node{
-				ObjectMeta: metav1.ObjectMeta{
-					Annotations: map[string]string{},
-				},
-			},
-			machine: &v1alpha1.Machine{
-				ObjectMeta: metav1.ObjectMeta{ResourceVersion: "1"},
 			},
 			expectedValue:            "",
 			shouldHandlePreservation: false,
 		},
 		{
-			name: "node annotations nil, machine has valid preserve annotation",
+			name: "node present (annotations nil) but unannotated, machine fills in",
 			node: &corev1.Node{
 				ObjectMeta: metav1.ObjectMeta{},
 			},
@@ -187,37 +159,17 @@ func TestDeterminePreservationAction(t *testing.T) {
 			shouldHandlePreservation: true,
 		},
 		{
-			name: "node has invalid preserve annotation, machine has LastAppliedNodePreserveValue annotation",
-			node: &corev1.Node{
-				ObjectMeta: metav1.ObjectMeta{
-					Annotations: map[string]string{
-						PreserveMachineAnnotationKey: "invalid-value",
-					},
-				},
-			},
-			machine: &v1alpha1.Machine{
-				ObjectMeta: metav1.ObjectMeta{
-					ResourceVersion: "1",
-					Annotations: map[string]string{
-						LastAppliedNodePreserveValueAnnotationKey: PreserveMachineAnnotationValueNow,
-					},
-				},
-			},
-			expectedValue:            "",
-			shouldHandlePreservation: false,
-		},
-		{
-			name: "node nil, machine has LastAppliedNodePreserveValue annotation",
+			name: "node nil, machine has false preserve annotation, stop preservation",
 			node: nil,
 			machine: &v1alpha1.Machine{
 				ObjectMeta: metav1.ObjectMeta{
 					ResourceVersion: "1",
 					Annotations: map[string]string{
-						LastAppliedNodePreserveValueAnnotationKey: PreserveMachineAnnotationValueNow,
+						PreserveMachineAnnotationKey: PreserveMachineAnnotationValueFalse,
 					},
 				},
 			},
-			expectedValue:            PreserveMachineAnnotationValueNow,
+			expectedValue:            PreserveMachineAnnotationValueFalse,
 			shouldHandlePreservation: true,
 		},
 	}

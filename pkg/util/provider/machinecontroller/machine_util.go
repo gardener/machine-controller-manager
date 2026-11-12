@@ -2666,12 +2666,11 @@ func (c *controller) clearMachinePreserveExpiryTime(ctx context.Context, machine
 }
 
 func (c *controller) removePreserveAnnotationOnMachine(ctx context.Context, machine *v1alpha1.Machine) (*v1alpha1.Machine, error) {
-	if machine.Annotations == nil || (machine.Annotations[machineutils.PreserveMachineAnnotationKey] == "" && machine.Annotations[machineutils.LastAppliedNodePreserveValueAnnotationKey] == "") {
+	if machine.Annotations == nil || machine.Annotations[machineutils.PreserveMachineAnnotationKey] == "" {
 		return machine, nil
 	}
 	clone := machine.DeepCopy()
 	delete(clone.Annotations, machineutils.PreserveMachineAnnotationKey)
-	delete(clone.Annotations, machineutils.LastAppliedNodePreserveValueAnnotationKey)
 	updatedClone, err := c.controlMachineClient.Machines(clone.Namespace).Update(ctx, clone, metav1.UpdateOptions{})
 	if err != nil {
 		klog.Errorf("failed to delete preserve annotation on machine %q. error: %v", machine.Name, err)

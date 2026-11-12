@@ -220,10 +220,9 @@ func (c *controller) isAutoPreservationCandidate(machine *v1alpha1.Machine) bool
 				return false
 			}
 		} else {
+			// node not fetched; the preserve annotation (if any) stays on the machine when a node is
+			// absent, so fall through to the machine annotation checks below.
 			klog.V(3).Infof("Unable to get the node %q from lister.", machine.Labels[v1alpha1.NodeLabelKey])
-			if _, ok := machine.Annotations[machineutils.LastAppliedNodePreserveValueAnnotationKey]; ok {
-				return false
-			}
 		}
 	}
 

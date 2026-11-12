@@ -19,6 +19,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/tools/cache"
@@ -911,50 +912,40 @@ func (c *controller) manageMachinePreservation(ctx context.Context, machine *v1a
 	if err != nil {
 		return
 	}
-	if node != nil {
-		clone, err = c.updatePreserveAnnotationOnMachine(ctx, node.Annotations[machineutils.PreserveMachineAnnotationKey], clone)
-	}
+	clone, err = c.copyPreserveAnnotationToNode(ctx, clone, node)
 	return
 }
 
-// updatePreserveAnnotationOnMachine clears the machine's PreserveMachineAnnotationKey and sets
-// [machineutils.LastAppliedNodePreserveValueAnnotationKey] to nodeValue.
-func (c *controller) updatePreserveAnnotationOnMachine(ctx context.Context, nodeValue string, machine *v1alpha1.Machine) (*v1alpha1.Machine, error) {
-	if nodeValue == "" {
-		if _, exists := machine.Annotations[machineutils.LastAppliedNodePreserveValueAnnotationKey]; !exists {
-			return machine, nil
-		}
+// copyPreserveAnnotationToNode reconciles the preserve annotation between the machine and its node.
+// When a node exists, the machine's preserve value is copied onto the node (if the node does not already carry it) and then removed from the machine.
+// When no node exists the annotation is kept on the machine.
+func (c *controller) copyPreserveAnnotationToNode(ctx context.Context, machine *v1alpha1.Machine, node *corev1.Node) (*v1alpha1.Machine, error) {
+	machineValue, machineHasAnnotation := machine.Annotations[machineutils.PreserveMachineAnnotationKey]
+	if !machineHasAnnotation || node == nil {
+		return machine, nil
+	}
+	if _, nodeHasAnnotation := node.Annotations[machineutils.PreserveMachineAnnotationKey]; !nodeHasAnnotation {
 		klog.V(3).Infof(
-			"Since node %q's annotation:%q was removed, removing machine %q's annotation:%q=%q",
-			machine.Labels[v1alpha1.NodeLabelKey],
+			"Copying annotation:%q=%q from machine %q onto node %q",
 			machineutils.PreserveMachineAnnotationKey,
+			machineValue,
 			machine.Name,
-			machineutils.LastAppliedNodePreserveValueAnnotationKey,
-			machine.Annotations[machineutils.LastAppliedNodePreserveValueAnnotationKey],
+			node.Name,
 		)
-	} else {
-		klog.V(3).Infof(
-			"Syncing node %q's annotation:%q=%q to its machine %q's annotation:%q=%q",
-			machine.Labels[v1alpha1.NodeLabelKey],
-			machineutils.PreserveMachineAnnotationKey,
-			nodeValue,
-			machine.Name,
-			machineutils.LastAppliedNodePreserveValueAnnotationKey,
-			machine.Annotations[machineutils.LastAppliedNodePreserveValueAnnotationKey],
-		)
-		if !machineutils.AllowedPreserveAnnotationValues.Has(nodeValue) {
-			return machine, nil
+		patch := fmt.Appendf(nil, `{"metadata":{"annotations":{%q:%q}}}`, machineutils.PreserveMachineAnnotationKey, machineValue)
+		if _, err := c.targetCoreClient.CoreV1().Nodes().Patch(ctx, node.Name, types.StrategicMergePatchType, patch, metav1.PatchOptions{}); err != nil {
+			klog.Errorf("error trying to copy preserve annotation onto node %q: %v", node.Name, err)
+			return machine, err
 		}
 	}
+	// the node now carries the annotation, so remove the duplicate from the machine
+	klog.V(3).Infof(
+		"Removing annotation:%q from machine %q (now carried by node %q)",
+		machineutils.PreserveMachineAnnotationKey,
+		machine.Name,
+		node.Name,
+	)
 	return machineutils.PatchMachine(ctx, c.controlMachineClient.Machines(machine.Namespace), machine, func(m *v1alpha1.Machine) error {
-		if m.Annotations == nil {
-			m.Annotations = make(map[string]string)
-		}
-		if nodeValue == "" {
-			delete(m.Annotations, machineutils.LastAppliedNodePreserveValueAnnotationKey)
-		} else {
-			m.Annotations[machineutils.LastAppliedNodePreserveValueAnnotationKey] = nodeValue
-		}
 		delete(m.Annotations, machineutils.PreserveMachineAnnotationKey)
 		return nil
 	}, true)
