@@ -4491,7 +4491,7 @@ var _ = Describe("machine", func() {
 					nodeCondition:           nil,
 				},
 			}),
-			Entry("when machine is annotated for auto-preservation by MCM, should start preservation and flow annotation to node", testCase{
+			Entry("when machine is annotated for auto-preservation by MCM, should start preservation and keep the auto-preserved marker on the machine", testCase{
 				setup: setup{
 					machineAnnotationValue: machineutils.PreserveMachineAnnotationValueAutoPreserved,
 					machineAnnotated:       true,
@@ -4504,7 +4504,7 @@ var _ = Describe("machine", func() {
 						Type:   v1alpha1.NodePreserved,
 						Status: corev1.ConditionTrue,
 					},
-					machineAnnotationValue: "",
+					machineAnnotationValue: machineutils.PreserveMachineAnnotationValueAutoPreserved,
 					nodeTainted:            true,
 				},
 			}),
@@ -4884,6 +4884,15 @@ var _ = Describe("machine", func() {
 					}},
 				},
 				expect: expect{preserveAnnotationGone: true, nodeHasAnnotation: true},
+			}),
+			Entry("machine annotated 'auto-preserved', node present: marker kept on machine, not copied to node", testCase{
+				setup: setup{
+					machineAnnotations: map[string]string{
+						machineutils.PreserveMachineAnnotationKey: machineutils.PreserveMachineAnnotationValueAutoPreserved,
+					},
+					node: &corev1.Node{ObjectMeta: metav1.ObjectMeta{Name: "node-1"}},
+				},
+				expect: expect{preserveAnnotationGone: false, nodeHasAnnotation: false},
 			}),
 		)
 	})

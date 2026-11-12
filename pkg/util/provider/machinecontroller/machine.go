@@ -918,13 +918,17 @@ func (c *controller) manageMachinePreservation(ctx context.Context, machine *v1a
 
 // copyPreserveAnnotationToNode reconciles the preserve annotation between the machine and its node.
 // When a node exists, the machine's preserve value is copied onto the node (if the node does not already carry it) and then removed from the machine.
-// When no node exists the annotation is kept on the machine.
+// When no node exists the annotation is kept on the machine. This function does not copy auto-preserved annotations to the node.
 func (c *controller) copyPreserveAnnotationToNode(ctx context.Context, machine *v1alpha1.Machine, node *corev1.Node) (*v1alpha1.Machine, error) {
 	machineValue, machineHasAnnotation := machine.Annotations[machineutils.PreserveMachineAnnotationKey]
 	if !machineHasAnnotation || node == nil {
 		return machine, nil
 	}
-	if _, nodeHasAnnotation := node.Annotations[machineutils.PreserveMachineAnnotationKey]; !nodeHasAnnotation {
+	if machineValue == machineutils.PreserveMachineAnnotationValueAutoPreserved {
+		// auto-preservation is an MCM internal marker
+		return machine, nil
+	}
+	if nodeValue, nodeHasAnnotation := node.Annotations[machineutils.PreserveMachineAnnotationKey]; !nodeHasAnnotation {
 		klog.V(3).Infof(
 			"Copying annotation:%q=%q from machine %q onto node %q",
 			machineutils.PreserveMachineAnnotationKey,
@@ -937,6 +941,15 @@ func (c *controller) copyPreserveAnnotationToNode(ctx context.Context, machine *
 			klog.Errorf("error trying to copy preserve annotation onto node %q: %v", node.Name, err)
 			return machine, err
 		}
+	} else if nodeValue != machineValue {
+		klog.Warningf(
+			"Conflicting annotation:%q on machine %q (=%q) and node %q (=%q); node value takes precedence, discarding the machine value",
+			machineutils.PreserveMachineAnnotationKey,
+			machine.Name,
+			machineValue,
+			node.Name,
+			nodeValue,
+		)
 	}
 	// the node now carries the annotation, so remove the duplicate from the machine
 	klog.V(3).Infof(
