@@ -556,16 +556,16 @@ func GetMachineFromTemplate(template *v1alpha1.MachineTemplateSpec, parentObject
 		},
 	}
 	machine.Spec = *template.Spec.DeepCopy()
-	effectiveCreationTimeout, err := annotationsutils.GetEffectiveMachineCreationTimeout(parentObject)
+	effectiveCreationTimeout, err := annotationsutils.GetMachineEffectiveCreationTimeout(parentObject)
 	if err != nil {
 		klog.Warningf("Failed to obtain effective creation timeout from annotation %q on machine set %q due to %s",
 			v1alpha1.AnnotationKeyMachineEffectiveCreationTimeout, controllerRef, err)
 	}
-	if effectiveCreationTimeout != nil {
+	if effectiveCreationTimeout.Duration > 0 {
 		if machine.Spec.MachineConfiguration == nil {
-			machine.Spec.MachineConfiguration = &v1alpha1.MachineConfiguration{MachineCreationTimeout: effectiveCreationTimeout}
+			machine.Spec.MachineConfiguration = &v1alpha1.MachineConfiguration{MachineCreationTimeout: &effectiveCreationTimeout}
 		} else {
-			machine.Spec.MachineConfiguration.MachineCreationTimeout = effectiveCreationTimeout
+			machine.Spec.MachineConfiguration.MachineCreationTimeout = &effectiveCreationTimeout
 		}
 		klog.V(2).Infof("MachineCreationTimeout overridden on new Machine with GenerateName %q and parent MachineSet %q to %q",
 			machine.ObjectMeta.GenerateName, parentMetaObj.GetName(), effectiveCreationTimeout.Duration)

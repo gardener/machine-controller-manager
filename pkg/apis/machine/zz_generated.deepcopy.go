@@ -233,6 +233,16 @@ func (in *MachineConfiguration) DeepCopyInto(out *MachineConfiguration) {
 		*out = new(string)
 		**out = **in
 	}
+	if in.MachineCreationTimeoutGrowthPercent != nil {
+		in, out := &in.MachineCreationTimeoutGrowthPercent, &out.MachineCreationTimeoutGrowthPercent
+		*out = new(int32)
+		**out = **in
+	}
+	if in.MachineReplaceCycleCountThreshold != nil {
+		in, out := &in.MachineReplaceCycleCountThreshold, &out.MachineReplaceCycleCountThreshold
+		*out = new(int32)
+		**out = **in
+	}
 	return
 }
 
