@@ -24,6 +24,7 @@ package controller
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"maps"
 	"reflect"
@@ -1417,6 +1418,26 @@ func MergeStringMaps[T any](oldMap map[string]T, newMaps ...map[string]T) map[st
 	}
 
 	return out
+}
+
+// PatchMachineDeploymentAnnotations patches the annotations of the given MachineDeployment using a JSON merge patch.
+// modifiedAnnotations contains keys to set; deletedAnnotationKeys contains keys to remove.
+func PatchMachineDeploymentAnnotations(ctx context.Context, client v1alpha1client.MachineDeploymentInterface, name string, modifiedAnnotations map[string]string, deletedAnnotationKeys []string) error {
+	annotationsPatch := make(map[string]any, len(modifiedAnnotations)+len(deletedAnnotationKeys))
+	for k, v := range modifiedAnnotations {
+		annotationsPatch[k] = v
+	}
+	for _, k := range deletedAnnotationKeys {
+		annotationsPatch[k] = nil
+	}
+	patchBytes, err := json.Marshal(map[string]any{
+		"metadata": map[string]any{"annotations": annotationsPatch},
+	})
+	if err != nil {
+		return err
+	}
+	_, err = client.Patch(ctx, name, types.MergePatchType, patchBytes, metav1.PatchOptions{})
+	return err
 }
 
 // GetEffectiveCreationTimeout gets the effective creation timeout as a [metav1.Duration] for this MachineDeployment object, first checking

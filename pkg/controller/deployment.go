@@ -24,7 +24,6 @@ package controller
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"reflect"
 	"strconv"
@@ -865,20 +864,7 @@ func (c *controller) checkAndAdjustMachineEffectiveCreationTimeout(ctx context.C
 	if len(modifiedAnnotations) == 0 && len(deletedAnnotationKeys) == 0 {
 		return
 	}
-	annotationsPatch := make(map[string]any, len(modifiedAnnotations)+len(deletedAnnotationKeys))
-	for k, v := range modifiedAnnotations {
-		annotationsPatch[k] = v
-	}
-	for _, k := range deletedAnnotationKeys {
-		annotationsPatch[k] = nil
-	}
-	patchBytes, err := json.Marshal(map[string]any{
-		"metadata": map[string]any{"annotations": annotationsPatch},
-	})
-	if err != nil {
-		return
-	}
-	_, err = c.controlMachineClient.MachineDeployments(mcd.Namespace).Patch(ctx, mcd.Name, types.MergePatchType, patchBytes, metav1.PatchOptions{})
+	err = PatchMachineDeploymentAnnotations(ctx, c.controlMachineClient.MachineDeployments(mcd.Namespace), mcd.Name, modifiedAnnotations, deletedAnnotationKeys)
 	if err != nil {
 		return
 	}
