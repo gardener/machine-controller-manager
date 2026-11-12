@@ -169,6 +169,9 @@ const (
 
 	// MachineInPlaceUpdateFailed means machine in-place update failed
 	MachineInPlaceUpdateFailed MachinePhase = "InPlaceUpdateFailed"
+
+	// MachineMaintenance means the machine's node is under planned maintenance.
+	MachineMaintenance MachinePhase = "Maintenance"
 )
 
 // MachineState is a current state of the operation.
@@ -266,6 +269,15 @@ const (
 
 	// PreservedNodeDrainUnsuccessful is a constant for the message in condition that indicates that the preserved node's drain was not successful
 	PreservedNodeDrainUnsuccessful string = "Preserved node could not be drained."
+)
+
+const (
+	// NodeMaintenanceInProgress is a node condition type indicating that the node is actively undergoing
+	// planned maintenance. When set to True on a Node whose Ready condition is not True, MCM treats the
+	// outage as planned and transitions the owning Machine to the Maintenance phase instead of Unknown/Failed.
+	// TODO: Remove this constant once MCM is updated to use the upstream Kubernetes v1.37 and use the constants
+	// defined in k8s.io/api/core/v1.
+	NodeMaintenanceInProgress corev1.NodeConditionType = "MaintenanceInProgress"
 )
 
 const (

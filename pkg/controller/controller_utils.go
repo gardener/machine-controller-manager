@@ -780,6 +780,15 @@ func (s ActiveMachines) Less(i, j int) bool {
 		}
 	}
 
+	// Machines under planned maintenance are intentionally held and must be deleted last, just
+	// like preserved machines, so an ongoing maintenance node is not terminated by a rollout
+	// scale-down. If one is under maintenance and the other is not, the maintenance one is "greater".
+	isMaintenanceI := isMachineInMaintenance(s[i])
+	isMaintenanceJ := isMachineInMaintenance(s[j])
+	if isMaintenanceI != isMaintenanceJ {
+		return !isMaintenanceI
+	}
+
 	// Default priority for machine objects
 	machineIPriority := 3
 	machineJPriority := 3

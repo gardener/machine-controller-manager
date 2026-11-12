@@ -288,14 +288,13 @@ func (dc *controller) reconcileOldMachineSetsInPlace(ctx context.Context, allMac
 		return false, nil
 	}
 
-	// If maxSurge is defined, there will be machines left in the old machine set that do not require an update
-	// because the new machine set already has the required replicas due to the additional machines added as per maxSurge.
-	// In that case we simply scale down the old machine set to zero.
+	// With maxSurge, the new machine set may already have enough replicas.
+	// Scale the old set down to MaintenanceReplicas to keep machines in planned
+	// maintenance alive. Once they leave the Maintenance phase, MaintenanceReplicas
+	// drops to zero and a later reconcile scales the old set to zero.
 	if newMachineSet.Spec.Replicas == deployment.Spec.Replicas {
-		// Scale down old machine sets to zero.
 		for _, machineSet := range oldMachineSets {
-			_, _, err := dc.scaleMachineSetAndRecordEvent(ctx, machineSet, 0, deployment)
-			if err != nil {
+			if _, _, err := dc.scaleMachineSetAndRecordEvent(ctx, machineSet, machineSet.Status.MaintenanceReplicas, deployment); err != nil {
 				return false, err
 			}
 		}
@@ -489,6 +488,13 @@ func (dc *controller) labelNodesBackingMachineSets(ctx context.Context, machineS
 		}
 
 		for _, machine := range filteredMachines {
+			// Keep machines in planned maintenance on the old machine set and don't label
+			// them as in-place update candidates. A later reconcile updates them in place
+			// once maintenance ends and they leave the Maintenance phase.
+			if isMachineInMaintenance(machine) {
+				klog.V(3).Infof("Skipping node backing machine %q for update labelling: machine is under planned maintenance", machine.Name)
+				continue
+			}
 			if err := dc.labelNodeForMachine(ctx, machine, labelKey, labelValue); err != nil {
 				return err
 			}
@@ -566,6 +572,10 @@ func (dc *controller) getMachinesUndergoingUpdate(oldMachineSets []*v1alpha1.Mac
 				continue
 			}
 
+			if isMachineInMaintenance(machine) {
+				continue
+			}
+
 			node, err := dc.nodeLister.Get(machine.Labels[v1alpha1.NodeLabelKey])
 			if err != nil {
 				return machineInUpdateProcess, err
@@ -589,6 +599,10 @@ func (dc *controller) getMachinesForDrain(machineSet *v1alpha1.MachineSet, ready
 	var candidateForUpdateMachines []*v1alpha1.Machine
 	for _, machine := range machines {
 		if machine.Labels[v1alpha1.NodeLabelKey] == "" {
+			continue
+		}
+
+		if isMachineInMaintenance(machine) {
 			continue
 		}
 

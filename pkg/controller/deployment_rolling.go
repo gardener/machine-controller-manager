@@ -240,12 +240,14 @@ func (dc *controller) cleanupUnhealthyReplicas(ctx context.Context, oldISs []*v1
 			continue
 		}
 		klog.V(4).Infof("Found %d available machine in old IS %s", targetIS.Status.AvailableReplicas, targetIS.Name)
-		if (targetIS.Spec.Replicas) == targetIS.Status.AvailableReplicas {
+		// Keep machines in planned maintenance, don't remove them as unhealthy replicas.
+		healthyOrHeldReplicas := targetIS.Status.AvailableReplicas + targetIS.Status.MaintenanceReplicas
+		if (targetIS.Spec.Replicas) == healthyOrHeldReplicas {
 			// no unhealthy replicas found, no scaling required.
 			continue
 		}
 
-		scaledDownCount := int32(integer.IntMin(int(maxCleanupCount-totalScaledDown), int((targetIS.Spec.Replicas)-targetIS.Status.AvailableReplicas))) // #nosec  G115 (CWE-190) -- obtained from MachineDeployment.Spec.Replicas is of type int32, which is already validated
+		scaledDownCount := int32(integer.IntMin(int(maxCleanupCount-totalScaledDown), int((targetIS.Spec.Replicas)-healthyOrHeldReplicas))) // #nosec  G115 (CWE-190) -- obtained from MachineDeployment.Spec.Replicas is of type int32, which is already validated
 		newReplicasCount := (targetIS.Spec.Replicas) - scaledDownCount
 		if newReplicasCount > (targetIS.Spec.Replicas) {
 			return nil, 0, fmt.Errorf("when cleaning up unhealthy replicas, got invalid request to scale down %s %d -> %d", targetIS.Name, (targetIS.Spec.Replicas), newReplicasCount)
@@ -288,8 +290,13 @@ func (dc *controller) scaleDownOldMachineSetsForRollingUpdate(ctx context.Contex
 			// cannot scale down this ReplicaSet.
 			continue
 		}
+		// Don't scale below MaintenanceReplicas. Keep these machines until maintenance ends.
+		scalableReplicas := (targetIS.Spec.Replicas) - targetIS.Status.MaintenanceReplicas
+		if scalableReplicas <= 0 {
+			continue
+		}
 		// Scale down.
-		scaleDownCount := int32(integer.IntMin(int((targetIS.Spec.Replicas)), int(totalScaleDownCount-totalScaledDown))) // #nosec  G115 (CWE-190) -- obtained from MachineDeployment.Spec.Replicas is of type int32 which is already validated
+		scaleDownCount := int32(min(int(scalableReplicas), int(totalScaleDownCount-totalScaledDown))) // #nosec  G115 (CWE-190) -- obtained from MachineDeployment.Spec.Replicas is of type int32, which is already validated
 		newReplicasCount := (targetIS.Spec.Replicas) - scaleDownCount
 		if newReplicasCount > (targetIS.Spec.Replicas) {
 			return 0, fmt.Errorf("when scaling down old IS, got invalid request to scale down %s %d -> %d", targetIS.Name, (targetIS.Spec.Replicas), newReplicasCount)

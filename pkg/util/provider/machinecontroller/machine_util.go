@@ -924,6 +924,7 @@ func (c *controller) getCreateFailurePhase(machine *v1alpha1.Machine) v1alpha1.M
 // reconcileMachineHealth updates the machine object with
 // any change in node conditions or health
 func (c *controller) reconcileMachineHealth(ctx context.Context, machine *v1alpha1.Machine) (machineutils.RetryPeriod, error) {
+	klog.V(1).Infof("HAVE_MAINTENANCE_FEATURE reconcileMachineHealth called for machine %q phase=%s", machine.Name, machine.Status.CurrentStatus.Phase)
 	var (
 		cloneDirty        = false
 		clone             = machine.DeepCopy()
@@ -979,7 +980,43 @@ func (c *controller) reconcileMachineHealth(ctx context.Context, machine *v1alph
 		// we cannot definitively determine if the machine is healthy.
 		// Because if the machine failed to update in-place, the severity of the failure is uncertain.
 		if machine.Status.CurrentStatus.Phase != v1alpha1.MachineInPlaceUpdating && machine.Status.CurrentStatus.Phase != v1alpha1.MachineInPlaceUpdateFailed {
-			if c.isHealthy(clone) {
+			if maintenanceIsActiveOnNode(node) {
+				// Keep maintenance machines out of the normal health checks, even if their nodes are Ready.
+				if clone.Status.CurrentStatus.Phase != v1alpha1.MachineMaintenance {
+					description = fmt.Sprintf("Machine %s node is under planned maintenance - changing MachinePhase to Maintenance. Node conditions: %+v", clone.Name, clone.Status.Conditions)
+					klog.V(2).Info(description)
+
+					clone.Status.CurrentStatus = v1alpha1.CurrentStatus{
+						Phase:              v1alpha1.MachineMaintenance,
+						LastUpdateTime:     metav1.Now(),
+						PreserveExpiryTime: machine.Status.CurrentStatus.PreserveExpiryTime,
+					}
+					clone.Status.LastOperation = v1alpha1.LastOperation{
+						Description:    description,
+						State:          v1alpha1.MachineStateProcessing,
+						Type:           v1alpha1.MachineOperationHealthCheck,
+						LastUpdateTime: metav1.Now(),
+					}
+					cloneDirty = true
+				}
+			} else if clone.Status.CurrentStatus.Phase == v1alpha1.MachineMaintenance {
+				// Move to Unknown so the next reconcile checks health with a fresh timeout.
+				description = fmt.Sprintf("Machine %s maintenance ended - changing MachinePhase to %s. Node conditions: %+v", clone.Name, v1alpha1.MachineUnknown, clone.Status.Conditions)
+				klog.V(2).Info(description)
+
+				clone.Status.CurrentStatus = v1alpha1.CurrentStatus{
+					Phase:              v1alpha1.MachineUnknown,
+					LastUpdateTime:     metav1.Now(),
+					PreserveExpiryTime: machine.Status.CurrentStatus.PreserveExpiryTime,
+				}
+				clone.Status.LastOperation = v1alpha1.LastOperation{
+					Description:    description,
+					State:          v1alpha1.MachineStateProcessing,
+					Type:           v1alpha1.MachineOperationHealthCheck,
+					LastUpdateTime: metav1.Now(),
+				}
+				cloneDirty = true
+			} else if c.isHealthy(clone) {
 				if clone.Status.CurrentStatus.Phase != v1alpha1.MachineRunning && !isPendingMachineWithCriticalComponentsNotReadyTaint(clone, node) {
 					if clone.Status.LastOperation.Type == v1alpha1.MachineOperationCreate &&
 						clone.Status.LastOperation.State != v1alpha1.MachineStateSuccessful {
@@ -1260,6 +1297,15 @@ func (c *controller) deleteMachineFinalizers(ctx context.Context, machine *v1alp
 SECTION
 Helper Functions
 */
+
+func maintenanceIsActiveOnNode(node *v1.Node) bool {
+	if node == nil {
+		return false
+	}
+	maintenanceCond := nodeops.GetCondition(node, v1alpha1.NodeMaintenanceInProgress)
+	return maintenanceCond != nil && maintenanceCond.Status == v1.ConditionTrue
+}
+
 func (c *controller) isHealthy(machine *v1alpha1.Machine) bool {
 	numOfConditions := len(machine.Status.Conditions)
 

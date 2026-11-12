@@ -1039,6 +1039,17 @@ func GetPreservedFailedReplicaCountForMachineSets(MachineSets []*v1alpha1.Machin
 	return totalPreservedFailedReplicas
 }
 
+// GetMaintenanceReplicaCountForMachineSets returns the number of machines in Maintenance phase corresponding to the given machine sets.
+func GetMaintenanceReplicaCountForMachineSets(MachineSets []*v1alpha1.MachineSet) int32 {
+	totalMaintenanceReplicas := int32(0)
+	for _, is := range MachineSets {
+		if is != nil {
+			totalMaintenanceReplicas += is.Status.MaintenanceReplicas
+		}
+	}
+	return totalMaintenanceReplicas
+}
+
 // IsRollingUpdate returns true if the strategy type is a rolling update.
 func IsRollingUpdate(deployment *v1alpha1.MachineDeployment) bool {
 	return deployment.Spec.Strategy.Type == v1alpha1.RollingUpdateMachineDeploymentStrategyType
@@ -1049,12 +1060,14 @@ func IsInPlaceUpdate(deployment *v1alpha1.MachineDeployment) bool {
 	return deployment.Spec.Strategy.Type == v1alpha1.InPlaceUpdateMachineDeploymentStrategyType
 }
 
-// MachineDeploymentComplete considers a deployment to be complete once all of its desired replicas
-// are updated and available, and no old machines are running.
+// MachineDeploymentComplete reports whether all desired replicas are updated
+// and available, except those held in planned maintenance.
 func MachineDeploymentComplete(deployment *v1alpha1.MachineDeployment, newStatus *v1alpha1.MachineDeploymentStatus) bool {
-	return newStatus.UpdatedReplicas == (deployment.Spec.Replicas) &&
-		newStatus.Replicas == (deployment.Spec.Replicas) &&
-		newStatus.AvailableReplicas == (deployment.Spec.Replicas) &&
+	requiredReplicas := deployment.Spec.Replicas - newStatus.MaintenanceReplicas
+
+	return newStatus.UpdatedReplicas == requiredReplicas &&
+		newStatus.AvailableReplicas == requiredReplicas &&
+		newStatus.Replicas == deployment.Spec.Replicas &&
 		newStatus.ObservedGeneration >= deployment.Generation
 }
 
@@ -1131,7 +1144,7 @@ func NewISNewReplicas(deployment *v1alpha1.MachineDeployment, allISs []*v1alpha1
 	switch deployment.Spec.Strategy.Type {
 	case v1alpha1.RollingUpdateMachineDeploymentStrategyType:
 		// Check if we can scale up.
-		maxSurge, err := intstrutil.GetValueFromIntOrPercent(deployment.Spec.Strategy.RollingUpdate.MaxSurge, int((deployment.Spec.Replicas)), true)
+		maxSurge, err := intstrutil.GetScaledValueFromIntOrPercent(deployment.Spec.Strategy.RollingUpdate.MaxSurge, int(deployment.Spec.Replicas), true)
 		if err != nil {
 			return 0, err
 		}
@@ -1141,15 +1154,21 @@ func NewISNewReplicas(deployment *v1alpha1.MachineDeployment, allISs []*v1alpha1
 		maxTotalMachines := (deployment.Spec.Replicas) + int32(maxSurge) // #nosec G115 (CWE-190) -- value already validated
 		if currentMachineCount >= maxTotalMachines {
 			// Cannot scale up.
-			return (newIS.Spec.Replicas), nil
+			return newIS.Spec.Replicas, nil
 		}
 		// Scale up.
 		scaleUpCount := maxTotalMachines - currentMachineCount
-		// Do not exceed the number of desired replicas.
-		scaleUpCount = int32(integer.IntMin(int(scaleUpCount), int((deployment.Spec.Replicas)-(newIS.Spec.Replicas)))) // #nosec G115 (CWE-190) -- Obtained from replicas and maxSurge, both of which are validated.
-		return (newIS.Spec.Replicas) + scaleUpCount, nil
+		// Leave room for maintenance machines held on old machine sets.
+		heldMaintenance := GetMaintenanceReplicaCountForMachineSets(allISs) - newIS.Status.MaintenanceReplicas
+		desiredNewReplicas := deployment.Spec.Replicas - heldMaintenance
+
+		scaleUpCount = min(
+			scaleUpCount,
+			max(desiredNewReplicas-newIS.Spec.Replicas, 0),
+		)
+		return newIS.Spec.Replicas + scaleUpCount, nil
 	case v1alpha1.RecreateMachineDeploymentStrategyType:
-		return (deployment.Spec.Replicas), nil
+		return deployment.Spec.Replicas, nil
 	case v1alpha1.InPlaceUpdateMachineDeploymentStrategyType:
 		if deployment.Spec.Strategy.InPlaceUpdate != nil && deployment.Spec.Strategy.InPlaceUpdate.OrchestrationType == v1alpha1.OrchestrationTypeManual {
 			// when newIs is created, its replicas should be zero as it will have machines only after the old machines are updated and
@@ -1159,7 +1178,7 @@ func NewISNewReplicas(deployment *v1alpha1.MachineDeployment, allISs []*v1alpha1
 
 		// For inplace update without manual update, when new IS is created we will scale it up to the max surge.
 		// Check if we can scale up.
-		maxSurge, err := intstrutil.GetValueFromIntOrPercent(deployment.Spec.Strategy.InPlaceUpdate.MaxSurge, int(deployment.Spec.Replicas), true)
+		maxSurge, err := intstrutil.GetScaledValueFromIntOrPercent(deployment.Spec.Strategy.InPlaceUpdate.MaxSurge, int(deployment.Spec.Replicas), true)
 		if err != nil {
 			return 0, err
 		}

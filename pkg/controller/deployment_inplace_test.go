@@ -562,6 +562,36 @@ var _ = Describe("deployment_inplace", func() {
 				},
 			}),
 		)
+
+		It("retains machines under planned maintenance on the old machine set when scaling it down after surge", func(ctx SpecContext) {
+			stop := make(chan struct{})
+			defer close(stop)
+
+			oldMS := oldMachineSet.DeepCopy()
+			oldMS.Name = "old-machineset-maint"
+			oldMS.Spec.Selector = &metav1.LabelSelector{MatchLabels: map[string]string{"machineset": "old-maint"}}
+			oldMS.Spec.Template.Labels = map[string]string{"machineset": "old-maint"}
+			oldMS.Spec.Replicas = 1
+			oldMS.Status.Replicas = 1
+			oldMS.Status.MaintenanceReplicas = 1
+
+			newMS := newMachineSet.DeepCopy()
+			newMS.Name = "new-machineset-maint"
+			newMS.Spec.Replicas = deployment.Spec.Replicas // surge brought the new set to the desired count
+
+			controlMachineObjects := []runtime.Object{oldMS, newMS}
+			controller, trackers := createController(stop, testNamespace, controlMachineObjects, nil, nil)
+			defer trackers.Stop()
+			waitForCacheSync(stop, controller)
+
+			workDone, err := controller.reconcileOldMachineSetsInPlace(ctx, []*machinev1.MachineSet{oldMS, newMS}, []*machinev1.MachineSet{oldMS}, newMS, deployment)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(workDone).To(BeTrue())
+
+			scaledOldMS, err := controller.controlMachineClient.MachineSets(testNamespace).Get(ctx, oldMS.Name, metav1.GetOptions{})
+			Expect(err).ToNot(HaveOccurred())
+			Expect(scaledOldMS.Spec.Replicas).To(Equal(int32(1)), "old machine set must be scaled to its maintenance-replica count, not zero")
+		})
 	})
 
 	Describe("selectNumOfMachineForUpdate", func() {
@@ -817,6 +847,29 @@ var _ = Describe("deployment_inplace", func() {
 					err:      false,
 				},
 			}),
+			Entry("does not label the node backing a machine under planned maintenance", &data{
+				setup: setup{
+					machines: newMachinesFromMachineSet(1, machineSets[0], &machinev1.MachineStatus{CurrentStatus: machinev1.CurrentStatus{Phase: machinev1.MachineMaintenance}}, nil, map[string]string{machinev1.NodeLabelKey: "node-0"}),
+					nodes:    newNodes(1, nil, &corev1.NodeSpec{}, nil),
+				},
+				action: newMachineSets(
+					1,
+					&machinev1.MachineTemplateSpec{
+						ObjectMeta: *newObjectMeta(objMeta, 0),
+						Spec: machinev1.MachineSpec{
+							Class: machinev1.ClassSpec{
+								Kind: "MachineClass",
+								Name: "test-machine-class",
+							},
+						},
+					}, 3, 500, nil, nil, nil, nil,
+				),
+				expect: expect{
+					// the node is left untouched; the update label is not added
+					nodes: newNodes(1, nil, &corev1.NodeSpec{}, nil),
+					err:   false,
+				},
+			}),
 		)
 	})
 
@@ -1010,6 +1063,39 @@ var _ = Describe("deployment_inplace", func() {
 				action: []*machinev1.MachineSet{},
 				expect: expect{
 					count: 0,
+					err:   false,
+				},
+			}),
+			Entry("a machine under planned maintenance is not counted as undergoing update even with a stale selected-for-update label", &data{
+				setup: setup{
+					machineSets: machineSets,
+					machines: []*machinev1.Machine{
+						{
+							ObjectMeta: metav1.ObjectMeta{
+								Name:      "machine-0",
+								Namespace: testNamespace,
+								Labels: map[string]string{
+									machinev1.LabelKeyNodeSelectedForUpdate: "true",
+								},
+							},
+							Status: machinev1.MachineStatus{
+								CurrentStatus: machinev1.CurrentStatus{Phase: machinev1.MachineMaintenance},
+							},
+						},
+						{
+							ObjectMeta: metav1.ObjectMeta{
+								Name:      "machine-1",
+								Namespace: testNamespace,
+								Labels: map[string]string{
+									machinev1.LabelKeyNodeSelectedForUpdate: "true",
+								},
+							},
+						},
+					},
+				},
+				action: machineSets,
+				expect: expect{
+					count: 1,
 					err:   false,
 				},
 			}),
@@ -1473,6 +1559,52 @@ var _ = Describe("deployment_inplace", func() {
 				expect: expect{
 					machines: []*machinev1.Machine{},
 					err:      false,
+				},
+			}),
+			Entry("skip a machine under planned maintenance even if its node carries a stale candidate-for-update label", &data{
+				setup: setup{
+					machineSet: machineSet,
+					machines: []*machinev1.Machine{
+						{
+							ObjectMeta: metav1.ObjectMeta{
+								Name:      "machine-0",
+								Namespace: testNamespace,
+								Labels: map[string]string{
+									machinev1.NodeLabelKey:                   fmt.Sprintf("node-%d", 0),
+									machinev1.LabelKeyNodeCandidateForUpdate: "true",
+								},
+							},
+							Status: machinev1.MachineStatus{
+								CurrentStatus: machinev1.CurrentStatus{Phase: machinev1.MachineMaintenance},
+							},
+						},
+						{
+							ObjectMeta: metav1.ObjectMeta{
+								Name:      "machine-1",
+								Namespace: testNamespace,
+								Labels: map[string]string{
+									machinev1.NodeLabelKey:                   fmt.Sprintf("node-%d", 1),
+									machinev1.LabelKeyNodeCandidateForUpdate: "true",
+								},
+							},
+						},
+					},
+				},
+				action: 2,
+				expect: expect{
+					machines: []*machinev1.Machine{
+						{
+							ObjectMeta: metav1.ObjectMeta{
+								Name:      "machine-1",
+								Namespace: testNamespace,
+								Labels: map[string]string{
+									machinev1.NodeLabelKey:                   fmt.Sprintf("node-%d", 1),
+									machinev1.LabelKeyNodeCandidateForUpdate: "true",
+								},
+							},
+						},
+					},
+					err: false,
 				},
 			}),
 		)
