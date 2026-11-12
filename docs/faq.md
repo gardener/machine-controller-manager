@@ -44,6 +44,7 @@ this document. Few of the answers assume that the MCM being used is in conjuncti
     - [How MCM responds when scale-out/scale-in is done during rolling update of a machinedeployment?](#how-mcm-responds-when-scale-outscale-in-is-done-during-rolling-update-of-a-machinedeployment)
     - [How does MCM prioritize the machines for deletion on scale-down of machinedeployment?](#how-does-mcm-prioritize-the-machines-for-deletion-on-scale-down-of-machinedeployment)
   - [How some unhealthy machines are drained quickly?](#how-some-unhealthy-machines-are-drained-quickly)
+    - [How can I stress-test the simulated-provider integration tests?](#how-can-i-stress-test-the-simulated-provider-integration-tests)
 - [Troubleshooting](#troubleshooting)
     - [My machine is stuck in deletion for 1 hr, why?](#my-machine-is-stuck-in-deletion-for-1-hr-why)
     - [My machine is not joining the cluster, why?](#my-machine-is-not-joining-the-cluster-why)
@@ -389,6 +390,30 @@ This can also happen if either of the following values have been reduced
 
 When `spec.autoPreserveFailedMachineMax` is reduced and there are more auto-preserved machines than the max count, MCM will sort the machines according to their `PreserveExpiryTime`s and remove machines that have the nearest expiry time. This is done to keep machines who have the potential for longer preservation and hence additional time for debugging.
 In the case where `spec.Replicas` has been reduced, MCM will always prioritize keeping preserved machines. If this is not possible due to all non-preserved machines being deleted already, then MCM uses the same mechanism as above. Additionally, MCM will also prioritize keeping manually preserved failed machines over auto-preserved failed machines. This might lead to a case where MCM deleted all auto preserved failed machines if `spec.Replicas` is reduced accordingly.
+
+### How can I stress-test the simulated-provider integration tests?
+
+The `pkg/simulatedprovider/hack/stress.sh` script runs the simulated-provider integration test suite (`pkg/simulatedprovider/test/integration/controller`) repeatedly and collects a pass/fail summary.
+
+**Prerequisites**: `ginkgo` and `kwokctl` must be on `PATH`.
+
+**Usage**:
+
+```sh
+# Run the suite 20 times, stop on the first failure, stream output
+pkg/simulatedprovider/hack/stress.sh -n 20 -s -v
+
+# Run 50 times, only specs matching "MachineDeployment", logs in /tmp/stress
+pkg/simulatedprovider/hack/stress.sh -n 50 -f "MachineDeployment" -o /tmp/stress
+```
+
+Per-run logs and a summary are written to `./logs/<timestamp>/` relative to the directory you invoke the script from (override with `-o`). The summary shows pass/fail counts, pass rate, wall-clock time, and per-run durations.
+
+**When to use it**:
+
+- On changes to the simulated-provider tests or the controller reconcile logic, if any test flakes are suspected.
+- After fixing a flaky test, to verify the fix holds reliably.
+- During local debugging, to reproduce an intermittent failure by running many iterations.
 
 # Developer
 
