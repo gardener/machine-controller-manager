@@ -634,7 +634,8 @@ func (c *IntegrationTestFramework) SetupBeforeSuite() {
 	ginkgo.By("Cleaning any old resources")
 	if c.ControlCluster.McmClient != nil {
 		timeout := int64(900)
-		c.cleanTestResources(ctx, timeout)
+		err := c.cleanTestResources(ctx, timeout)
+		gomega.Expect(err).NotTo(gomega.HaveOccurred())
 	}
 
 	ginkgo.By("Setup MachineClass")
@@ -2259,7 +2260,8 @@ func (c *IntegrationTestFramework) ControllerTests() {
 		// Ensure the test resources are cleaned up before querying the cloud provider for orphans.
 		ginkgo.BeforeAll(func() {
 			ginkgo.By("Ensuring the test resources are cleaned up")
-			c.cleanTestResources(ctx, 900)
+			err := c.cleanTestResources(ctx, 900)
+			gomega.Expect(err).NotTo(gomega.HaveOccurred())
 		})
 		ginkgo.Context("when the hyperscaler resources are queried", func() {
 			ginkgo.It("should have been deleted", func() {
@@ -2324,7 +2326,8 @@ func (c *IntegrationTestFramework) Cleanup() {
 		log.Printf("Preserve CRD: %s\n", preserveCRDDuringCleanup)
 	} else if c.ControlCluster.McmClient != nil {
 		timeout := int64(900)
-		c.cleanTestResources(ctx, timeout)
+		err := c.cleanTestResources(ctx, timeout)
+		gomega.Expect(err).NotTo(gomega.HaveOccurred())
 	}
 
 	ginkgo.By("Killing any existing processes")
@@ -2349,23 +2352,32 @@ func (c *IntegrationTestFramework) Cleanup() {
 
 }
 
-func (c *IntegrationTestFramework) cleanTestResources(ctx context.Context, timeout int64) {
+func (c *IntegrationTestFramework) cleanTestResources(ctx context.Context, timeout int64) error {
 	// Check and delete machinedeployment resources
 	for _, machineDeploymentName := range helpers.TestMcdNames {
 		if err := c.cleanMachineDeployment(ctx, machineDeploymentName, timeout); err != nil {
 			log.Println(err.Error())
+			if !apierrors.IsNotFound(err) {
+				return err
+			}
 		}
 	}
 
 	ginkgo.By("Removing termination hooks from machines")
 	if err := c.removeMachineAnnotation(ctx, helpers.SuspensionMcName, v1alpha1.AnnotationKeySuspendInstanceDeletionPrefix+"/"+terminationHookPurpose); err != nil {
 		log.Println(err.Error())
+		if !apierrors.IsNotFound(err) {
+			return err
+		}
 	}
 
 	for _, machineName := range helpers.TestMcNames {
 		// Check and delete machine resource
 		if err := c.cleanMachine(ctx, machineName, timeout); err != nil {
 			log.Println(err.Error())
+			if !apierrors.IsNotFound(err) {
+				return err
+			}
 		}
 	}
 
@@ -2373,13 +2385,20 @@ func (c *IntegrationTestFramework) cleanTestResources(ctx context.Context, timeo
 		// Check and delete machine class resource
 		if err := c.cleanMachineClass(ctx, machineClassName, timeout); err != nil {
 			log.Println(err.Error())
+			if !apierrors.IsNotFound(err) {
+				return err
+			}
 		}
 	}
 
 	// Check and delete any VAP or VAPB
 	if err := c.TargetCluster.DeleteVAPToRestartKubeletUpdates(ctx); err != nil {
 		log.Println(err.Error())
+		if !apierrors.IsNotFound(err) {
+			return err
+		}
 	}
+	return nil
 }
 
 func (c *IntegrationTestFramework) removeMachineAnnotation(ctx context.Context, machineName, annotationKey string) error {

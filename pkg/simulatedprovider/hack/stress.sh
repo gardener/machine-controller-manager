@@ -12,8 +12,7 @@ set -o pipefail
 
 # ----- defaults -----
 RUNS=10
-BASE_DIR="hack/logs"
-OUT_DIR="${BASE_DIR}/$(date +%Y%m%d-%H%M%S)"
+OUT_DIR=""
 STOP_ON_FAIL=false
 VERBOSE=false
 FOCUS=""
@@ -23,7 +22,7 @@ function usage() {
 Usage: $(basename "$0") [-n RUNS] [-o OUT_DIR] [-f FOCUS] [-s] [-v]
 
   -n RUNS      Number of times to run the integration test suite (default: ${RUNS})
-  -o OUT_DIR   Directory to write per-run logs and the summary (default: ${BASE_DIR}/<timestamp>)
+  -o OUT_DIR   Directory to write per-run logs and the summary (default: ./logs/<timestamp>)
   -f FOCUS     Run only specs matching FOCUS (passed to ginkgo as --focus)
   -s           Stop early on the first failing run (default: run all)
   -v           Verbose: stream each run's output to the terminal
@@ -57,7 +56,7 @@ function run_suite() {
   local -a focus_args=()
   [[ -n "${FOCUS}" ]] && focus_args=(--focus "${FOCUS}")
 
-  local -a ginkgo_cmd=(ginkgo -v --no-color --show-node-events --poll-progress-after=300s --poll-progress-interval=60s "${focus_args[@]}")
+  local -a ginkgo_cmd=(ginkgo -v --no-color --show-node-events --poll-progress-after=300s --poll-progress-interval=60s "${focus_args[@]+"${focus_args[@]}"}")
 
   local pass=0 fail=0 total_elapsed=0
   local -a failed_runs=() pass_durations=() fail_durations=()
@@ -71,11 +70,11 @@ function run_suite() {
     if [[ "${VERBOSE}" == true ]]; then
       printf "Run %s/%s (log: %s)\n" "${i}" "${RUNS}" "${log_file}"
       label="Run ${i}/${RUNS} "
-      (cd test/integration/controller; "${ginkgo_cmd[@]}") 2>&1 | tee "${log_file}" || status=$?
+      (cd "${CONTROLLER_DIR}"; "${ginkgo_cmd[@]}") 2>&1 | tee "${log_file}" || status=$?
     else
       printf "Run %s/%s ... " "${i}" "${RUNS}"
       label=""
-      (cd test/integration/controller; "${ginkgo_cmd[@]}") >"${log_file}" 2>&1 || status=$?
+      (cd "${CONTROLLER_DIR}"; "${ginkgo_cmd[@]}") >"${log_file}" 2>&1 || status=$?
     fi
 
     elapsed=$(( $(date +%s) - run_start ))
@@ -162,9 +161,8 @@ function generate_report() {
 function main() {
   parse_flags "$@"
 
-  local script_dir
-  script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-  cd "${script_dir}" || { echo "Error: cannot cd to ${script_dir}" >&2; exit 1; }
+  CONTROLLER_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../test/integration/controller" && pwd)"
+  : "${OUT_DIR:="logs/$(date +%Y%m%d-%H%M%S)"}"
 
   SUMMARY_FILE="${OUT_DIR}/summary.log"
   mkdir -p "${OUT_DIR}"

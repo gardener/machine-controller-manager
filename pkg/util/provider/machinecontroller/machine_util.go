@@ -1084,9 +1084,6 @@ func (c *controller) reconcileMachineHealth(ctx context.Context, machine *v1alph
 			timeOutDuration = c.getEffectiveHealthTimeout(machine).Duration
 			timeElapsed = metav1.Now().Sub(machine.Status.CurrentStatus.LastUpdateTime.Time)
 		}
-		// Re-enqueue to re-check the timeout when it is due, bounded to [ShortRetry, 1m]
-		// Ensures that small timeouts do not wait too long, while larger timeouts are not polled too frequently.
-		sleepTime := min(max(timeOutDuration-timeElapsed, time.Duration(machineutils.ShortRetry)), time.Minute)
 		if timeElapsed > timeOutDuration {
 			// Machine health timeout occurred while joining or rejoining of machine
 			if !isMachinePending && !isMachineInPlaceUpdating && !disableHealthTimeout {
@@ -1150,9 +1147,10 @@ func (c *controller) reconcileMachineHealth(ctx context.Context, machine *v1alph
 				}
 			}
 		} else {
-			// If timeout has not occurred, re-enqueue the machine
-			// after a specified sleep time
-			klog.V(4).Infof("Creation/Health Timeout hasn't occured yet , will re-enqueue after %s", sleepTime)
+			// Re-enqueue around when the machine is expected to hit the timeout, bounded to [ShortRetry, 1m]
+			// Ensures that small timeouts do not wait too long, while larger timeouts are not polled too frequently.
+			sleepTime := min(max(timeOutDuration-timeElapsed, time.Duration(machineutils.ShortRetry)), time.Minute)
+			klog.V(4).Infof("Creation/Health Timeout hasn't occurred yet , will re-enqueue after %s", sleepTime)
 			c.enqueueMachineAfter(machine, sleepTime, "re-check for creation/health timeout")
 		}
 	}
