@@ -867,23 +867,20 @@ func (c *controller) manageMachinePreservation(ctx context.Context, machine *v1a
 
 	clone = machine.DeepCopy()
 	switch preserveAnnotationValue {
-	// preserveAnnotationValue == "" implies the preservation annotation was deleted to indicate that
-	// preservation must be stopped
 	case "", machineutils.PreserveMachineAnnotationValueFalse:
 		clone, node, err = c.stopPreservationIfActive(ctx, clone, node, false)
 	case machineutils.PreserveMachineAnnotationValueWhenFailed:
-		// on timing out, remove preserve annotation to prevent incorrect re-preservation
-		if machineutils.IsPreserveExpiryTimeSetAndExpired(clone) {
-			clone, node, err = c.stopPreservationIfActive(ctx, clone, node, true)
-		} else if !machineutils.IsFailed(clone) {
+		if !machineutils.IsFailed(clone) {
 			clone, node, err = c.stopPreservationIfActive(ctx, clone, node, false)
-		} else {
+		} else if !machineutils.IsPreserveExpiryTimeSetAndExpired(clone) {
 			clone, node, err = c.preserveMachine(ctx, clone, node, preserveAnnotationValue)
 		}
 	case machineutils.PreserveMachineAnnotationValueNow:
 		if machineutils.IsPreserveExpiryTimeSetAndExpired(clone) {
-			// on timing out, remove preserve annotation to prevent incorrect re-preservation
-			clone, node, err = c.stopPreservationIfActive(ctx, clone, node, true)
+			// a Failed machine is left for the machineSet to terminate; otherwise stop preservation
+			if !machineutils.IsFailed(clone) {
+				clone, node, err = c.stopPreservationIfActive(ctx, clone, node, true)
+			}
 		} else {
 			clone, node, err = c.preserveMachine(ctx, clone, node, preserveAnnotationValue)
 			if err != nil {
@@ -900,12 +897,9 @@ func (c *controller) manageMachinePreservation(ctx context.Context, machine *v1a
 			}
 		}
 	case machineutils.PreserveMachineAnnotationValueAutoPreserved:
-		if !machineutils.IsFailed(clone) || machineutils.IsPreserveExpiryTimeSetAndExpired(clone) {
-			// To prevent incorrect re-preservation of a recovered, previously auto-preserved machine on future failures
-			// (since the autoPreserveFailedMachineCount maintained by the machineSetController, may have changed),
-			// in addition to stopping preservation, we also remove the preservation annotation on the machine.
+		if !machineutils.IsFailed(clone) {
 			clone, node, err = c.stopPreservationIfActive(ctx, clone, node, true)
-		} else {
+		} else if !machineutils.IsPreserveExpiryTimeSetAndExpired(clone) {
 			clone, node, err = c.preserveMachine(ctx, clone, node, preserveAnnotationValue)
 		}
 	}
