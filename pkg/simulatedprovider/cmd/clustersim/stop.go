@@ -59,8 +59,9 @@ var stopCmd = &cobra.Command{
 				err := clusterEnv.DeleteCluster()
 				if err != nil {
 					logErr(err)
+				} else {
+					fmt.Printf("Deleted cluster %q\n", name)
 				}
-				fmt.Printf("Deleted cluster %q\n", name)
 				_ = os.Remove(filepath.Join(clusterPath, fileNameKubeconfig))
 			}
 		}

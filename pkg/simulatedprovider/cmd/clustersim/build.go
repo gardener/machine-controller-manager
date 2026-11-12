@@ -36,10 +36,6 @@ var buildCmd = &cobra.Command{
 			return fmt.Errorf("source directories not passed")
 		}
 
-		if !strings.HasSuffix(buildFlags.SourceCA, "cluster-autoscaler") {
-			buildFlags.SourceCA = filepath.Join(buildFlags.SourceCA, "cluster-autoscaler")
-		}
-
 		binDir := filepath.Join(getClustersDir(cmd), "bin")
 		return os.MkdirAll(binDir, 0750)
 	},
@@ -74,6 +70,10 @@ var buildCmd = &cobra.Command{
 		}
 
 		if buildFlags.SourceCA != "" {
+			if !strings.HasSuffix(buildFlags.SourceCA, "cluster-autoscaler") {
+				buildFlags.SourceCA = filepath.Join(buildFlags.SourceCA, "cluster-autoscaler")
+			}
+
 			if _, err := os.Stat(buildFlags.SourceCA); err != nil && errors.Is(err, os.ErrNotExist) {
 				return fmt.Errorf("specified dir %q not found", buildFlags.SourceCA)
 			}
@@ -117,10 +117,10 @@ func goBuild(ctx context.Context, dir, file, binPath string) error {
 
 	err = cmd.Run()
 	if err != nil {
-		return err
+		return fmt.Errorf("go build failed for %q: %w\n%s", file, err, stderr.String())
 	}
 
-	if finfo, err := os.Stat(binPath); err != nil && finfo.IsDir() {
+	if finfo, err := os.Stat(binPath); err != nil || finfo.IsDir() {
 		return fmt.Errorf("did not find binary installed at expected path %q", binPath)
 	}
 
