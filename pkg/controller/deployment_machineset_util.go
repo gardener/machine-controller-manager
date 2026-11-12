@@ -51,7 +51,8 @@ func updateMachineSetStatus(ctx context.Context, machineClient machineapi.Machin
 		reflect.DeepEqual(is.Status.Conditions, newStatus.Conditions) &&
 		reflect.DeepEqual(is.Status.FailedMachines, newStatus.FailedMachines) &&
 		is.Status.AutoPreserveFailedMachineCount == newStatus.AutoPreserveFailedMachineCount &&
-		is.Status.PreservedFailedReplicas == newStatus.PreservedFailedReplicas {
+		is.Status.PreservedFailedReplicas == newStatus.PreservedFailedReplicas &&
+		is.Status.MaintenanceReplicas == newStatus.MaintenanceReplicas {
 		return is, nil
 	}
 
@@ -105,6 +106,7 @@ func calculateMachineSetStatus(is *v1alpha1.MachineSet, filteredMachines []*v1al
 	readyReplicasCount := 0
 	availableReplicasCount := 0
 	preservedFailedReplicasCount := 0
+	maintenanceReplicasCount := 0
 	autoPreserveFailedMachineCount := 0
 
 	failedMachines := []v1alpha1.MachineSummary{}
@@ -122,14 +124,17 @@ func calculateMachineSetStatus(is *v1alpha1.MachineSet, filteredMachines []*v1al
 			}
 		}
 
-		// exclude failed preserved machines from failedMachines to prevent MCD from being marked as unavailable
-		if isMachinePreservedAndFailed(machine) {
+		// Count preserved failed machines and maintenance machines separately from failures.
+		switch {
+		case isMachinePreservedAndFailed(machine):
 			preservedFailedReplicasCount++
-		} else if machine.Status.LastOperation.State == v1alpha1.MachineStateFailed {
+		case isMachineInMaintenance(machine):
+			maintenanceReplicasCount++
+		case machine.Status.LastOperation.State == v1alpha1.MachineStateFailed:
 			machineSummary.Name = machine.Name
 			machineSummary.ProviderID = machine.Spec.ProviderID
 			machineSummary.LastOperation = machine.Status.LastOperation
-			//ownerRef populated here, so that deployment controller doesn't have to add it separately
+			// Include the owner so the deployment controller doesn't have to look it up.
 			if controller := metav1.GetControllerOf(machine); controller != nil {
 				machineSummary.OwnerRef = controller.Name
 			}
@@ -171,6 +176,7 @@ func calculateMachineSetStatus(is *v1alpha1.MachineSet, filteredMachines []*v1al
 	newStatus.LastOperation.LastUpdateTime = metav1.Now()
 	newStatus.AutoPreserveFailedMachineCount = int32(autoPreserveFailedMachineCount) // #nosec  G115 (CWE-190) -- number of machines will not exceed MaxInt32
 	newStatus.PreservedFailedReplicas = int32(preservedFailedReplicasCount)          // #nosec  G115 (CWE-190) -- number of machines will not exceed MaxInt32
+	newStatus.MaintenanceReplicas = int32(maintenanceReplicasCount)                  // #nosec  G115 (CWE-190) -- number of machines will not exceed MaxInt32
 	return newStatus
 }
 
@@ -235,6 +241,11 @@ func isMachineAvailable(machine *v1alpha1.Machine) bool {
 
 func isMachinePreservedAndFailed(machine *v1alpha1.Machine) bool {
 	return machine.Status.CurrentStatus.Phase == v1alpha1.MachineFailed && !machine.Status.CurrentStatus.PreserveExpiryTime.IsZero()
+}
+
+// isMachineInMaintenance returns true if the machine is in the Maintenance phase (planned maintenance).
+func isMachineInMaintenance(machine *v1alpha1.Machine) bool {
+	return machine.Status.CurrentStatus.Phase == v1alpha1.MachineMaintenance
 }
 
 func isMachineReady(machine *v1alpha1.Machine) bool {

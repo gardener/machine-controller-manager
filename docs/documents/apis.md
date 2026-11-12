@@ -1580,6 +1580,20 @@ int32
 </tr>
 <tr>
 <td>
+<code>maintenanceReplicas</code>
+</td>
+<td>
+<em>
+int32
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>MaintenanceReplicas is the number of machines in Maintenance phase targeted by this MachineDeployment.</p>
+</td>
+</tr>
+<tr>
+<td>
 <code>unavailableReplicas</code>
 </td>
 <td>
@@ -2050,6 +2064,20 @@ int32
 </td>
 <td>
 <p>PreservedFailedReplicas is the number of preserved replicas in Failed phase for this replica set</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>maintenanceReplicas</code>
+</td>
+<td>
+<em>
+int32
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>MaintenanceReplicas is the number of machines in Maintenance phase for this replica set.</p>
 </td>
 </tr>
 <tr>
