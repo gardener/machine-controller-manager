@@ -4537,6 +4537,33 @@ var _ = Describe("machine", func() {
 					nodeTainted:             true,
 				},
 			}),
+			Entry("when a preserved non-Failed machine has no annotation and its preservation times out, should stop preservation", testCase{
+				setup: setup{
+					nodeName:           "node-1",
+					machinePhase:       v1alpha1.MachineRunning,
+					preserveExpiryTime: &metav1.Time{Time: metav1.Now().Add(-1 * time.Minute)},
+				},
+				expect: expect{
+					preserveExpiryTimeIsSet: false,
+					nodeCondition:           &corev1.NodeCondition{Type: v1alpha1.NodePreserved, Status: corev1.ConditionFalse},
+					err:                     nil,
+				},
+			}),
+			Entry("when a preserved non-Failed machine has an invalid annotation and its preservation times out, should stop preservation", testCase{
+				setup: setup{
+					machineAnnotationValue: "invalidValue",
+					machineAnnotated:       true,
+					nodeName:               "node-1",
+					machinePhase:           v1alpha1.MachineRunning,
+					preserveExpiryTime:     &metav1.Time{Time: metav1.Now().Add(-1 * time.Minute)},
+				},
+				expect: expect{
+					preserveExpiryTimeIsSet: false,
+					nodeCondition:           &corev1.NodeCondition{Type: v1alpha1.NodePreserved, Status: corev1.ConditionFalse},
+					machineAnnotationValue:  "",
+					err:                     nil,
+				},
+			}),
 			Entry("when invalid preserve annotation is added on un-preserved machine, and node is not annotated should do nothing  ", testCase{
 				setup: setup{
 					machineAnnotationValue: "invalidValue",

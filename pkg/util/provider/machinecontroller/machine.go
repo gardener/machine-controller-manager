@@ -856,10 +856,13 @@ func (c *controller) manageMachinePreservation(ctx context.Context, machine *v1a
 			klog.V(3).Infof("node %q not found. Will check the machine %q for annotation:%q", machine.Labels[v1alpha1.NodeLabelKey], machine.Name, machineutils.PreserveMachineAnnotationKey)
 		}
 	}
-
 	preserveAnnotationValue, shouldHandlePreservation := machineutils.DeterminePreservationAction(machine, node)
 	if !shouldHandlePreservation {
-		// We clear the error here to prevent preservation logic from interfering with non-preservation-bound machines.
+		// a non-Failed machine with no/invalid annotation whose preservation expired must still be stopped
+		if machineutils.IsPreserveExpiryTimeSetAndExpired(machine) && !machineutils.IsFailed(machine) {
+			clone, _, err = c.stopPreservationIfActive(ctx, machine.DeepCopy(), node, true)
+			return
+		}
 		clone = machine
 		err = nil
 		return
@@ -876,12 +879,9 @@ func (c *controller) manageMachinePreservation(ctx context.Context, machine *v1a
 			clone, node, err = c.preserveMachine(ctx, clone, node, preserveAnnotationValue)
 		}
 	case machineutils.PreserveMachineAnnotationValueNow:
-		if machineutils.IsPreserveExpiryTimeSetAndExpired(clone) {
-			// a Failed machine is left for the machineSet to terminate; otherwise stop preservation
-			if !machineutils.IsFailed(clone) {
-				clone, node, err = c.stopPreservationIfActive(ctx, clone, node, true)
-			}
-		} else {
+		if machineutils.IsPreserveExpiryTimeSetAndExpired(clone) && !machineutils.IsFailed(clone) {
+			clone, node, err = c.stopPreservationIfActive(ctx, clone, node, true)
+		} else if !machineutils.IsPreserveExpiryTimeSetAndExpired(clone) {
 			clone, node, err = c.preserveMachine(ctx, clone, node, preserveAnnotationValue)
 			if err != nil {
 				return
