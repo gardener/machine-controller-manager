@@ -921,7 +921,7 @@ func (c *controller) manageAutoPreservationOfFailedMachines(ctx context.Context,
 		// no capacity remaining, nothing to do
 		return machines, nil
 	} else if autoPreservationCapacityRemaining < 0 { // when autoPreserveFailedMachineMax is decreased, it can be negative.
-		updatedMachines, err := c.stopAutoPreservationForMachines(ctx, autoPreservedMachines, int(-autoPreservationCapacityRemaining))
+		updatedMachines, err := c.stopAutoPreservationForMachines(ctx, machineSet, autoPreservedMachines, int(-autoPreservationCapacityRemaining))
 		if err != nil {
 			return nil, err
 		}
@@ -972,7 +972,7 @@ func (c *controller) manageAutoPreservationOfFailedMachines(ctx context.Context,
 	return slices.Concat(remaining, autoPreservationCandidates, autoPreservedMachines), nil
 }
 
-func (c *controller) stopAutoPreservationForMachines(ctx context.Context, autoPreservedMachines []*v1alpha1.Machine, numToStop int) ([]*v1alpha1.Machine, error) {
+func (c *controller) stopAutoPreservationForMachines(ctx context.Context, machineSet *v1alpha1.MachineSet, autoPreservedMachines []*v1alpha1.Machine, numToStop int) ([]*v1alpha1.Machine, error) {
 	numOfAutoPreservedMachines := len(autoPreservedMachines)
 	if numOfAutoPreservedMachines == 0 {
 		return autoPreservedMachines, nil
@@ -992,6 +992,10 @@ func (c *controller) stopAutoPreservationForMachines(ctx context.Context, autoPr
 		}, true)
 		if err != nil {
 			klog.Errorf("unable to remove %q=%q annotation from machine %q: %v.", machineutils.PreserveMachineAnnotationKey, machineutils.PreserveMachineAnnotationValueAutoPreserved, machine.Name, err)
+			return nil, err
+		}
+		if err := c.machineControl.DeleteMachine(ctx, updatedMachine.Namespace, updatedMachine.Name, machineSet); err != nil {
+			klog.Errorf("unable to trigger deletion of de-preserved machine %q: %v.", updatedMachine.Name, err)
 			return nil, err
 		}
 		autoPreservedMachines[index] = updatedMachine
