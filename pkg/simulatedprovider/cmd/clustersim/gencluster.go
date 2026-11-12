@@ -56,6 +56,23 @@ var genClusterCmd = &cobra.Command{
 		if genClusterFlags.Zones == nil || genClusterFlags.Instances == nil {
 			return fmt.Errorf("required flags not passed")
 		}
+
+		for _, zone := range genClusterFlags.Zones {
+			if strings.TrimSpace(zone) == "" {
+				return fmt.Errorf("zone cannot be empty")
+			}
+
+			if strings.LastIndex(zone, "-") == -1 {
+				return fmt.Errorf("invalid zone %q passed, expected format is region-zone e.g. euwest-1", zone)
+			}
+		}
+
+		for _, instance := range genClusterFlags.Instances {
+			if strings.TrimSpace(instance) == "" {
+				return fmt.Errorf("instance cannot be empty")
+			}
+		}
+
 		instanceList, err = parseInstanceList(genClusterFlags.Instances)
 		if err != nil {
 			return fmt.Errorf("could not parse instances list: %v", err)
@@ -130,7 +147,7 @@ func init() {
 		&genClusterFlags.Instances, "instance", "i", nil,
 		"comma separated list of instances to use (required)",
 	)
-	_ = genClusterCmd.MarkFlagRequired("instances")
+	_ = genClusterCmd.MarkFlagRequired("instance")
 }
 
 // parses an instance list of the form:
@@ -180,6 +197,8 @@ func parseInstanceList(instances []string) (details []InstanceDetails, err error
 
 func getRegionFromZone(zone string) string {
 	// TODO: consider different CSP based zone formats
+	// If support for other formats is added, the validation in `PreRunE`
+	// has to be adapted accordingly.
 	idx := strings.LastIndex(zone, "-")
 	return zone[:idx]
 }
