@@ -393,11 +393,11 @@ In the case where `spec.Replicas` has been reduced, MCM will always prioritize k
 
 ### How can I stress-test the simulated-provider integration tests?
 
-The `pkg/simulatedprovider/hack/stress.sh` script runs the simulated-provider integration test suite (`pkg/simulatedprovider/test/integration/controller`) repeatedly and collects a pass/fail summary. Use it when you want to detect flaky tests or confirm that a fix holds across many consecutive runs.
+The `pkg/simulatedprovider/hack/stress.sh` script runs the simulated-provider integration test suite (`pkg/simulatedprovider/test/integration/controller`) repeatedly and collects a pass/fail summary.
 
-**Prerequisites**: `ginkgo` and `kwokctl` must be on your `PATH`.
+**Prerequisites**: `ginkgo` and `kwokctl` must be on `PATH`.
 
-**Typical usage** (run from anywhere in the repo):
+**Usage**:
 
 ```sh
 # Run the suite 20 times, stop on the first failure, stream output
