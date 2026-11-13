@@ -964,6 +964,7 @@ func (c *controller) copyPreserveAnnotationToNode(ctx context.Context, machine *
 			klog.Errorf("error trying to copy preserve annotation onto node %q: %v", node.Name, err)
 			return machine, err
 		}
+		// TODO: If the node has an invalid annotation value, and the machine has a valid one, the node's invalid annotation still takes precedence.
 	} else if nodeValue != machineValue {
 		klog.Warningf(
 			"Conflicting annotation:%q on machine %q (=%q) and node %q (=%q); node value takes precedence, discarding the machine value",
