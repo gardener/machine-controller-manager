@@ -81,6 +81,8 @@ spec:
 - `maxTotalUnreadyPercentage`: Maximum percentage of unready nodes in the cluster. If the unready nodes percentage crosses this, autoscaling activities are stopped. Since auto-preserved nodes are unready, the value `AutoPreserveFailedMachineMax/Worker.Maximum * 100` must be lower than `maxTotalUnreadyPercentage` to prevent these nodes from halting autoscaling. Cluster Autoscaler performs this readiness check both at the cluster level and at the worker level.
 - `machinePreserveTimeout` : Duration after which preserved machines are automatically released. This defaults to `96h` (4 days).
 
+> Note: For auto-preserved machines, the `PreserveExpiryTime` uses the machine's `MachineConfiguration.MachinePreserveTimeout` if set, otherwise the built-in default (`96h`). The machine-controller's `--machine-preserve-timeout` flag only applies to preservations driven by the machine controller, not to auto-preservation set by the machineSet controller.
+
 > Note: ⚠️ Changes to machinePreserveTimeout apply only to preservations that occur after the change.
 > If AutoPreserveFailedMachineMax is decreased, auto-preserved machines are de-preserved first, followed by manually preserved machines, until the count is within the new limit. When deciding between two auto-preserved or two manually preserved machines to de-preserve, the machine with the earlier PreserveExpiryTime is de-preserved first.
 
@@ -110,7 +112,7 @@ If there is no backing node, the annotation stays on the machine and drives pres
 
 Removing the preserve annotation is a **no-op**: it does not stop an ongoing preservation. To stop preservation, the machine/node must be annotated with `node.machine.sapcloud.io/preserve=false` (see below).
 
-When a machine/node is annotated with value `false`, the annotation is not removed by MCM. This explicitly indicates that the machine should not be auto-preserved by MCM. If this `false` annotation is later deleted, MCM will again auto-preserve the machine if it is in `Failed` phase and the `AutoPreserveFailedMachineMax` limit is not reached.
+When a machine/node is annotated with value `false`, the annotation is not removed by MCM and persists on the object until an operator removes it. This explicitly indicates that the machine should not be auto-preserved by MCM, and it will keep suppressing auto-preservation for as long as it is present. If this `false` annotation is later deleted, MCM will again auto-preserve the machine if it is in `Failed` phase and the `AutoPreserveFailedMachineMax` limit is not reached.
 
 ---
 ### How to manually stop preservation before PreserveExpiryTime:
