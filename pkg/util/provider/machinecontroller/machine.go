@@ -699,11 +699,7 @@ func (c *controller) initializeMachine(ctx context.Context, machine *v1alpha1.Ma
 					klog.V(3).Infof("node %q not found.", machine.Labels[v1alpha1.NodeLabelKey])
 				}
 			}
-			if val, shouldHandlePreservation := machineutils.DeterminePreservationAction(machine, node); shouldHandlePreservation && val == machineutils.PreserveMachineAnnotationValueWhenFailed {
-				if machineCurrentStatus.PreserveExpiryTime == nil {
-					machineCurrentStatus.PreserveExpiryTime = &metav1.Time{Time: metav1.Now().Add(c.getEffectiveMachinePreserveTimeout(machine).Duration)}
-				}
-			}
+			c.setFailedState(machine, node, &machineCurrentStatus)
 		}
 
 		updateRetryPeriod, updateErr := c.machineStatusUpdate(
@@ -912,9 +908,10 @@ func (c *controller) manageMachinePreservation(ctx context.Context, machine *v1a
 	return
 }
 
-// copyPreserveAnnotationToNode reconciles the preserve annotation between the machine and its node.
-// When a node exists, the machine's preserve value is copied onto the node (if the node does not already carry it) and then removed from the machine.
-// When no node exists the annotation is kept on the machine. This function does not copy auto-preserved annotations to the node.
+// copyPreserveAnnotationToNode copies the machine's preserve annotation onto the node (when a node
+// exists and does not already carry it) and then removes it from the machine, making the node the
+// source of truth. When no node exists the annotation is kept on the machine. The MCM-internal
+// auto-preserved marker is never copied to the node.
 func (c *controller) copyPreserveAnnotationToNode(ctx context.Context, machine *v1alpha1.Machine, node *corev1.Node) (*v1alpha1.Machine, error) {
 	machineValue, machineHasAnnotation := machine.Annotations[machineutils.PreserveMachineAnnotationKey]
 	if !machineHasAnnotation || node == nil {
@@ -954,8 +951,12 @@ func (c *controller) copyPreserveAnnotationToNode(ctx context.Context, machine *
 		machine.Name,
 		node.Name,
 	)
-	return machineutils.PatchMachine(ctx, c.controlMachineClient.Machines(machine.Namespace), machine, func(m *v1alpha1.Machine) error {
+	updatedMachine, err := machineutils.PatchMachine(ctx, c.controlMachineClient.Machines(machine.Namespace), machine, func(m *v1alpha1.Machine) error {
 		delete(m.Annotations, machineutils.PreserveMachineAnnotationKey)
 		return nil
 	}, true)
+	if err != nil {
+		return machine, err
+	}
+	return updatedMachine, nil
 }
