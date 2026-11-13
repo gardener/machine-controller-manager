@@ -2168,7 +2168,7 @@ func (c *controller) setFailedState(machine *v1alpha1.Machine, node *v1.Node, st
 	if status.PreserveExpiryTime != nil {
 		return
 	}
-	if val, ok := machineutils.GetEffectivePreserveAnnotation(machine, node); ok && val == machineutils.PreserveMachineAnnotationValueWhenFailed {
+	if val, _ := machineutils.GetEffectivePreserveAnnotation(machine, node); val == machineutils.PreserveMachineAnnotationValueWhenFailed {
 		status.PreserveExpiryTime = &metav1.Time{Time: metav1.Now().Add(c.getEffectiveMachinePreserveTimeout(machine).Duration)}
 	}
 }

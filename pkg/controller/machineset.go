@@ -1000,6 +1000,7 @@ func (c *controller) stopAutoPreservationForMachines(ctx context.Context, machin
 			errs = append(errs, err)
 			continue
 		}
+		// TODO: Expectations for machine deletion should be handled here to ensure the controller is aware of the deletion request.
 		if err := c.machineControl.DeleteMachine(ctx, updatedMachine.Namespace, updatedMachine.Name, machineSet); err != nil {
 			klog.Errorf("unable to trigger deletion of de-preserved machine %q: %v.", updatedMachine.Name, err)
 			errs = append(errs, err)
