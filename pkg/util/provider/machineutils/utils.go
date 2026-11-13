@@ -254,14 +254,10 @@ func PatchMachine(
 	return machineClient.Patch(ctx, machine.Name, types.MergePatchType, patch, metav1.PatchOptions{}, subresources...)
 }
 
-// DeterminePreservationAction returns the preserve annotation value and whether any work is needed.
-// When a node exists it is the source of truth: the annotation is copied onto the node and removed
-// from the machine. Removal of the annotation is a no-op: the user must set PreserveMachineAnnotationValueFalse
-// to stop preservation. Invalid values are treated as no-ops.
-func DeterminePreservationAction(
-	machine *v1alpha1.Machine,
-	node *corev1.Node,
-) (annotationValue string, shouldHandlePreservation bool) {
+// GetEffectivePreserveAnnotation returns the effective preserve annotation value.
+// The node is the source of truth when it exists; otherwise the machine's annotation is used.
+// Invalid/empty annotation values are logged and result as ("", false).
+func GetEffectivePreserveAnnotation(machine *v1alpha1.Machine, node *corev1.Node) (string, bool) {
 	if node != nil {
 		if val, ok := node.Annotations[PreserveMachineAnnotationKey]; ok {
 			if AllowedPreserveAnnotationValues.Has(val) {
@@ -271,7 +267,7 @@ func DeterminePreservationAction(
 				"Node %q has an invalid annotation:%q=%q.",
 				machine.Labels[v1alpha1.NodeLabelKey],
 				PreserveMachineAnnotationKey,
-				node.Annotations[PreserveMachineAnnotationKey],
+				val,
 			)
 			// Invalid annotation on the node is treated as a no-op.
 			return "", false
@@ -286,7 +282,7 @@ func DeterminePreservationAction(
 			"Machine %q has an invalid annotation:%q=%q.",
 			machine.Name,
 			PreserveMachineAnnotationKey,
-			machine.Annotations[PreserveMachineAnnotationKey],
+			val,
 		)
 		// Invalid annotation on the machine is treated as a no-op.
 		return "", false

@@ -2168,7 +2168,7 @@ func (c *controller) setFailedState(machine *v1alpha1.Machine, node *v1.Node, st
 	if status.PreserveExpiryTime != nil {
 		return
 	}
-	if val, shouldHandlePreservation := machineutils.DeterminePreservationAction(machine, node); shouldHandlePreservation && val == machineutils.PreserveMachineAnnotationValueWhenFailed {
+	if val, ok := machineutils.GetEffectivePreserveAnnotation(machine, node); ok && val == machineutils.PreserveMachineAnnotationValueWhenFailed {
 		status.PreserveExpiryTime = &metav1.Time{Time: metav1.Now().Add(c.getEffectiveMachinePreserveTimeout(machine).Duration)}
 	}
 }
@@ -2486,6 +2486,17 @@ func (c *controller) preserveMachine(ctx context.Context, machine *v1alpha1.Mach
 
 	if node == nil {
 		return machine, node, nil
+	}
+
+	// A preserve=now machine in Running phase must not keep the preservation NoSchedule taint, so
+	// that workload can be scheduled onto the node again.
+	if preserveValue == machineutils.PreserveMachineAnnotationValueNow && machine.Status.CurrentStatus.Phase == v1alpha1.MachineRunning {
+		if err = nodeops.RemoveTaintOffNode(ctx, c.targetCoreClient, node.Name, node, &v1.Taint{
+			Key:    machineutils.NodePreservedTaintKey,
+			Effect: v1.TaintEffectNoSchedule,
+		}); err != nil {
+			return machine, node, err
+		}
 	}
 
 	existingNodePreservedCondition := nodeops.GetCondition(node, v1alpha1.NodePreserved)
