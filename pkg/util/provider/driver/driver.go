@@ -24,6 +24,13 @@ type Driver interface {
 	//  - codes.Uninitialized initialization of VM instance failed due to errors
 	//  - codes.NotFound if VM instance was not found.
 	InitializeMachine(context.Context, *InitializeMachineRequest) (*InitializeMachineResponse, error)
+	// UpdateMachine call is responsible for updating the VM on the provider to reflect the new MachineClass
+	// after a successful in-place node update. It is called once ownership of a Machine has been transferred
+	// to the new MachineSet (and thus a new MachineClass) by MCM.
+	//
+	// In case of an error, this operation should return an error with one of the following status codes
+	//  - codes.Unimplemented if the provider does not support in-place VM updates.
+	UpdateMachine(context.Context, *UpdateMachineRequest) (*UpdateMachineResponse, error)
 	// DeleteMachine call is responsible for VM deletion/termination on the provider
 	DeleteMachine(context.Context, *DeleteMachineRequest) (*DeleteMachineResponse, error)
 	// GetMachineStatus call get's the status of the VM backing the machine object on the provider
@@ -88,6 +95,21 @@ type InitializeMachineResponse struct {
 	// Addresses to reach the VM. Once known/reported by the machine provider, they eventually get persisted in this field.
 	Addresses []corev1.NodeAddress
 }
+
+// UpdateMachineRequest is the update request for VM update after an in-place node update.
+type UpdateMachineRequest struct {
+	// Machine object whose underlying VM is to be updated
+	Machine *v1alpha1.Machine
+
+	// MachineClass backing the machine object after the in-place update (the new MachineClass)
+	MachineClass *v1alpha1.MachineClass
+
+	// Secret backing the machineClass object
+	Secret *corev1.Secret
+}
+
+// UpdateMachineResponse is the update response for VM update.
+type UpdateMachineResponse struct{}
 
 // DeleteMachineRequest is the delete request for VM deletion
 type DeleteMachineRequest struct {
