@@ -870,7 +870,7 @@ func (c *controller) manageMachinePreservation(ctx context.Context, machine *v1a
 
 	clone = machine.DeepCopy()
 	switch preserveAnnotationValue {
-	case "", machineutils.PreserveMachineAnnotationValueFalse:
+	case machineutils.PreserveMachineAnnotationValueFalse:
 		clone, node, err = c.stopPreservationIfActive(ctx, clone, node, false)
 	case machineutils.PreserveMachineAnnotationValueWhenFailed:
 		if !machineutils.IsFailed(clone) {
@@ -902,6 +902,8 @@ func (c *controller) manageMachinePreservation(ctx context.Context, machine *v1a
 		} else if !machineutils.IsPreserveExpiryTimeSetAndExpired(clone) {
 			clone, node, err = c.preserveMachine(ctx, clone, node, preserveAnnotationValue)
 		}
+	default:
+		klog.Warningf("Unknown preserve annotation value %q on machine %q", preserveAnnotationValue, machine.Name)
 	}
 	if err != nil {
 		return
