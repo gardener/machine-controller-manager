@@ -36,6 +36,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/tools/cache"
@@ -932,6 +933,7 @@ func (c *controller) manageAutoPreservationOfFailedMachines(ctx context.Context,
 		return autoPreservationCandidates[i].CreationTimestamp.After(autoPreservationCandidates[j].CreationTimestamp.Time)
 	})
 
+	var errs []error
 	for index, machine := range autoPreservationCandidates {
 		if autoPreservationCapacityRemaining == 0 {
 			break
@@ -947,7 +949,8 @@ func (c *controller) manageAutoPreservationOfFailedMachines(ctx context.Context,
 		}, true)
 		if err != nil {
 			klog.Errorf("could not annotate machine %q for auto-preservation: %v", machine.Name, err)
-			return nil, err
+			errs = append(errs, err)
+			continue
 		}
 
 		klog.V(2).Infof("Setting PreserveExpiryTime on machine %q for auto-preservation as part of machine set %q", machine.Name, machineSet.Name)
@@ -961,7 +964,8 @@ func (c *controller) manageAutoPreservationOfFailedMachines(ctx context.Context,
 		}, true, "status")
 		if err != nil {
 			klog.Errorf("could not set PreserveExpiryTime on machine %q for auto-preservation: %v", annotatedMachine.Name, err)
-			return nil, err
+			errs = append(errs, err)
+			continue
 		}
 
 		klog.V(2).Infof("Machine %q auto-preserved till %q", machine.Name, preservedMachine.Status.CurrentStatus.PreserveExpiryTime)
@@ -969,7 +973,7 @@ func (c *controller) manageAutoPreservationOfFailedMachines(ctx context.Context,
 		autoPreservationCapacityRemaining--
 	}
 
-	return slices.Concat(remaining, autoPreservationCandidates, autoPreservedMachines), nil
+	return slices.Concat(remaining, autoPreservationCandidates, autoPreservedMachines), utilerrors.NewAggregate(errs)
 }
 
 func (c *controller) stopAutoPreservationForMachines(ctx context.Context, machineSet *v1alpha1.MachineSet, autoPreservedMachines []*v1alpha1.Machine, numToStop int) ([]*v1alpha1.Machine, error) {
@@ -981,6 +985,7 @@ func (c *controller) stopAutoPreservationForMachines(ctx context.Context, machin
 		sort.Sort(ActiveMachines(autoPreservedMachines))
 	}
 
+	var errs []error
 	for index, machine := range autoPreservedMachines {
 		if numToStop == 0 {
 			break
@@ -992,14 +997,16 @@ func (c *controller) stopAutoPreservationForMachines(ctx context.Context, machin
 		}, true)
 		if err != nil {
 			klog.Errorf("unable to remove %q=%q annotation from machine %q: %v.", machineutils.PreserveMachineAnnotationKey, machineutils.PreserveMachineAnnotationValueAutoPreserved, machine.Name, err)
-			return nil, err
+			errs = append(errs, err)
+			continue
 		}
 		if err := c.machineControl.DeleteMachine(ctx, updatedMachine.Namespace, updatedMachine.Name, machineSet); err != nil {
 			klog.Errorf("unable to trigger deletion of de-preserved machine %q: %v.", updatedMachine.Name, err)
-			return nil, err
+			errs = append(errs, err)
+			continue
 		}
 		autoPreservedMachines[index] = updatedMachine
 		numToStop--
 	}
-	return autoPreservedMachines, nil
+	return autoPreservedMachines, utilerrors.NewAggregate(errs)
 }
