@@ -87,6 +87,12 @@ func (d *FakeDriver) InitializeMachine(_ context.Context, _ *InitializeMachineRe
 	}, d.Err
 }
 
+// UpdateMachine makes a call to the driver to update the VM after an in-place node update.
+// The fake driver returns codes.Unimplemented to signal that in-place VM updates are not supported.
+func (d *FakeDriver) UpdateMachine(_ context.Context, _ *UpdateMachineRequest) (*UpdateMachineResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "FakeDriver does not support UpdateMachine")
+}
+
 // DeleteMachine make a call to the driver to delete the machine.
 func (d *FakeDriver) DeleteMachine(_ context.Context, deleteMachineRequest *DeleteMachineRequest) (*DeleteMachineResponse, error) {
 	d.VMExists = false
