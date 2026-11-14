@@ -985,7 +985,10 @@ func (c *controller) stopAutoPreservationForMachines(ctx context.Context, machin
 		sort.Sort(ActiveMachines(autoPreservedMachines))
 	}
 
-	var errs []error
+	var (
+		errs             []error
+		machinesToDelete []*v1alpha1.Machine
+	)
 	for index, machine := range autoPreservedMachines {
 		if numToStop == 0 {
 			break
@@ -1000,14 +1003,18 @@ func (c *controller) stopAutoPreservationForMachines(ctx context.Context, machin
 			errs = append(errs, err)
 			continue
 		}
-		// TODO: Expectations for machine deletion should be handled here to ensure the controller is aware of the deletion request.
-		if err := c.machineControl.DeleteMachine(ctx, updatedMachine.Namespace, updatedMachine.Name, machineSet); err != nil {
-			klog.Errorf("unable to trigger deletion of de-preserved machine %q: %v.", updatedMachine.Name, err)
-			errs = append(errs, err)
-			continue
-		}
 		autoPreservedMachines[index] = updatedMachine
+		machinesToDelete = append(machinesToDelete, updatedMachine)
 		numToStop--
 	}
+
+	if len(machinesToDelete) > 0 {
+		// TODO: expect deletions for the machines being terminated
+		if err := c.terminateMachines(ctx, machinesToDelete, machineSet); err != nil {
+			klog.Errorf("failed to terminate excess preserved machines for machineset %q: %v", machineSet.Name, err)
+			errs = append(errs, err)
+		}
+	}
+
 	return autoPreservedMachines, utilerrors.NewAggregate(errs)
 }
