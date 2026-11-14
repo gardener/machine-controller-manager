@@ -99,9 +99,6 @@ const (
 	// PreserveMachineAnnotationKey is the annotation used to explicitly request that a Machine be preserved
 	PreserveMachineAnnotationKey = "node.machine.sapcloud.io/preserve"
 
-	// LastAppliedNodePreserveValueAnnotationKey is the annotation used to store the last preserve value applied by MCM
-	LastAppliedNodePreserveValueAnnotationKey = "node.machine.sapcloud.io/last-applied-node-preserve-value"
-
 	// PreserveMachineAnnotationValueNow is the annotation value used to explicitly request that
 	// a Machine be preserved immediately, irrespective of its current phase, and its phase is not changed
 	// on preservation
@@ -257,91 +254,38 @@ func PatchMachine(
 	return machineClient.Patch(ctx, machine.Name, types.MergePatchType, patch, metav1.PatchOptions{}, subresources...)
 }
 
-// DeterminePreservationAction returns the preserve annotation value for the given node and machine
-// and a boolean informing whether we need to do any work or skip.
-// Invalid annotation values won't change the preservation state.
-// If Node has invalid annotation but Machine has a valid annotation - node takes precedence. We won't change the preservation state.
-func DeterminePreservationAction(
-	machine *v1alpha1.Machine,
-	node *corev1.Node,
-) (annotationValue string, shouldHandlePreservation bool) {
+// GetEffectivePreserveAnnotation returns the effective preserve annotation value.
+// The node is the source of truth when it exists; otherwise the machine's annotation is used.
+// Invalid/empty annotation values are logged and result as ("", false).
+func GetEffectivePreserveAnnotation(machine *v1alpha1.Machine, node *corev1.Node) (string, bool) {
 	if node != nil {
-		// node exists
 		if val, ok := node.Annotations[PreserveMachineAnnotationKey]; ok {
-			// node has PreserveMachineAnnotationKey annotation
 			if AllowedPreserveAnnotationValues.Has(val) {
-				// valid annotation value
 				return val, true
 			}
-			// invalid annotation value
 			klog.Warningf(
-				"Node %q doesn't have a valid annotation:%q=%q",
+				"Node %q has an invalid annotation:%q=%q.",
 				machine.Labels[v1alpha1.NodeLabelKey],
 				PreserveMachineAnnotationKey,
-				node.Annotations[PreserveMachineAnnotationKey],
+				val,
 			)
-			// Preservation has expired so stop preservation
-			if machine.Status.CurrentStatus.PreserveExpiryTime != nil && machine.Status.CurrentStatus.PreserveExpiryTime.Before(&metav1.Time{Time: time.Now()}) {
-				return "", true
-			}
-			// treat it as no-op
+			// Invalid annotation on the node is treated as a no-op.
 			return "", false
 		}
-		// PreserveMachineAnnotationKey annotation absent
-		if _, ok := machine.Annotations[LastAppliedNodePreserveValueAnnotationKey]; ok {
-			// LastAppliedNodePreserveValueAnnotationKey annotation present
-			// Treat as annotation was intentionally removed from node to stop preservation
-			return "", true
-		}
-	}
-	// node doesn't exist or the node is not annotated for preservation
-	if val, ok := machine.Annotations[LastAppliedNodePreserveValueAnnotationKey]; ok {
-		// LastAppliedNodePreserveValueAnnotationKey annotation present
-		// Preservation to be done based on this annotation value
-		if AllowedPreserveAnnotationValues.Has(val) {
-			return val, true
-		}
-		// invalid annotation value
-		klog.Warningf(
-			"Machine %q doesn't have a valid annotation:%q=%q",
-			machine.Name,
-			LastAppliedNodePreserveValueAnnotationKey,
-			machine.Annotations[LastAppliedNodePreserveValueAnnotationKey],
-		)
-		// Preservation has expired so stop preservation
-		if machine.Status.CurrentStatus.PreserveExpiryTime != nil && machine.Status.CurrentStatus.PreserveExpiryTime.Before(&metav1.Time{Time: time.Now()}) {
-			return "", true
-		}
-		// treat it as no-op
-		return "", false
+		// node present but unannotated: fall back to the machine's annotation
 	}
 	if val, ok := machine.Annotations[PreserveMachineAnnotationKey]; ok {
-		// machine has PreserveMachineAnnotationKey present
 		if AllowedPreserveAnnotationValues.Has(val) {
-			// valid annotation value
 			return val, true
 		}
-		// invalid annotation value
 		klog.Warningf(
-			"Machine %q doesn't have a valid annotation:%q=%q",
+			"Machine %q has an invalid annotation:%q=%q.",
 			machine.Name,
 			PreserveMachineAnnotationKey,
-			machine.Annotations[PreserveMachineAnnotationKey],
+			val,
 		)
-		// Preservation has expired so stop preservation
-		if machine.Status.CurrentStatus.PreserveExpiryTime != nil && machine.Status.CurrentStatus.PreserveExpiryTime.Before(&metav1.Time{Time: time.Now()}) {
-			return "", true
-		}
-		// treat it as no-op
+		// Invalid annotation on the machine is treated as a no-op.
 		return "", false
 	}
-	// PreserveMachineAnnotationKey annotation absent
-	if machine.Status.CurrentStatus.PreserveExpiryTime != nil {
-		// Machine was preserved
-		// Treat as annotation was intentionally remove from the machine to stop preservation
-		return "", true
-	}
-	// neither node nor the machine has the PreserveMachineAnnotationKey present
-	// No work to be done
 	return "", false
 }

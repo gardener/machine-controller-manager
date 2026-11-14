@@ -213,17 +213,16 @@ func (c *controller) isAutoPreservationCandidate(machine *v1alpha1.Machine) bool
 		return false
 	}
 
-	if c.nodeLister != nil {
-		node, err := c.nodeLister.Get(machine.Labels[v1alpha1.NodeLabelKey])
+	if nodeName := machine.Labels[v1alpha1.NodeLabelKey]; c.nodeLister != nil && nodeName != "" {
+		node, err := c.nodeLister.Get(nodeName)
 		if err == nil {
 			if _, ok := node.Annotations[machineutils.PreserveMachineAnnotationKey]; ok {
 				return false
 			}
 		} else {
-			klog.V(3).Infof("Unable to get the node %q from lister.", machine.Labels[v1alpha1.NodeLabelKey])
-			if _, ok := machine.Annotations[machineutils.LastAppliedNodePreserveValueAnnotationKey]; ok {
-				return false
-			}
+			// node not fetched; the preserve annotation (if any) stays on the machine when a node is
+			// absent, so fall through to the machine annotation checks below.
+			klog.V(3).Infof("Unable to get the node %q from lister.", nodeName)
 		}
 	}
 

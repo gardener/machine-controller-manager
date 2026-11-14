@@ -36,6 +36,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/tools/cache"
@@ -921,7 +922,7 @@ func (c *controller) manageAutoPreservationOfFailedMachines(ctx context.Context,
 		// no capacity remaining, nothing to do
 		return machines, nil
 	} else if autoPreservationCapacityRemaining < 0 { // when autoPreserveFailedMachineMax is decreased, it can be negative.
-		updatedMachines, err := c.stopAutoPreservationForMachines(ctx, autoPreservedMachines, int(-autoPreservationCapacityRemaining))
+		updatedMachines, err := c.stopAutoPreservationForMachines(ctx, machineSet, autoPreservedMachines, int(-autoPreservationCapacityRemaining))
 		if err != nil {
 			return nil, err
 		}
@@ -932,6 +933,7 @@ func (c *controller) manageAutoPreservationOfFailedMachines(ctx context.Context,
 		return autoPreservationCandidates[i].CreationTimestamp.After(autoPreservationCandidates[j].CreationTimestamp.Time)
 	})
 
+	var errs []error
 	for index, machine := range autoPreservationCandidates {
 		if autoPreservationCapacityRemaining == 0 {
 			break
@@ -947,7 +949,8 @@ func (c *controller) manageAutoPreservationOfFailedMachines(ctx context.Context,
 		}, true)
 		if err != nil {
 			klog.Errorf("could not annotate machine %q for auto-preservation: %v", machine.Name, err)
-			return nil, err
+			errs = append(errs, err)
+			continue
 		}
 
 		klog.V(2).Infof("Setting PreserveExpiryTime on machine %q for auto-preservation as part of machine set %q", machine.Name, machineSet.Name)
@@ -961,7 +964,8 @@ func (c *controller) manageAutoPreservationOfFailedMachines(ctx context.Context,
 		}, true, "status")
 		if err != nil {
 			klog.Errorf("could not set PreserveExpiryTime on machine %q for auto-preservation: %v", annotatedMachine.Name, err)
-			return nil, err
+			errs = append(errs, err)
+			continue
 		}
 
 		klog.V(2).Infof("Machine %q auto-preserved till %q", machine.Name, preservedMachine.Status.CurrentStatus.PreserveExpiryTime)
@@ -969,10 +973,10 @@ func (c *controller) manageAutoPreservationOfFailedMachines(ctx context.Context,
 		autoPreservationCapacityRemaining--
 	}
 
-	return slices.Concat(remaining, autoPreservationCandidates, autoPreservedMachines), nil
+	return slices.Concat(remaining, autoPreservationCandidates, autoPreservedMachines), utilerrors.NewAggregate(errs)
 }
 
-func (c *controller) stopAutoPreservationForMachines(ctx context.Context, autoPreservedMachines []*v1alpha1.Machine, numToStop int) ([]*v1alpha1.Machine, error) {
+func (c *controller) stopAutoPreservationForMachines(ctx context.Context, machineSet *v1alpha1.MachineSet, autoPreservedMachines []*v1alpha1.Machine, numToStop int) ([]*v1alpha1.Machine, error) {
 	numOfAutoPreservedMachines := len(autoPreservedMachines)
 	if numOfAutoPreservedMachines == 0 {
 		return autoPreservedMachines, nil
@@ -981,6 +985,10 @@ func (c *controller) stopAutoPreservationForMachines(ctx context.Context, autoPr
 		sort.Sort(ActiveMachines(autoPreservedMachines))
 	}
 
+	var (
+		errs             []error
+		machinesToDelete []*v1alpha1.Machine
+	)
 	for index, machine := range autoPreservedMachines {
 		if numToStop == 0 {
 			break
@@ -992,10 +1000,21 @@ func (c *controller) stopAutoPreservationForMachines(ctx context.Context, autoPr
 		}, true)
 		if err != nil {
 			klog.Errorf("unable to remove %q=%q annotation from machine %q: %v.", machineutils.PreserveMachineAnnotationKey, machineutils.PreserveMachineAnnotationValueAutoPreserved, machine.Name, err)
-			return nil, err
+			errs = append(errs, err)
+			continue
 		}
 		autoPreservedMachines[index] = updatedMachine
+		machinesToDelete = append(machinesToDelete, updatedMachine)
 		numToStop--
 	}
-	return autoPreservedMachines, nil
+
+	if len(machinesToDelete) > 0 {
+		// TODO: expect deletions for the machines being terminated
+		if err := c.terminateMachines(ctx, machinesToDelete, machineSet); err != nil {
+			klog.Errorf("failed to terminate excess preserved machines for machineset %q: %v", machineSet.Name, err)
+			errs = append(errs, err)
+		}
+	}
+
+	return autoPreservedMachines, utilerrors.NewAggregate(errs)
 }
