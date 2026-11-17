@@ -408,10 +408,9 @@ func (c *controller) addCAScaleDownDisabledAnnotationOnNode(ctx context.Context,
 	}
 	nodeCopy.Annotations[autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationKey] = autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationValue
 	nodeCopy.Annotations[autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationByMCMKey] = autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationByMCMValue
-	updatedNode, err := c.targetCoreClient.CoreV1().Nodes().Update(ctx, nodeCopy, metav1.UpdateOptions{})
+	nodeCopy, err := c.targetCoreClient.CoreV1().Nodes().Update(ctx, nodeCopy, metav1.UpdateOptions{})
 	if err != nil {
 		klog.Errorf("error trying to update CA annotation on node %q: %v", node.Name, err)
-		return nil, err
 	}
-	return updatedNode, nil
+	return nodeCopy, err
 }

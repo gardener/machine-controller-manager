@@ -23,14 +23,20 @@ Modifications Contributors to the Gardener project
 package taints
 
 import (
+	"context"
+	"encoding/json"
 	"fmt"
 	"strings"
 
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/apimachinery/pkg/util/sets"
+	"k8s.io/apimachinery/pkg/util/strategicpatch"
 	"k8s.io/apimachinery/pkg/util/validation"
+	clientset "k8s.io/client-go/kubernetes"
 )
 
 const (
@@ -291,6 +297,38 @@ func AddOrUpdateTaint(node *v1.Node, taint *v1.Taint) (*v1.Node, bool, error) {
 
 	newNode.Spec.Taints = newTaints
 	return newNode, true, nil
+}
+
+// PatchNodeTaints sets the node's spec taints to those of newNode, replacing the taint list.
+// No API server call is made when the taints are already identical. The patch is guarded by oldNode's
+// resourceVersion, so it returns a conflict error if the node's spec changed on the API server in the
+// meantime.
+func PatchNodeTaints(ctx context.Context, c clientset.Interface, oldNode, newNode *v1.Node) (*v1.Node, error) {
+	original := oldNode.DeepCopy()
+	original.SetResourceVersion("")
+	base, err := json.Marshal(original)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal old node %q: %w", oldNode.Name, err)
+	}
+
+	modified := oldNode.DeepCopy()
+	modified.Spec.Taints = newNode.Spec.Taints
+	modifiedJSON, err := json.Marshal(modified)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal new node %q: %w", oldNode.Name, err)
+	}
+
+	// the resourceVersion is stripped from the patch base but kept on the modified node, so it appears in the
+	// generated patch and a concurrent spec change is detected as a conflict.
+	// this is required because .spec.taints has no patch merge key and cannot be safely merged otherwise.
+	patch, err := strategicpatch.CreateTwoWayMergePatch(base, modifiedJSON, v1.Node{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to create taint patch for node %q: %w", oldNode.Name, err)
+	}
+	if string(patch) == "{}" {
+		return oldNode, nil
+	}
+	return c.CoreV1().Nodes().Patch(ctx, oldNode.Name, types.StrategicMergePatchType, patch, metav1.PatchOptions{})
 }
 
 // TaintExists checks if the given taint exists in list of taints. Returns true if exists false otherwise.
