@@ -1092,7 +1092,6 @@ func (c *controller) reconcileMachineHealth(ctx context.Context, machine *v1alph
 		isMachinePending := machine.Status.CurrentStatus.Phase == v1alpha1.MachinePending
 		isMachineInPlaceUpdating := machine.Status.CurrentStatus.Phase == v1alpha1.MachineInPlaceUpdating
 		disableHealthTimeout := machine.Spec.MachineConfiguration != nil && ptr.Deref(machine.Spec.DisableHealthTimeout, false)
-		sleepTime := 1 * time.Minute
 		if isMachinePending {
 			timeOutDuration = c.getEffectiveCreationTimeout(machine).Duration
 			timeElapsed = metav1.Now().Sub(machine.CreationTimestamp.Time)
@@ -1172,9 +1171,10 @@ func (c *controller) reconcileMachineHealth(ctx context.Context, machine *v1alph
 				}
 			}
 		} else {
-			// If timeout has not occurred, re-enqueue the machine
-			// after a specified sleep time
-			klog.V(4).Infof("Creation/Health Timeout hasn't occured yet , will re-enqueue after %s", time.Duration(sleepTime))
+			// Re-enqueue around when the machine is expected to hit the timeout, bounded to [ShortRetry, 1m]
+			// Ensures that small timeouts do not wait too long, while larger timeouts are not polled too frequently.
+			sleepTime := min(max(timeOutDuration-timeElapsed, time.Duration(machineutils.ShortRetry)), time.Minute)
+			klog.V(4).Infof("Creation/Health Timeout hasn't occurred yet , will re-enqueue after %s", sleepTime)
 			c.enqueueMachineAfter(machine, sleepTime, "re-check for creation/health timeout")
 		}
 	}
