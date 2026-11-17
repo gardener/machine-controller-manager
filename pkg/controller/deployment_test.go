@@ -2802,10 +2802,10 @@ var _ = Describe("machineDeployment", func() {
 				expectedFailed, expectedJoined int,
 				checkMaxJoinDuration func(metav1.Duration),
 			) {
-				numFailed, numJoined, maxJoinDurationInWindow := getMachineJoinWindowStats(buildMachines(), windowStartMark)
-				Expect(numFailed).To(Equal(expectedFailed))
-				Expect(numJoined).To(Equal(expectedJoined))
-				checkMaxJoinDuration(maxJoinDurationInWindow)
+				s := getMachineJoinWindowStats(buildMachines(), windowStartMark)
+				Expect(s.numFailedInWindow).To(Equal(expectedFailed))
+				Expect(s.numJoinedInWindow).To(Equal(expectedJoined))
+				checkMaxJoinDuration(s.maxJoinDurationInWindow)
 			},
 			Entry("empty slice yields all zeros",
 				func() []machinev1.Machine { return nil },
@@ -3228,7 +3228,7 @@ var _ = Describe("machineDeployment", func() {
 				},
 			),
 
-			Entry("failed joins reach threshold with per-MachineDeployment growth-percent override: effective-creation-timeout grows by overridden percent",
+			Entry("per-MachineDeployment growth-percent annotation overrides the global default",
 				func(d *machinev1.MachineDeployment) {
 					// Override growth percent to 100 (2x) via MachineConfiguration instead of DefaultCreationTimeoutGrowthPercent
 					d.Spec.Template.Spec.MachineConfiguration = &machinev1.MachineConfiguration{
@@ -3303,6 +3303,39 @@ var _ = Describe("machineDeployment", func() {
 					Expect(result.Annotations).NotTo(HaveKey(machinev1.AnnotationKeyMachineEffectiveCreationTimeoutLastAppliedAt))
 					Expect(result.Annotations).NotTo(HaveKey(machinev1.AnnotationKeyMachineReplaceCycleCount))
 					Expect(result.Annotations).NotTo(HaveKey(machinev1.AnnotationKeyMachineReplaceCycleCountLastAppliedAt))
+				},
+			),
+
+			Entry("continuously failing machines do not reset",
+				func(d *machinev1.MachineDeployment) {
+					// effectiveCreationTimeout was grown; last applied more than maxCreationTimeout ago
+					// so isMaxTimeoutElapsed is true.
+					// replaceCycleCountLastAppliedAt was just refreshed 30s ago (window start is recent),
+					// pushing the failing machine's FailedJoin condition outside the window.
+					// This mirrors the edge case: reset fired immediately after replace-cycle-count was bumped.
+					maxTimeout := getMaxCreationTimeout(constants.DefaultMachineCreationTimeout)
+					d.Annotations[machinev1.AnnotationKeyMachineEffectiveCreationTimeout] = maxTimeout.String()
+					d.Annotations[machinev1.AnnotationKeyMachineEffectiveCreationTimeoutLastAppliedAt] = now.Add(-maxTimeout - time.Minute).Format(time.RFC3339)
+					d.Annotations[machinev1.AnnotationKeyMachineReplaceCycleCount] = "1"
+					// Window start is 30s ago — more recent than the machine's FailedJoin condition.
+					d.Annotations[machinev1.AnnotationKeyMachineReplaceCycleCountLastAppliedAt] = now.Add(-30 * time.Second).Format(time.RFC3339)
+				},
+				func() map[types.UID]*machinev1.MachineList {
+					// Machine failed before the window start (replaceCycleCountLastAppliedAt = 30s ago),
+					// so numFailedJoinInWindow == 0 — but the machine is still alive and not preserved.
+					return map[types.UID]*machinev1.MachineList{
+						"ms1": {Items: []machinev1.Machine{
+							newMachineInSet("m1", "ms1", 2*time.Minute,
+								machineFailedJoinCond(now.Add(-90*time.Second))),
+						}},
+					}
+				},
+				func(result *machinev1.MachineDeployment) {
+					// Reset must NOT fire: a non-preserved failed machine is still present.
+					Expect(result.Annotations).To(HaveKey(machinev1.AnnotationKeyMachineEffectiveCreationTimeout))
+					Expect(result.Annotations).To(HaveKey(machinev1.AnnotationKeyMachineEffectiveCreationTimeoutLastAppliedAt))
+					Expect(result.Annotations).To(HaveKey(machinev1.AnnotationKeyMachineReplaceCycleCount))
+					Expect(result.Annotations).To(HaveKey(machinev1.AnnotationKeyMachineReplaceCycleCountLastAppliedAt))
 				},
 			),
 		)

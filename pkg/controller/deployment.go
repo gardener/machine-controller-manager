@@ -829,16 +829,16 @@ func (c *controller) checkAndAdjustMachineEffectiveCreationTimeout(ctx context.C
 	maxCreationTimeout := computeMaxCreationTimeout(specCreationTimeout, creationTimeoutGrowthPercent, constants.DefaultMaxCreationTimeoutGrowthCount)
 	windowStartMark := oldInfo.replaceCycleCountLastAppliedAt.Time
 
-	numFailedJoinInWindow, numJoinedInWindow, maxJoinDurationInWindow := getMachineJoinWindowStats(flattenMachineMap(machineMap), windowStartMark)
-	klog.V(4).Infof("For MachineDeployment %q, numFailedJoinInWindow=%d, numJoinedInWindow=%d, maxJoinDurationInWindow=%s, replaceCount=%d, replaceCycleCountLastAppliedAt=%s",
-		mcd.Name, numFailedJoinInWindow, numJoinedInWindow, maxJoinDurationInWindow,
-		oldInfo.replaceCycleCount, oldInfo.replaceCycleCountLastAppliedAt.Time.Format(time.RFC3339))
+	stats := getMachineJoinWindowStats(flattenMachineMap(machineMap), windowStartMark)
+	klog.V(4).Infof("For MachineDeployment %q, numFailedJoinInWindow=%d, numJoinedInWindow=%d, maxJoinDurationInWindow=%s, numFailedTotal=%d, replaceCount=%d, replaceCycleCountLastAppliedAt=%s",
+		mcd.Name, stats.numFailedInWindow, stats.numJoinedInWindow, stats.maxJoinDurationInWindow,
+		stats.numFailedTotal, oldInfo.replaceCycleCount, oldInfo.replaceCycleCountLastAppliedAt.Time.Format(time.RFC3339))
 	newInfo := oldInfo
-	if numFailedJoinInWindow == 0 && oldInfo.isMaxTimeoutElapsed(now, maxCreationTimeout) {
-		// No failures and a full max-timeout window has elapsed since the timeout was last applied; clear all adjust annotations so the timeout resets to the spec timeout.
+	if stats.numFailedTotal == 0 && oldInfo.isMaxTimeoutElapsed(now, maxCreationTimeout) {
+		// No non-preserved failed machines exist and a full max-timeout window has elapsed; clear all adjust annotations so the timeout resets to the spec timeout.
 		klog.V(3).Infof("For MachineDeployment %q, clearing all creation-timeout relevant annotations after idle max-creation-timeout window of %q elapsed", mcd.Name, maxCreationTimeout)
 		newInfo.reset = true
-	} else if numFailedJoinInWindow > 0 && oldInfo.isReplaceCycleCountWindowElapsed(now) {
+	} else if stats.numFailedInWindow > 0 && oldInfo.isReplaceCycleCountWindowElapsed(now) {
 		// Only increment once per window to avoid multiple increments within the same failure cycle.
 		newInfo.replaceCycleCount++
 		newInfo.replaceCycleCountLastAppliedAt = now
@@ -847,14 +847,14 @@ func (c *controller) checkAndAdjustMachineEffectiveCreationTimeout(ctx context.C
 			newInfo.effectiveCreationTimeoutLastAppliedAt = now
 			newInfo.replaceCycleCount = 0 // reset replace-cycle-count after you grow effective-creation-timeout
 			klog.V(3).Infof("For MachineDeployment %q, adjust threshold breached (numFailedJoinInWindow:%d, numJoinedInWindow:%d, replaceCycleCountLastAppliedAt: %s, older replaceCycleCountLastAppliedAt: %s)",
-				mcd.Name, numFailedJoinInWindow, numJoinedInWindow, newInfo.replaceCycleCountLastAppliedAt.Format(time.RFC3339), oldInfo.replaceCycleCountLastAppliedAt.Format(time.RFC3339))
+				mcd.Name, stats.numFailedInWindow, stats.numJoinedInWindow, newInfo.replaceCycleCountLastAppliedAt.Format(time.RFC3339), oldInfo.replaceCycleCountLastAppliedAt.Format(time.RFC3339))
 		} else {
 			klog.V(4).Infof("For MachineDeployment %q, adjust threshold not breached (numFailedJoin:%d, numJoined:%d, replaceCycleCount:%d, replaceCycleCountLastAppliedAt: %s)",
-				mcd.Name, numFailedJoinInWindow, numJoinedInWindow, newInfo.replaceCycleCount, newInfo.replaceCycleCountLastAppliedAt.Format(time.RFC3339))
+				mcd.Name, stats.numFailedInWindow, stats.numJoinedInWindow, newInfo.replaceCycleCount, newInfo.replaceCycleCountLastAppliedAt.Format(time.RFC3339))
 		}
-	} else if numFailedJoinInWindow == 0 && numJoinedInWindow >= constants.DefaultSuccessJoinCountThreshold && oldInfo.isEffectiveCreationTimeoutWindowElapsed(now) {
+	} else if stats.numFailedInWindow == 0 && stats.numJoinedInWindow >= constants.DefaultSuccessJoinCountThreshold && oldInfo.isEffectiveCreationTimeoutWindowElapsed(now) {
 		// Machines are joining healthily; thus shrink the timeout back towards the observed max join duration, floored at the spec timeout.
-		newInfo.effectiveCreationTimeout.Duration = max(specCreationTimeout.Duration, maxJoinDurationInWindow.Duration)
+		newInfo.effectiveCreationTimeout.Duration = max(specCreationTimeout.Duration, stats.maxJoinDurationInWindow.Duration)
 		if newInfo.effectiveCreationTimeout != oldInfo.effectiveCreationTimeout {
 			newInfo.effectiveCreationTimeoutLastAppliedAt = now
 		}
@@ -948,9 +948,9 @@ func flattenMachineMap(machineMap map[types.UID]*v1alpha1.MachineList) []v1alpha
 	return machines
 }
 
-// getMachineJoinWindowStats returns the number of machines that failed to join and the number
-// that successfully joined since windowStartMark, along with the maximum join duration of the successful ones.
-func getMachineJoinWindowStats(machines []v1alpha1.Machine, windowStartMark time.Time) (numFailedInWindow int, numJoinedInWindow int, maxJoinDurationInWindow metav1.Duration) {
+// getMachineJoinWindowStats returns join statistics for the given machines relative to windowStartMark.
+func getMachineJoinWindowStats(machines []v1alpha1.Machine, windowStartMark time.Time) machineJoinStats {
+	var s machineJoinStats
 	for _, m := range machines {
 		machineJoinedCond := machineutils.GetMachineCondition(&m, v1alpha1.ConditionMachineJoined)
 		if machineJoinedCond == nil {
@@ -958,21 +958,36 @@ func getMachineJoinWindowStats(machines []v1alpha1.Machine, windowStartMark time
 		}
 		if machineJoinedCond.Status == v1.ConditionTrue {
 			if machineJoinedCond.LastTransitionTime.After(windowStartMark) {
-				numJoinedInWindow++
+				s.numJoinedInWindow++
 				joinDuration := machineJoinedCond.LastTransitionTime.Sub(m.CreationTimestamp.Time).Round(time.Second)
-				if joinDuration > maxJoinDurationInWindow.Duration {
-					maxJoinDurationInWindow.Duration = joinDuration
+				if joinDuration > s.maxJoinDurationInWindow.Duration {
+					s.maxJoinDurationInWindow.Duration = joinDuration
 				}
 			}
 		} else if machineJoinedCond.Status == v1.ConditionFalse &&
-			machineJoinedCond.LastTransitionTime.After(windowStartMark) &&
 			machineJoinedCond.Reason == codes.FailedJoin.String() {
-			numFailedInWindow++
+			if !machineutils.IsPreserved(&m) {
+				s.numFailedTotal++
+			}
+			if machineJoinedCond.LastTransitionTime.After(windowStartMark) {
+				s.numFailedInWindow++
+			}
 		}
 	}
-	return
+	return s
 }
 
+// machineJoinStats holds join outcome counts for a set of machines relative to a time window.
+// numFailedTotal counts non-preserved machines with FailedJoin regardless of when they failed.
+type machineJoinStats struct {
+	numFailedInWindow       int
+	numJoinedInWindow       int
+	maxJoinDurationInWindow metav1.Duration
+	numFailedTotal          int
+}
+
+// creationTimeoutAdjustInfo holds the parsed annotation state used to decide whether and how to
+// adjust the effective-creation-timeout on a MachineDeployment.
 type creationTimeoutAdjustInfo struct {
 	effectiveCreationTimeout              metav1.Duration
 	effectiveCreationTimeoutLastAppliedAt metav1.Time
