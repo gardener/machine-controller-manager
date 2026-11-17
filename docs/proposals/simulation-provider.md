@@ -20,7 +20,7 @@ Cluster creation and lifecycle to be managed via `e2e-framework`, it handles the
 ### Simulation Driver
 
 * `CreateMachine()`:
-  Creates a `node` for the specified `CreateMachineRequest`'s `Machine` and `MachineClass` as a representation for the existence of a backing VM. Returns a dummy `ProviderID`, `NodeName` and and `LastKnownState` message denoting successful instance creation. This can be modified to simulate quota (`ResourceExhausted`) errors or VM creation/node join delays etc.
+  Creates a `node` for the specified `CreateMachineRequest`'s `Machine` and `MachineClass` as a representation for the existence of a backing VM. Returns a dummy `ProviderID`, `NodeName` and `LastKnownState` message denoting successful instance creation. This can be modified to simulate quota (`ResourceExhausted`) errors or VM creation/node join delays etc.
 * `InitializeMachine()`:
   Optional method that is used for network configuration for the VM. It can be skipped for the simulation provider. However, it can be used to simulate initialization errors/delays.
 * `DeleteMachine()`:
@@ -53,16 +53,16 @@ instanceQuota:
   m5.xlarge: 20
   c5.large: 6
 join:
-  - targetPattern: mcd-(a|b)
-    count: 4
+  - machineDeploymentPattern: mcd-(a|b)
+    count: 4 # Denotes the number of machines for each mcd matching the pattern to which this operation is applied (delay/error)
     delay:
     - "1m"
-  - targetPattern: mcd-c
+  - machineDeploymentPattern: mcd-c
     count: 2
     delay:
     - "1m"
 create:
-  - targetPattern: mcd-a
+  - machineDeploymentPattern: mcd-a
     count: 3
     delay:
     - "1m"
@@ -72,11 +72,11 @@ create:
       duration: "2m"
 ```
 
-If the corresponding cluster has the `sim-config.yaml` file present in its tree, its used by the `clustersim start` command to run the driver calls with the specified hook operations.
+If the corresponding cluster has the `sim-config.yaml` file present in its directory (`gen/<cluster>/sim-config.yaml`), its used by the `clustersim start` command to run the driver calls with the specified hook operations.
 
 ### Integration with MCM
 
-The simulation provider would be added as a new package located at `pkg/simulator`.
+The simulation provider would be added as a new package located at `pkg/simulatedprovider`.
 Proposed file structure:
 ```
 pkg/simulatedprovider:
@@ -88,6 +88,7 @@ pkg/simulatedprovider:
   - hooks.go # Simulation hooks and configuration
   cluster/
   - cluster.go # Utility to setup and destroy clusters
+  - kwok-config.yaml # Configuration for the virtual cluster created using kwok
   test/integration/controller/
   - controller_suite_test.go
   - controller_test.go
@@ -104,7 +105,7 @@ pkg/simulatedprovider:
 
 ### `clustersim` tool for standalone testing
 
-While the `provider-simulation` and the virtual cluster setup is enough for IT support, for manual testing purposes, it would be beneficial to have a standalone tool that can run both MCM and the provider standalone alongwith the control plane. This `clustersim` would aid in manual testing by allowing the user to set up their environment in different ways:
+While the `provider-simulation` and the virtual cluster setup is enough for IT support, for manual testing purposes, it would be beneficial to have a standalone tool that can run both MCM and the provider standalone along with the control plane. This `clustersim` would aid in manual testing by allowing the user to set up their environment in different ways:
 
 1. Manual fetching of the required MCD and MCC, then creating a configuration for the required virtual cluster. This would be achieved by something like this:
    - Target the control plane of the cluster whose data you wish to fetch
@@ -138,7 +139,7 @@ This would first validate and check that all the required data for the demo-clus
 
 Furthermore, when launching these processes, it would also copy the running cluster's `kubeconfig` in the generated cluster directory for ease in debugging, and save the process PIDs as well for status tracking and cleanup purposes. The logs for the services would also be stored in the cluster directory.
 
-Finally, a `stop` subcommand can be used to either destory the entire cluster and kill all the running processes (exporting their logs) or kill only the specified processes. This would use the PIDs stored above as part of the `start` subcommand.
+Finally, a `stop` subcommand can be used to either destroy the entire cluster and kill all the running processes (exporting their logs) or kill only the specified processes. This would use the PIDs stored above as part of the `start` subcommand.
 
 ## Target Scope
 
