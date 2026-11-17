@@ -1172,7 +1172,7 @@ var _ = Describe("machine", func() {
 							Phase: v1alpha1.MachineCrashLoopBackOff,
 						},
 						LastOperation: v1alpha1.LastOperation{
-							Description: fmt.Sprintf("Provider error: %s. %s", codes.Uninitialized.Description(), machineutils.InstanceInitialization),
+							Description: fmt.Sprintf("Provider error: %s %s", codes.Uninitialized.Description(), machineutils.InstanceInitialization),
 							ErrorCode:   codes.Uninitialized.String(),
 							State:       v1alpha1.MachineStateFailed,
 							Type:        v1alpha1.MachineOperationCreate,

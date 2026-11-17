@@ -1912,7 +1912,7 @@ func (c *controller) deleteVM(ctx context.Context, deleteMachineRequest *driver.
 			switch machineErr.Code() {
 			case codes.Unknown, codes.DeadlineExceeded, codes.Aborted, codes.Unavailable:
 				retryRequired = machineutils.ShortRetry
-				description = fmt.Sprintf("VM deletion failed, will re-try in the next resync. Error - %s. However, will re-try in the next resync. %s", machineErr.Code().Description(), machineutils.InitiateVMDeletion)
+				description = fmt.Sprintf("VM deletion failed, will re-try in the next resync. Error - %s %s", machineErr.Code().Description(), machineutils.InitiateVMDeletion)
 				state = v1alpha1.MachineStateFailed
 			case codes.NotFound:
 				retryRequired = machineutils.ShortRetry
