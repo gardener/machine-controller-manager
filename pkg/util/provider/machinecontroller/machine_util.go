@@ -416,6 +416,37 @@ func (c *controller) inPlaceUpdate(ctx context.Context, machine *v1alpha1.Machin
 	return machineutils.LongRetry, nil
 }
 
+// triggerUpdateFlow calls the driver's UpdateMachine method when a Machine has been transferred to a new
+// MachineSet after a successful in-place node update. The Machine's spec.class.name already reflects the
+// new MachineClass at this point (patched by the deployment controller during transfer).
+//
+// Providers that do not support in-place VM updates should return codes.Unimplemented; this is treated as
+// success so that the normal MCM cleanup (label removal, uncordon) proceeds unblocked.
+func (c *controller) triggerUpdateFlow(ctx context.Context, machine *v1alpha1.Machine, machineClass *v1alpha1.MachineClass, secretData map[string][]byte) (machineutils.RetryPeriod, error) {
+	if machine.Labels[v1alpha1.LabelKeyNodeUpdateResult] != v1alpha1.LabelValueNodeUpdateSuccessful {
+		return machineutils.LongRetry, nil
+	}
+
+	klog.V(3).Infof("Triggering UpdateMachine for machine %q after in-place update (MachineClass: %q)", machine.Name, machineClass.Name)
+
+	_, err := c.driver.UpdateMachine(ctx, &driver.UpdateMachineRequest{
+		Machine:      machine,
+		MachineClass: machineClass,
+		Secret:       &v1.Secret{Data: secretData},
+	})
+	if err != nil {
+		errStatus, ok := status.FromError(err)
+		if ok && errStatus.Code() == codes.Unimplemented {
+			klog.V(4).Infof("Driver does not support UpdateMachine for machine %q, skipping", machine.Name)
+			return machineutils.LongRetry, nil
+		}
+		return machineutils.ShortRetry, fmt.Errorf("UpdateMachine failed for machine %q: %w", machine.Name, err)
+	}
+
+	klog.V(3).Infof("UpdateMachine succeeded for machine %q", machine.Name)
+	return machineutils.LongRetry, nil
+}
+
 func (c *controller) updateMachineStatusAndNodeCondition(ctx context.Context, machine *v1alpha1.Machine, description string, state v1alpha1.MachineState, drainError error) (machineutils.RetryPeriod, error) {
 	if drainError != nil {
 		updateRetryPeriod, updateErr := c.updateMachineStatusForDrain(ctx, machine, description, state, v1alpha1.MachineOperationDrainNode)

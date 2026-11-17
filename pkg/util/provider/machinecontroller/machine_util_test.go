@@ -18,6 +18,7 @@ import (
 	"github.com/gardener/machine-controller-manager/pkg/fakeclient"
 	"github.com/gardener/machine-controller-manager/pkg/util/nodeops"
 	"github.com/gardener/machine-controller-manager/pkg/util/permits"
+	"github.com/gardener/machine-controller-manager/pkg/util/provider/driver"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/machineutils"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -5048,4 +5049,112 @@ var _ = Describe("machine_util", func() {
 			}),
 		)
 	})
+
+	Describe("#triggerUpdateFlow", func() {
+		type setup struct {
+			machineLabels map[string]string
+			driverErr     error
+		}
+		type expect struct {
+			retryPeriod         machineutils.RetryPeriod
+			err                 bool
+			updateMachineCalled bool
+		}
+		type data struct {
+			setup  setup
+			expect expect
+		}
+
+		DescribeTable("##table",
+			func(data *data) {
+				stop := make(chan struct{})
+				defer close(stop)
+
+				machine := &machinev1.Machine{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "test-machine",
+						Namespace: testNamespace,
+						Labels:    data.setup.machineLabels,
+					},
+				}
+				machineClass := &machinev1.MachineClass{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "test-machine-class",
+						Namespace: testNamespace,
+					},
+				}
+
+				var updateMachineCalled bool
+				customDrv := customUpdateDriver{
+					Driver:  driver.NewFakeDriver(true, "provider-id", "node-0", "", nil, nil, nil),
+					called:  &updateMachineCalled,
+					callErr: data.setup.driverErr,
+				}
+
+				c, trackers := createController(stop, testNamespace, []runtime.Object{machine}, nil, nil, customDrv, false)
+				defer trackers.Stop()
+				waitForCacheSync(stop, c)
+
+				secretData := map[string][]byte{}
+				retryPeriod, err := c.triggerUpdateFlow(context.TODO(), machine, machineClass, secretData)
+
+				Expect(retryPeriod).To(Equal(data.expect.retryPeriod))
+				if data.expect.err {
+					Expect(err).To(HaveOccurred())
+				} else {
+					Expect(err).NotTo(HaveOccurred())
+				}
+				Expect(updateMachineCalled).To(Equal(data.expect.updateMachineCalled))
+			},
+			Entry("should call UpdateMachine when Machine has update-result=successful label", &data{
+				setup: setup{
+					machineLabels: map[string]string{
+						machinev1.LabelKeyNodeUpdateResult: machinev1.LabelValueNodeUpdateSuccessful,
+					},
+					driverErr: nil,
+				},
+				expect: expect{
+					retryPeriod:         machineutils.LongRetry,
+					err:                 false,
+					updateMachineCalled: true,
+				},
+			}),
+			Entry("should skip UpdateMachine when Machine has no update-result label", &data{
+				setup: setup{
+					machineLabels: map[string]string{},
+					driverErr:     nil,
+				},
+				expect: expect{
+					retryPeriod:         machineutils.LongRetry,
+					err:                 false,
+					updateMachineCalled: false,
+				},
+			}),
+			Entry("should return ShortRetry on UpdateMachine error", &data{
+				setup: setup{
+					machineLabels: map[string]string{
+						machinev1.LabelKeyNodeUpdateResult: machinev1.LabelValueNodeUpdateSuccessful,
+					},
+					driverErr: fmt.Errorf("provider error"),
+				},
+				expect: expect{
+					retryPeriod:         machineutils.ShortRetry,
+					err:                 true,
+					updateMachineCalled: true,
+				},
+			}),
+		)
+	})
 })
+
+// customUpdateDriver is a driver.Driver that records calls to UpdateMachine.
+type customUpdateDriver struct {
+	driver.Driver
+	called  *bool
+	callErr error
+}
+
+func (d customUpdateDriver) UpdateMachine(_ context.Context, _ *driver.UpdateMachineRequest) (*driver.UpdateMachineResponse, error) {
+	*d.called = true
+	return nil, d.callErr
+}
