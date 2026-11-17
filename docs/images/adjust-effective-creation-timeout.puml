@@ -6,12 +6,12 @@ start
 :Read annotation state from MachineDeployment\n(effectiveCreationTimeout, effectiveCreationTimeoutLastAppliedAt,\nreplaceCycleCount, replaceCycleCountLastAppliedAt)\n**→ oldInfo**;
 
 :windowStartMark = replaceCycleCountLastAppliedAt\n(falls back to MCD creation timestamp if annotation absent);
-:Scan all Machines in window → numFailedJoinInWindow,\nnumJoinedInWindow, maxJoinDurationInWindow;
+:Scan all Machines → numFailedJoinInWindow, numJoinedInWindow,\nmaxJoinDurationInWindow (window-scoped);\nnumFailedTotal (non-preserved FailedJoin, all time);\nnumPending (no MachineJoined condition yet);
 :specCreationTimeout = MCD spec timeout (or global default);
 :maxCreationTimeout = specTimeout × growthFactor^maxGrowthCount;
 :**newInfo** = copy of oldInfo;
 
-if (numFailedJoinInWindow == 0\nAND max-timeout window elapsed?) then (yes)
+if (numFailedTotal == 0\nAND numPending == 0\nAND max-timeout window elapsed?) then (yes)
 note right
   max-timeout window elapses when
   now − effectiveCreationTimeoutLastAppliedAt

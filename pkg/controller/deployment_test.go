@@ -3306,7 +3306,7 @@ var _ = Describe("machineDeployment", func() {
 				},
 			),
 
-			Entry("continuously failing machines do not reset",
+			Entry("continuously failing machines do not reset after maxCreationTimeout",
 				func(d *machinev1.MachineDeployment) {
 					// effectiveCreationTimeout was grown; last applied more than maxCreationTimeout ago
 					// so isMaxTimeoutElapsed is true.
@@ -3332,6 +3332,37 @@ var _ = Describe("machineDeployment", func() {
 				},
 				func(result *machinev1.MachineDeployment) {
 					// Reset must NOT fire: a non-preserved failed machine is still present.
+					Expect(result.Annotations).To(HaveKey(machinev1.AnnotationKeyMachineEffectiveCreationTimeout))
+					Expect(result.Annotations).To(HaveKey(machinev1.AnnotationKeyMachineEffectiveCreationTimeoutLastAppliedAt))
+					Expect(result.Annotations).To(HaveKey(machinev1.AnnotationKeyMachineReplaceCycleCount))
+					Expect(result.Annotations).To(HaveKey(machinev1.AnnotationKeyMachineReplaceCycleCountLastAppliedAt))
+				},
+			),
+
+			Entry("pending replacement machines do not reset after maxCreationTimeout",
+				func(d *machinev1.MachineDeployment) {
+					// Same as above: isMaxTimeoutElapsed is true and replaceCycleCountLastAppliedAt
+					// was just refreshed. But now the previously-failed machines have been deleted
+					// and replaced by fresh Pending machines with no MachineJoined condition yet.
+					// This is the race seen in the edge case: numFailedTotal==0 but machines are mid-flight.
+					maxTimeout := getMaxCreationTimeout(constants.DefaultMachineCreationTimeout)
+					d.Annotations[machinev1.AnnotationKeyMachineEffectiveCreationTimeout] = maxTimeout.String()
+					d.Annotations[machinev1.AnnotationKeyMachineEffectiveCreationTimeoutLastAppliedAt] = now.Add(-maxTimeout - time.Minute).Format(time.RFC3339)
+					d.Annotations[machinev1.AnnotationKeyMachineReplaceCycleCount] = "1"
+					d.Annotations[machinev1.AnnotationKeyMachineReplaceCycleCountLastAppliedAt] = now.Add(-30 * time.Second).Format(time.RFC3339)
+				},
+				func() map[types.UID]*machinev1.MachineList {
+					// Fresh Pending machines — no MachineJoined condition, so numFailedTotal==0.
+					// They are replacements for machines that already failed and were deleted.
+					return map[types.UID]*machinev1.MachineList{
+						"ms1": {Items: []machinev1.Machine{
+							newMachineInSet("m1", "ms1", 20*time.Second),
+							newMachineInSet("m2", "ms1", 15*time.Second),
+						}},
+					}
+				},
+				func(result *machinev1.MachineDeployment) {
+					// Reset must NOT fire: machines are mid-flight (Pending, not yet failed).
 					Expect(result.Annotations).To(HaveKey(machinev1.AnnotationKeyMachineEffectiveCreationTimeout))
 					Expect(result.Annotations).To(HaveKey(machinev1.AnnotationKeyMachineEffectiveCreationTimeoutLastAppliedAt))
 					Expect(result.Annotations).To(HaveKey(machinev1.AnnotationKeyMachineReplaceCycleCount))

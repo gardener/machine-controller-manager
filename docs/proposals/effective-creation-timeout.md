@@ -37,13 +37,15 @@ Join and failure activity is detected via `Machine.Status.Conditions`:
 
 ### Adjustment logic
 
-On every `MachineDeployment` reconcile, `checkAndAdjustMachineEffectiveCreationTimeout` scans all machines belonging to the MachineDeployment and counts, within the current failure window (`windowStartMark = replaceCycleCountLastAppliedAt`):
+On every `MachineDeployment` reconcile, `checkAndAdjustMachineEffectiveCreationTimeout` scans all machines belonging to the MachineDeployment and counts:
 
 - `numFailedJoinInWindow`: machines with a `FailedJoin` condition transition after `windowStartMark`
 - `numJoinedInWindow`: machines with a successful `MachineJoined` condition transition after `windowStartMark`
 - `maxJoinDurationInWindow`: maximum observed join duration across in-window joiners
+- `numFailedTotal`: non-preserved machines with a `FailedJoin` condition regardless of when they failed
+- `numPending`: machines with no `MachineJoined` condition at all (still in flight)
 
-Note: the window has no upper bound. Any machine that joined or failed *after* `windowStartMark` is counted, including those that resolved after `windowStartMark + currentEffectiveCreationTimeout`. 
+Note: the window (`windowStartMark = replaceCycleCountLastAppliedAt`) has no upper bound. Any machine that joined or failed *after* `windowStartMark` is counted, including those that resolved after `windowStartMark + currentEffectiveCreationTimeout`. `numFailedTotal` and `numPending` are window-independent -- they cover all machines regardless of when their condition was set.
 
 Three outcomes are possible for each reconcile:
 
@@ -76,7 +78,7 @@ This prevents the timeout from drifting below the spec value while allowing it t
 
 **3. Idle reset**
 
-If no machines have joined or failed for a full `maxCreationTimeout` duration since the last timeout adjustment, all adjustment annotations are cleared. This resets the effective timeout back to the spec value for a `MachineDeployment` that has been idle (e.g. scaling completed), avoiding a stale grown timeout affecting future scale-outs.
+If no machines are pending (`numPending == 0`) and no non-preserved machines have failed (`numFailedTotal == 0`), and no joins or failures have been observed for a full `maxCreationTimeout` duration since the last timeout adjustment, all adjustment annotations are cleared. This resets the effective timeout back to the spec value for a `MachineDeployment` that has truly gone idle (e.g. scaling completed), avoiding a stale grown timeout affecting future scale-outs.
 
 
 ### Activity Diagram
