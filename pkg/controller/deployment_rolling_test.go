@@ -14,6 +14,8 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/utils/ptr"
 )
 
 var _ = Describe("deployment_rolling", func() {
@@ -738,5 +740,86 @@ var _ = Describe("deployment_rolling", func() {
 				},
 			}),
 		)
+	})
+
+	Describe("#reconcileOldMachineSets with a maintenance machine", func() {
+		var (
+			specTemplate  *machinev1.MachineTemplateSpec
+			oldMachineSet *machinev1.MachineSet
+			newMachineSet *machinev1.MachineSet
+			deployment    *machinev1.MachineDeployment
+			machineLabels map[string]string
+		)
+
+		BeforeEach(func() {
+			machineLabels = map[string]string{"test-label": "test-label"}
+			specTemplate = &machinev1.MachineTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{Labels: machineLabels},
+				Spec: machinev1.MachineSpec{
+					Class: machinev1.ClassSpec{Kind: "MachineClass", Name: "test-machine-class"},
+				},
+			}
+			oldMachineSet = newMachineSets(1, specTemplate, 1, 0,
+				&machinev1.MachineSetStatus{Replicas: 1, AvailableReplicas: 0, MaintenanceReplicas: 1}, nil, nil, machineLabels)[0]
+			newMachineSet = newMachineSets(1, specTemplate, 2, 0,
+				&machinev1.MachineSetStatus{Replicas: 2, AvailableReplicas: 2}, nil, nil, machineLabels)[0]
+			newMachineSet.Name = "machineset-new"
+
+			deployment = &machinev1.MachineDeployment{
+				ObjectMeta: metav1.ObjectMeta{Name: "deployment", Namespace: testNamespace},
+				Spec: machinev1.MachineDeploymentSpec{
+					Replicas: 3,
+					Strategy: machinev1.MachineDeploymentStrategy{
+						Type: machinev1.RollingUpdateMachineDeploymentStrategyType,
+						RollingUpdate: &machinev1.RollingUpdateMachineDeployment{
+							UpdateConfiguration: machinev1.UpdateConfiguration{
+								MaxUnavailable: new(intstr.FromInt32(1)),
+								MaxSurge:       new(intstr.FromInt32(1)),
+							},
+						},
+					},
+				},
+			}
+		})
+
+		It("should not scale down the old MachineSet backing a node under planned maintenance", func(ctx SpecContext) {
+			maintenanceMachine := newMachinesFromMachineSet(1, oldMachineSet,
+				&machinev1.MachineStatus{CurrentStatus: machinev1.CurrentStatus{Phase: machinev1.MachineMaintenance}}, nil, nil)[0]
+
+			controlMachineObjects := []runtime.Object{oldMachineSet, newMachineSet, maintenanceMachine}
+			c, trackers := createController(ctx.Done(), testNamespace, controlMachineObjects, nil, nil)
+			defer trackers.Stop()
+			waitForCacheSync(ctx.Done(), c)
+
+			allISs := []*machinev1.MachineSet{oldMachineSet, newMachineSet}
+			scaledDown, err := c.reconcileOldMachineSets(ctx, allISs, []*machinev1.MachineSet{oldMachineSet}, newMachineSet, deployment)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(scaledDown).To(BeFalse(), "old MachineSet must not be scaled down while it backs a maintenance node")
+
+			updatedOldIS, err := c.controlMachineClient.MachineSets(testNamespace).Get(ctx, oldMachineSet.Name, metav1.GetOptions{})
+			Expect(err).ToNot(HaveOccurred())
+			Expect(updatedOldIS.Spec.Replicas).To(Equal(int32(1)), "old MachineSet replicas must stay at 1 to retain the maintenance machine")
+		})
+
+		It("should not scale a mixed old MachineSet below its maintenance-replica count", func(ctx SpecContext) {
+			oldMachineSet.Spec.Replicas = 2
+			oldMachineSet.Status = machinev1.MachineSetStatus{Replicas: 2, AvailableReplicas: 1, MaintenanceReplicas: 1}
+			// Allow both replicas to be removed so the test exercises the maintenance limit.
+			deployment.Spec.Strategy.RollingUpdate.MaxUnavailable = ptr.To(intstr.FromInt32(2))
+
+			controlMachineObjects := []runtime.Object{oldMachineSet, newMachineSet}
+			c, trackers := createController(ctx.Done(), testNamespace, controlMachineObjects, nil, nil)
+			defer trackers.Stop()
+			waitForCacheSync(ctx.Done(), c)
+
+			allISs := []*machinev1.MachineSet{oldMachineSet, newMachineSet}
+			scaledDown, err := c.scaleDownOldMachineSetsForRollingUpdate(ctx, allISs, []*machinev1.MachineSet{oldMachineSet}, deployment)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(scaledDown).To(Equal(int32(1)), "only the available replica may be scaled down, the maintenance one must stay")
+
+			updatedOldIS, err := c.controlMachineClient.MachineSets(testNamespace).Get(ctx, oldMachineSet.Name, metav1.GetOptions{})
+			Expect(err).ToNot(HaveOccurred())
+			Expect(updatedOldIS.Spec.Replicas).To(Equal(int32(1)), "old MachineSet replicas must stay at 1 to retain the maintenance machine")
+		})
 	})
 })

@@ -6,6 +6,7 @@ package controller
 
 import (
 	"context"
+
 	machinev1 "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -14,7 +15,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/intstr"
-	"k8s.io/utils/ptr"
 )
 
 var _ = Describe("deployment_util", func() {
@@ -99,8 +99,8 @@ var _ = Describe("deployment_util", func() {
 				Type: machinev1.RollingUpdateMachineDeploymentStrategyType,
 				RollingUpdate: &machinev1.RollingUpdateMachineDeployment{
 					UpdateConfiguration: machinev1.UpdateConfiguration{
-						MaxSurge:       ptr.To(intstr.FromInt(1)),
-						MaxUnavailable: ptr.To(intstr.FromInt(1)),
+						MaxSurge:       new(intstr.FromInt32(1)),
+						MaxUnavailable: new(intstr.FromInt32(1)),
 					},
 				},
 			}, 5, 1),
@@ -111,8 +111,8 @@ var _ = Describe("deployment_util", func() {
 				Type: machinev1.RollingUpdateMachineDeploymentStrategyType,
 				RollingUpdate: &machinev1.RollingUpdateMachineDeployment{
 					UpdateConfiguration: machinev1.UpdateConfiguration{
-						MaxSurge:       ptr.To(intstr.FromInt(2)),
-						MaxUnavailable: ptr.To(intstr.FromInt(10)),
+						MaxSurge:       new(intstr.FromInt32(2)),
+						MaxUnavailable: new(intstr.FromInt32(10)),
 					},
 				},
 			}, 5, 5),
@@ -123,8 +123,8 @@ var _ = Describe("deployment_util", func() {
 				Type: machinev1.InPlaceUpdateMachineDeploymentStrategyType,
 				InPlaceUpdate: &machinev1.InPlaceUpdateMachineDeployment{
 					UpdateConfiguration: machinev1.UpdateConfiguration{
-						MaxSurge:       ptr.To(intstr.FromInt(1)),
-						MaxUnavailable: ptr.To(intstr.FromInt(2)),
+						MaxSurge:       new(intstr.FromInt32(1)),
+						MaxUnavailable: new(intstr.FromInt32(2)),
 					},
 					OrchestrationType: machinev1.OrchestrationTypeManual,
 				},
@@ -136,8 +136,8 @@ var _ = Describe("deployment_util", func() {
 				Type: machinev1.InPlaceUpdateMachineDeploymentStrategyType,
 				InPlaceUpdate: &machinev1.InPlaceUpdateMachineDeployment{
 					UpdateConfiguration: machinev1.UpdateConfiguration{
-						MaxSurge:       ptr.To(intstr.FromInt(1)),
-						MaxUnavailable: ptr.To(intstr.FromInt(10)),
+						MaxSurge:       new(intstr.FromInt32(1)),
+						MaxUnavailable: new(intstr.FromInt32(10)),
 					},
 					OrchestrationType: machinev1.OrchestrationTypeAuto,
 				},
@@ -155,11 +155,12 @@ var _ = Describe("deployment_util", func() {
 
 	Describe("#NewISNewReplicas", func() {
 		type data struct {
-			replicas      int
-			oldISReplicas int
-			newISReplicas int
-			expected      int
-			shouldError   bool
+			replicas                 int
+			oldISReplicas            int
+			oldISMaintenanceReplicas int
+			newISReplicas            int
+			expected                 int
+			shouldError              bool
 		}
 
 		DescribeTable("#table",
@@ -179,7 +180,7 @@ var _ = Describe("deployment_util", func() {
 
 				allISs := []*machinev1.MachineSet{
 					newIS,
-					{Spec: machinev1.MachineSetSpec{Replicas: int32(testData.oldISReplicas)}, Status: machinev1.MachineSetStatus{Replicas: int32(testData.oldISReplicas)}},
+					{Spec: machinev1.MachineSetSpec{Replicas: int32(testData.oldISReplicas)}, Status: machinev1.MachineSetStatus{Replicas: int32(testData.oldISReplicas), MaintenanceReplicas: int32(testData.oldISMaintenanceReplicas)}},
 				}
 
 				result, err := NewISNewReplicas(deployment, allISs, newIS)
@@ -197,7 +198,7 @@ var _ = Describe("deployment_util", func() {
 					Type: machinev1.RollingUpdateMachineDeploymentStrategyType,
 					RollingUpdate: &machinev1.RollingUpdateMachineDeployment{
 						UpdateConfiguration: machinev1.UpdateConfiguration{
-							MaxSurge: ptr.To(intstr.FromInt(2)),
+							MaxSurge: new(intstr.FromInt32(2)),
 						},
 					},
 				}, data{replicas: 5, oldISReplicas: 4, newISReplicas: 2, expected: 3, shouldError: false},
@@ -208,10 +209,21 @@ var _ = Describe("deployment_util", func() {
 					Type: machinev1.RollingUpdateMachineDeploymentStrategyType,
 					RollingUpdate: &machinev1.RollingUpdateMachineDeployment{
 						UpdateConfiguration: machinev1.UpdateConfiguration{
-							MaxSurge: ptr.To(intstr.FromInt(2)),
+							MaxSurge: new(intstr.FromInt32(2)),
 						},
 					},
 				}, data{replicas: 5, oldISReplicas: 4, newISReplicas: 3, expected: 3, shouldError: false},
+			),
+
+			Entry("RollingUpdate, old machine set holds a maintenance machine (held slot, no surge for it)",
+				machinev1.MachineDeploymentStrategy{
+					Type: machinev1.RollingUpdateMachineDeploymentStrategyType,
+					RollingUpdate: &machinev1.RollingUpdateMachineDeployment{
+						UpdateConfiguration: machinev1.UpdateConfiguration{
+							MaxSurge: new(intstr.FromInt32(1)),
+						},
+					},
+				}, data{replicas: 2, oldISReplicas: 1, oldISMaintenanceReplicas: 1, newISReplicas: 0, expected: 1, shouldError: false},
 			),
 
 			Entry("Recreate strategy",
@@ -234,7 +246,7 @@ var _ = Describe("deployment_util", func() {
 					Type: machinev1.InPlaceUpdateMachineDeploymentStrategyType,
 					InPlaceUpdate: &machinev1.InPlaceUpdateMachineDeployment{
 						UpdateConfiguration: machinev1.UpdateConfiguration{
-							MaxSurge: ptr.To(intstr.FromInt(2)),
+							MaxSurge: new(intstr.FromInt32(2)),
 						},
 						OrchestrationType: machinev1.OrchestrationTypeAuto,
 					},
@@ -246,7 +258,7 @@ var _ = Describe("deployment_util", func() {
 					Type: machinev1.InPlaceUpdateMachineDeploymentStrategyType,
 					InPlaceUpdate: &machinev1.InPlaceUpdateMachineDeployment{
 						UpdateConfiguration: machinev1.UpdateConfiguration{
-							MaxSurge: ptr.To(intstr.FromInt(1)),
+							MaxSurge: new(intstr.FromInt32(1)),
 						},
 						OrchestrationType: machinev1.OrchestrationTypeAuto,
 					},

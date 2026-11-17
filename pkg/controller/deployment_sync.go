@@ -622,9 +622,10 @@ func calculateDeploymentStatus(allISs []*v1alpha1.MachineSet, newIS *v1alpha1.Ma
 	availableReplicas := GetAvailableReplicaCountForMachineSets(allISs)
 	totalReplicas := GetReplicaCountForMachineSets(allISs)
 	totalPreservedFailedReplicas := GetPreservedFailedReplicaCountForMachineSets(allISs)
-	// If unavailableReplicas is negative, then that means the Deployment has more available replicas running than
-	// desired, e.g. whenever it scales down. In such a case we should simply default unavailableReplicas to zero.
-	unavailableReplicas := max(totalReplicas-availableReplicas, 0)
+	totalMaintenanceReplicas := GetMaintenanceReplicaCountForMachineSets(allISs)
+	// Count maintenance replicas separately, not as unavailable.
+	// Use zero if available and maintenance replicas exceed the desired count.
+	unavailableReplicas := max(totalReplicas-availableReplicas-totalMaintenanceReplicas, 0)
 
 	status := v1alpha1.MachineDeploymentStatus{
 		// TODO: Ensure that if we start retrying status updates, we won't pick up a new Generation value.
@@ -634,6 +635,7 @@ func calculateDeploymentStatus(allISs []*v1alpha1.MachineSet, newIS *v1alpha1.Ma
 		ReadyReplicas:           GetReadyReplicaCountForMachineSets(allISs),
 		AvailableReplicas:       availableReplicas,
 		PreservedFailedReplicas: totalPreservedFailedReplicas,
+		MaintenanceReplicas:     totalMaintenanceReplicas,
 		UnavailableReplicas:     unavailableReplicas,
 		CollisionCount:          deployment.Status.CollisionCount,
 	}
@@ -652,7 +654,8 @@ func calculateDeploymentStatus(allISs []*v1alpha1.MachineSet, newIS *v1alpha1.Ma
 	// Copy conditions one by one so we won't mutate the original object.
 	status.Conditions = append(status.Conditions, deployment.Status.Conditions...)
 
-	minRequired := max((deployment.Spec.Replicas)-MaxUnavailable(*deployment)-totalPreservedFailedReplicas, 0)
+	// Exclude preserved failed replicas and maintenance replicas from the minimum required replicas.
+	minRequired := max((deployment.Spec.Replicas)-MaxUnavailable(*deployment)-totalPreservedFailedReplicas-totalMaintenanceReplicas, 0)
 	if availableReplicas >= minRequired {
 		minAvailability := NewMachineDeploymentCondition(v1alpha1.MachineDeploymentAvailable, v1alpha1.ConditionTrue, MinimumReplicasAvailable, "Deployment has minimum availability.")
 		SetMachineDeploymentCondition(&status, *minAvailability)
