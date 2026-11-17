@@ -176,23 +176,23 @@ var strToCode = map[string]Code{
 
 var codeToDescription = map[Code]string{
 	OK:                 "Operation completed successfully.",
-	Canceled:           "The cloud provider operation was canceled. See MCM logs for details.",
-	Unknown:            "An unknown error occurred, or the error did not carry enough information to classify. See MCM logs for details.",
-	InvalidArgument:    "The cloud provider rejected the request as invalid. See MCM logs for details.",
-	DeadlineExceeded:   "The operation expired before completion. See MCM logs for details.",
-	NotFound:           "The requested resource was not found at the cloud provider. See MCM logs for details.",
-	AlreadyExists:      "The resource already exists at the cloud provider. See MCM logs for details.",
-	PermissionDenied:   "Insufficient permissions at the cloud provider. See MCM logs for details.",
-	ResourceExhausted:  "Resource limit exceeded at the cloud provider. See MCM logs for details.",
-	FailedPrecondition: "The operation was rejected because the system is not in the required state. See MCM logs for details.",
-	Aborted:            "The cloud provider operation was aborted due to a conflict. See MCM logs for details.",
-	OutOfRange:         "The operation was attempted past the valid range at the cloud provider. See MCM logs for details.",
-	Unimplemented:      "The operation is not implemented or not supported in this service. See MCM logs for details.",
-	Internal:           "An internal error occurred at the cloud provider. See MCM logs for details.",
-	Unavailable:        "The cloud provider is temporarily unavailable. See MCM logs for details.",
-	DataLoss:           "Unrecoverable data loss or corruption occurred. See MCM logs for details.",
-	Unauthenticated:    "Authentication with the cloud provider failed. See MCM logs for details.",
-	Uninitialized:      "The VM instance initialization was not performed. See MCM logs for details.",
+	Canceled:           "The cloud provider operation was canceled.",
+	Unknown:            "An unknown error occurred, or the error did not carry enough information to classify.",
+	InvalidArgument:    "The cloud provider rejected the request as invalid.",
+	DeadlineExceeded:   "The operation expired before completion.",
+	NotFound:           "The requested resource was not found at the cloud provider.",
+	AlreadyExists:      "The resource already exists at the cloud provider.",
+	PermissionDenied:   "Insufficient permissions at the cloud provider.",
+	ResourceExhausted:  "Resource limit exceeded at the cloud provider.",
+	FailedPrecondition: "The operation was rejected because the system is not in the required state.",
+	Aborted:            "The cloud provider operation was aborted due to a conflict.",
+	OutOfRange:         "The operation was attempted past the valid range at the cloud provider.",
+	Unimplemented:      "The operation is not implemented or not supported in this service.",
+	Internal:           "An internal error occurred at the cloud provider.",
+	Unavailable:        "The cloud provider is temporarily unavailable.",
+	DataLoss:           "Unrecoverable data loss or corruption occurred.",
+	Unauthenticated:    "Authentication with the cloud provider failed.",
+	Uninitialized:      "The VM instance initialization was not performed.",
 }
 
 // StringToCode coverts string into the Code.
@@ -203,8 +203,12 @@ func StringToCode(input string) Code {
 	return Unknown
 }
 
+// Description returns the description of the Code. If the Code is not recognized, it returns a generic error message.
 func (c Code) Description() string {
 	if desc, ok := codeToDescription[c]; ok {
+		if c != OK {
+			desc = desc + " See MCM logs for details."
+		}
 		return desc
 	}
 	// This should never happen, but if it does, we want to make sure that the error description is still useful.

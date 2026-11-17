@@ -1371,11 +1371,10 @@ func (c *controller) updateMachineStatusAndNodeLabel(ctx context.Context, getMac
 			klog.V(2).Infof("error fetching node name for %q, cloud provider error: %v", getMachineStatusRequest.Machine.Name, err)
 			if machineErr, ok := status.FromError(err); !ok {
 				// Error occurred with decoding machine error status, aborting without retry.
-				rawErr := err
-				description = "Error occurred with decoding machine error status while getting VM status, aborting without retry. " + machineErr.Code().Description() + " " + machineutils.GetVMStatus
+				description = "Error occurred decoding machine error status while getting VM status, aborting. " + machineErr.Code().Description() + " " + machineutils.GetVMStatus
 				state = v1alpha1.MachineStateFailed
 				retry = machineutils.LongRetry
-				err = fmt.Errorf("machine deletion has failed. %s. Raw error: %v", description, rawErr)
+				err = fmt.Errorf("machine deletion has failed. %s. Raw error: %v", description, err)
 			} else {
 				// Decoding machine error code
 				switch machineErr.Code() {
@@ -1913,7 +1912,7 @@ func (c *controller) deleteVM(ctx context.Context, deleteMachineRequest *driver.
 			switch machineErr.Code() {
 			case codes.Unknown, codes.DeadlineExceeded, codes.Aborted, codes.Unavailable:
 				retryRequired = machineutils.ShortRetry
-				description = fmt.Sprintf("VM deletion failed due to - %s. However, will re-try in the next resync. %s", machineErr.Code().Description(), machineutils.InitiateVMDeletion)
+				description = fmt.Sprintf("VM deletion failed, will re-try in the next resync. Error - %s. However, will re-try in the next resync. %s", machineErr.Code().Description(), machineutils.InitiateVMDeletion)
 				state = v1alpha1.MachineStateFailed
 			case codes.NotFound:
 				retryRequired = machineutils.ShortRetry
