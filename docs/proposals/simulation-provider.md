@@ -55,18 +55,17 @@ instanceQuota:
 join:
   - machineDeploymentPattern: mcd-(a|b)
     count: 4 # Denotes the number of machines for each mcd matching the pattern to which this operation is applied (delay/error)
-    delay:
-    - "1m"
+    minDelay: "1m"
+    maxDelay: "1m"
   - machineDeploymentPattern: mcd-c
     count: 2
-    delay:
-    - "1m"
+    minDelay: "1m"
+    maxDelay: "1m"
 create:
   - machineDeploymentPattern: mcd-a
     count: 3
-    delay:
-    - "1m"
-    - "3m"
+    minDelay: "1m"
+    maxDelay: "3m"
     error:
       error: "ResourceExhausted"
       duration: "2m"
