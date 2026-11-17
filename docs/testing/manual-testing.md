@@ -21,14 +21,9 @@ Use the following template when documenting a manual test in your PR:
 - MCM version / commit: <e.g., abc1234>
 - Any other relevant environment details
 
-**Steps to reproduce:**
-1. <Step one>
-2. <Step two>
-3. ...
+**Steps to Reproduce:** <Optional: add steps if they differ from the steps mentioned in the issue.>
 
 **Expected result:** <What should happen.>
 
-**Observed result:** <What actually happened. Include logs or command output where helpful.>
-
-**Notes:** <Optional: edge cases observed, follow-up items, known limitations.>
+**Known Limitation:** <Optional>
 -->
