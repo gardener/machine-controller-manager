@@ -53,18 +53,17 @@ instanceQuota:
   m5.xlarge: 20
   c5.large: 6
 join:
-  - targets:
-      mcd-a: 1
-      mcd-b: 4
+  - targetPattern: mcd-(a|b)
+    count: 4
     delay:
     - "1m"
-  - targets:
-      mcd-c: 2
+  - targetPattern: mcd-c
+    count: 2
     delay:
-    - "30s"
+    - "1m"
 create:
-  - targets:
-      mcd-a: 3
+  - targetPattern: mcd-a
+    count: 3
     delay:
     - "1m"
     - "3m"
