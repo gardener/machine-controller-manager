@@ -263,14 +263,19 @@ const (
 	PreservedWhenFailedByUser string = "PreservedWhenFailedByUser"
 )
 
-	// PreservationStopped is a node condition reason to indicate that a machine/node preservation has been stopped due to annotation update or timeout
-	PreservationStopped string = "Preservation stopped."
+// The following are constants used in the NodeDrained node condition
+const (
+	// NodeDrained is a node condition type for node drain.
+	NodeDrained corev1.NodeConditionType = "Drained" // TODO: this condition should be removed once k8s dependency is upgraded to 1.37. Condition type NodeDrained has been introduced in k8s 1.37.
 
-	// PreservedNodeDrainSuccessful is a constant for the message in condition that indicates that the preserved node's drain is successful
-	PreservedNodeDrainSuccessful string = "Preserved node drained successfully."
+	// DrainStarted is a constant for Reason in the node condition of type NodeDrained, to indicate that the node drain has started.
+	DrainStarted string = "DrainStarted"
 
-	// PreservedNodeDrainUnsuccessful is a constant for the message in condition that indicates that the preserved node's drain was not successful
-	PreservedNodeDrainUnsuccessful string = "Preserved node could not be drained."
+	// DrainFailed is a constant for Reason in the node condition of type NodeDrained, to indicate that the node drain has failed.
+	DrainFailed string = "DrainFailed"
+
+	// DrainCompleted is a constant for Reason in the node condition of type NodeDrained, to indicate that the node drain has completed successfully.
+	DrainCompleted string = "DrainCompleted"
 )
 
 const (
