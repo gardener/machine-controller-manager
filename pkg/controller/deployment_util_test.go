@@ -770,4 +770,68 @@ var _ = Describe("deployment_util", func() {
 			}),
 		)
 	})
+
+	Describe("#PatchMachineDeploymentAnnotations", func() {
+		var (
+			stop chan struct{}
+			mcd  *machinev1.MachineDeployment
+		)
+
+		BeforeEach(func() {
+			stop = make(chan struct{})
+			mcd = &machinev1.MachineDeployment{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-mcd",
+					Namespace: testNamespace,
+					Annotations: map[string]string{
+						"existing-key": "existing-value",
+						"to-delete":    "will-be-gone",
+					},
+				},
+			}
+		})
+
+		AfterEach(func() {
+			close(stop)
+		})
+
+		It("should set modified annotations and delete specified keys", func() {
+			c, trackers := createController(stop, testNamespace, []runtime.Object{mcd}, nil, nil)
+			defer trackers.Stop()
+
+			err := PatchMachineDeploymentAnnotations(
+				context.Background(),
+				c.controlMachineClient.MachineDeployments(testNamespace),
+				mcd.Name,
+				map[string]string{"new-key": "new-value"},
+				[]string{"to-delete"},
+			)
+			Expect(err).NotTo(HaveOccurred())
+
+			updated, err := c.controlMachineClient.MachineDeployments(testNamespace).Get(context.Background(), mcd.Name, metav1.GetOptions{})
+			Expect(err).NotTo(HaveOccurred())
+			Expect(updated.Annotations).To(HaveKeyWithValue("existing-key", "existing-value"))
+			Expect(updated.Annotations).To(HaveKeyWithValue("new-key", "new-value"))
+			Expect(updated.Annotations).NotTo(HaveKey("to-delete"))
+		})
+
+		It("should not modify existing annotations when called with empty maps", func() {
+			c, trackers := createController(stop, testNamespace, []runtime.Object{mcd}, nil, nil)
+			defer trackers.Stop()
+
+			err := PatchMachineDeploymentAnnotations(
+				context.Background(),
+				c.controlMachineClient.MachineDeployments(testNamespace),
+				mcd.Name,
+				nil,
+				nil,
+			)
+			Expect(err).NotTo(HaveOccurred())
+
+			updated, err := c.controlMachineClient.MachineDeployments(testNamespace).Get(context.Background(), mcd.Name, metav1.GetOptions{})
+			Expect(err).NotTo(HaveOccurred())
+			Expect(updated.Annotations).To(HaveKeyWithValue("existing-key", "existing-value"))
+			Expect(updated.Annotations).To(HaveKeyWithValue("to-delete", "will-be-gone"))
+		})
+	})
 })
