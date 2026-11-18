@@ -754,7 +754,7 @@ func (s ActiveMachines) Less(i, j int) bool {
 	isPreservedI := machineutils.IsPreserved(s[i])
 	isPreservedJ := machineutils.IsPreserved(s[j])
 	if isPreservedI != isPreservedJ {
-		// if s[i] preserved, it is `greater`, therefore, `less()` is false
+		// if s[i] preserved, it is `greater`, therefore, `less` is false
 		return !isPreservedI
 	}
 	// TODO: the check for preserve value only expects the annotation to be on machine.
