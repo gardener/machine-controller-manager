@@ -1104,9 +1104,10 @@ func (o *Options) evictPodWithoutPVInternal(ctx context.Context, attemptEvict bo
 		pod.Spec.NodeName,
 	)
 
-	nretries := int(o.MaxEvictRetries)
+	// set nretries always to minimum 1 to try pod eviction at least once
+	nretries := max(1, int(o.MaxEvictRetries))
 	for i := 0; ; i++ {
-		if i > nretries {
+		if i >= nretries {
 			// do not force delete pods if DisableDrainTimeout is set to true.
 			if o.DisableDrainTimeout {
 				returnCh <- fmt.Errorf("error when evicting pod %q: retries exhausted scheduled on node %v", pod.Name, pod.Spec.NodeName)
