@@ -378,20 +378,46 @@ func (c *controller) removePreservationRelatedAnnotationsOnNode(ctx context.Cont
 		delete(node.Annotations, autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationKey)
 		delete(node.Annotations, autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationByMCMKey)
 		updateRequired = true
-	}
-	if removePreserveAnnotation && node.Annotations[machineutils.PreserveMachineAnnotationKey] != "" {
-		delete(node.Annotations, machineutils.PreserveMachineAnnotationKey)
-		updateRequired = true
-	}
-	if !updateRequired {
-		return node, nil
-	}
-	updatedNode, err := c.targetCoreClient.CoreV1().Nodes().Update(ctx, node, metav1.UpdateOptions{})
-	if err != nil {
-		klog.Errorf("node UPDATE failed for node %q. Retrying, error: %s", node.Name, err)
+// patchNode computes a merge patch between the given node and the mutated node produced by mutateFn, and applies it.
+// If optimisticLock is set to true, the patch carries the node's resourceVersion so concurrent modifications are detected as conflicts.
+// It returns the node unchanged (without an API call) when the mutation produces no diff.
+func (c *controller) patchNode(
+	ctx context.Context,
+	node *corev1.Node,
+	mutateFn func(*corev1.Node) error,
+	optimisticLock bool,
+) (*corev1.Node, error) {
+	original := node
+	modified := node.DeepCopy()
+	if err := mutateFn(modified); err != nil {
 		return nil, err
 	}
-	return updatedNode, nil
+	if optimisticLock {
+		version := original.GetResourceVersion()
+		if len(version) == 0 {
+			return nil, fmt.Errorf("cannot use OptimisticLock, object %q does not have any resource version we can use", node.Name)
+		}
+
+		original = original.DeepCopy()
+		original.SetResourceVersion("")
+		modified.SetResourceVersion(version)
+	}
+	base, err := json.Marshal(original)
+	if err != nil {
+		return nil, err
+	}
+	modifiedJSON, err := json.Marshal(modified)
+	if err != nil {
+		return nil, err
+	}
+	patch, err := jsonpatch.CreateMergePatch(base, modifiedJSON)
+	if err != nil {
+		return nil, err
+	}
+	if string(patch) == "{}" {
+		return node, nil
+	}
+	return c.targetCoreClient.CoreV1().Nodes().Patch(ctx, node.Name, types.MergePatchType, patch, metav1.PatchOptions{})
 }
 
 // addCAScaleDownDisabledAnnotationOnNode adds the cluster-autoscaler annotation to disable scale down of preserved node
