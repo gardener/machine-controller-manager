@@ -179,6 +179,8 @@ const (
 var (
 	// DefaultMaxEvictRetries is the default value for MaxEvictRetries
 	DefaultMaxEvictRetries = int32(DefaultMachineDrainTimeout.Seconds() / PodEvictionRetryInterval.Seconds())
+	// PodCacheSyncTimeout is the timeout for waiting for the pod cache to sync
+	PodCacheSyncTimeout = 30 * time.Second
 )
 
 // NewDrainOptions creates a new DrainOptions struct and returns a pointer to it
@@ -286,9 +288,14 @@ func (o *Options) RunDrain(ctx context.Context) error {
 		)
 	}()
 
-	if o.podSynced != nil && !cache.WaitForCacheSync(drainContext.Done(), o.podSynced) {
-		err := fmt.Errorf("timed out waiting for pod cache to sync")
-		return err
+	if o.podSynced != nil {
+		syncCtx, syncCancel := context.WithTimeout(drainContext, PodCacheSyncTimeout)
+		synced := cache.WaitForCacheSync(syncCtx.Done(), o.podSynced)
+		syncCancel()
+		if !synced {
+			err := fmt.Errorf("timed out waiting for pod cache to sync")
+			return err
+		}
 	}
 
 	err := o.deleteOrEvictPodsSimple(drainContext)
@@ -1099,7 +1106,7 @@ func (o *Options) evictPodWithoutPVInternal(ctx context.Context, attemptEvict bo
 
 	nretries := int(o.MaxEvictRetries)
 	for i := 0; ; i++ {
-		if i >= nretries {
+		if i > nretries {
 			// do not force delete pods if DisableDrainTimeout is set to true.
 			if o.DisableDrainTimeout {
 				returnCh <- fmt.Errorf("error when evicting pod %q: retries exhausted scheduled on node %v", pod.Name, pod.Spec.NodeName)
