@@ -2539,6 +2539,12 @@ var _ = Describe("machineset", func() {
 			return m
 		}
 
+		makeMachineSet := func() *machinev1.MachineSet {
+			return &machinev1.MachineSet{
+				ObjectMeta: metav1.ObjectMeta{Name: "MachineSet-test", Namespace: testNamespace},
+			}
+		}
+
 		It("should return machines unchanged when numToStop is 0", func() {
 			stop := make(chan struct{})
 			defer close(stop)
@@ -2548,12 +2554,12 @@ var _ = Describe("machineset", func() {
 			defer trackers.Stop()
 			waitForCacheSync(stop, c)
 
-			result, err := c.stopAutoPreservationForMachines(context.TODO(), []*machinev1.Machine{m}, 0)
+			result, err := c.stopAutoPreservationForMachines(context.TODO(), makeMachineSet(), []*machinev1.Machine{m}, 0)
 			Expect(err).To(BeNil())
 			Expect(result).To(HaveLen(1))
 			updated, _ := c.controlMachineClient.Machines(testNamespace).Get(context.TODO(), m.Name, metav1.GetOptions{})
 			Expect(updated.Annotations[machineutils.PreserveMachineAnnotationKey]).To(Equal(machineutils.PreserveMachineAnnotationValueAutoPreserved))
-			Expect(updated.Status.CurrentStatus.PreserveExpiryTime).ToNot(BeNil())
+			Expect(updated.DeletionTimestamp).To(BeNil())
 		})
 
 		It("should return machines unchanged when there are no auto-preserved machines", func() {
@@ -2565,14 +2571,15 @@ var _ = Describe("machineset", func() {
 			defer trackers.Stop()
 			waitForCacheSync(stop, c)
 
-			result, err := c.stopAutoPreservationForMachines(context.TODO(), []*machinev1.Machine{m}, 1)
+			result, err := c.stopAutoPreservationForMachines(context.TODO(), makeMachineSet(), []*machinev1.Machine{m}, 1)
 			Expect(err).To(BeNil())
 			Expect(result).To(HaveLen(1))
 			updated, _ := c.controlMachineClient.Machines(testNamespace).Get(context.TODO(), m.Name, metav1.GetOptions{})
 			Expect(updated.Annotations[machineutils.PreserveMachineAnnotationKey]).To(BeEmpty())
+			Expect(updated.DeletionTimestamp).To(BeNil())
 		})
 
-		It("should remove annotation but not clear PreserveExpiryTime from all auto-preserved machines when numToStop >= count", func() {
+		It("should remove annotation and trigger deletion for all auto-preserved machines when numToStop >= count", func() {
 			stop := make(chan struct{})
 			defer close(stop)
 
@@ -2582,18 +2589,16 @@ var _ = Describe("machineset", func() {
 			defer trackers.Stop()
 			waitForCacheSync(stop, c)
 
-			result, err := c.stopAutoPreservationForMachines(context.TODO(), []*machinev1.Machine{m1, m2}, 2)
+			result, err := c.stopAutoPreservationForMachines(context.TODO(), makeMachineSet(), []*machinev1.Machine{m1, m2}, 2)
 			Expect(err).To(BeNil())
 			Expect(result).To(HaveLen(2))
-			waitForCacheSync(stop, c)
 			for _, name := range []string{m1.Name, m2.Name} {
-				updated, _ := c.controlMachineClient.Machines(testNamespace).Get(context.TODO(), name, metav1.GetOptions{})
-				Expect(updated.Annotations[machineutils.PreserveMachineAnnotationKey]).ToNot(Equal(machineutils.PreserveMachineAnnotationValueAutoPreserved))
-				Expect(updated.Status.CurrentStatus.PreserveExpiryTime).NotTo(BeNil())
+				_, getErr := c.controlMachineClient.Machines(testNamespace).Get(context.TODO(), name, metav1.GetOptions{})
+				Expect(k8sError.IsNotFound(getErr)).To(BeTrue())
 			}
 		})
 
-		It("should remove annotation from the machine with the earliest PreserveExpiryTime first when numToStop < count", func() {
+		It("should unpreserve and delete the machine with the earliest PreserveExpiryTime first when numToStop < count", func() {
 			stop := make(chan struct{})
 			defer close(stop)
 
@@ -2606,19 +2611,17 @@ var _ = Describe("machineset", func() {
 			defer trackers.Stop()
 			waitForCacheSync(stop, c)
 
-			result, err := c.stopAutoPreservationForMachines(context.TODO(), []*machinev1.Machine{machineEarly, machineLate}, 1)
+			result, err := c.stopAutoPreservationForMachines(context.TODO(), makeMachineSet(), []*machinev1.Machine{machineEarly, machineLate}, 1)
 			Expect(err).To(BeNil())
 			Expect(result).To(HaveLen(2))
-			waitForCacheSync(stop, c)
 
-			updatedEarly, _ := c.controlMachineClient.Machines(testNamespace).Get(context.TODO(), machineEarly.Name, metav1.GetOptions{})
-			updatedLate, _ := c.controlMachineClient.Machines(testNamespace).Get(context.TODO(), machineLate.Name, metav1.GetOptions{})
+			_, earlyGetErr := c.controlMachineClient.Machines(testNamespace).Get(context.TODO(), machineEarly.Name, metav1.GetOptions{})
+			Expect(k8sError.IsNotFound(earlyGetErr)).To(BeTrue())
 
-			Expect(updatedEarly.Annotations[machineutils.PreserveMachineAnnotationKey]).ToNot(Equal(machineutils.PreserveMachineAnnotationValueAutoPreserved))
-			Expect(updatedEarly.Status.CurrentStatus.PreserveExpiryTime).NotTo(BeNil())
-
+			updatedLate, lateGetErr := c.controlMachineClient.Machines(testNamespace).Get(context.TODO(), machineLate.Name, metav1.GetOptions{})
+			Expect(lateGetErr).ToNot(HaveOccurred())
 			Expect(updatedLate.Annotations[machineutils.PreserveMachineAnnotationKey]).To(Equal(machineutils.PreserveMachineAnnotationValueAutoPreserved))
-			Expect(updatedLate.Status.CurrentStatus.PreserveExpiryTime).ToNot(BeNil())
+			Expect(updatedLate.DeletionTimestamp).To(BeNil())
 		})
 
 		It("should return error and stop patching when annotation patch fails", func() {
@@ -2635,7 +2638,7 @@ var _ = Describe("machineset", func() {
 				return true, nil, fmt.Errorf("patch failed")
 			})
 
-			_, err := c.stopAutoPreservationForMachines(context.TODO(), []*machinev1.Machine{m}, 1)
+			_, err := c.stopAutoPreservationForMachines(context.TODO(), makeMachineSet(), []*machinev1.Machine{m}, 1)
 			Expect(err).To(HaveOccurred())
 		})
 	})

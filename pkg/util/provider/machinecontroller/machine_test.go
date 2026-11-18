@@ -4311,7 +4311,6 @@ var _ = Describe("machine", func() {
 			machineAnnotated       bool
 			nodeAnnotationValue    string
 			nodeAnnotated          bool
-			laNodePreserveValue    string
 			nodeName               string
 			machinePhase           v1alpha1.MachinePhase
 			preserveExpiryTime     *metav1.Time
@@ -4321,7 +4320,6 @@ var _ = Describe("machine", func() {
 			preserveExpiryTimeIsSet bool
 			nodeCondition           *corev1.NodeCondition
 			machineAnnotationValue  string
-			laNodePreserveValue     string
 			err                     error
 			nodeTainted             bool
 		}
@@ -4343,9 +4341,6 @@ var _ = Describe("machine", func() {
 				machineAnnotations := map[string]string{}
 				if tc.setup.machineAnnotated {
 					machineAnnotations[machineutils.PreserveMachineAnnotationKey] = tc.setup.machineAnnotationValue
-				}
-				if tc.setup.laNodePreserveValue != "" {
-					machineAnnotations[machineutils.LastAppliedNodePreserveValueAnnotationKey] = tc.setup.laNodePreserveValue
 				}
 				machine := &v1alpha1.Machine{
 					ObjectMeta: metav1.ObjectMeta{
@@ -4430,7 +4425,6 @@ var _ = Describe("machine", func() {
 					Expect(taintutils.TaintExists(updatedNode.Spec.Taints, &corev1.Taint{Key: machineutils.NodePreservedTaintKey, Effect: corev1.TaintEffectNoSchedule})).To(Equal(tc.expect.nodeTainted))
 				}
 				Expect(updatedMachine.Annotations[machineutils.PreserveMachineAnnotationKey]).To(Equal(tc.expect.machineAnnotationValue))
-				Expect(updatedMachine.Annotations[machineutils.LastAppliedNodePreserveValueAnnotationKey]).To(Equal(tc.expect.laNodePreserveValue))
 			},
 			Entry("when no preserve annotation is set on machine and node, should return LongRetry", testCase{
 				setup: setup{
@@ -4449,12 +4443,12 @@ var _ = Describe("machine", func() {
 					machinePhase:        v1alpha1.MachineRunning,
 				},
 				expect: expect{
-					laNodePreserveValue:     machineutils.PreserveMachineAnnotationValueNow,
 					preserveExpiryTimeIsSet: true,
 					nodeCondition: &corev1.NodeCondition{
 						Type:   v1alpha1.NodePreserved,
 						Status: corev1.ConditionTrue,
 					},
+					machineAnnotationValue: machineutils.PreserveMachineAnnotationValueNow,
 				},
 			}),
 			Entry("when preserve annotation 'when-failed' added to node of Running machine, should not start preservation", testCase{
@@ -4465,9 +4459,9 @@ var _ = Describe("machine", func() {
 					machinePhase:        v1alpha1.MachineRunning,
 				},
 				expect: expect{
-					laNodePreserveValue:     machineutils.PreserveMachineAnnotationValueWhenFailed,
 					preserveExpiryTimeIsSet: false,
 					nodeCondition:           nil,
+					machineAnnotationValue:  machineutils.PreserveMachineAnnotationValueWhenFailed,
 				},
 			}),
 			Entry("when node of Failed machine has annotation `when-failed`, should start preservation", testCase{
@@ -4478,13 +4472,13 @@ var _ = Describe("machine", func() {
 					machinePhase:        v1alpha1.MachineFailed,
 				},
 				expect: expect{
-					laNodePreserveValue:     machineutils.PreserveMachineAnnotationValueWhenFailed,
 					preserveExpiryTimeIsSet: true,
 					nodeCondition: &corev1.NodeCondition{
 						Type:   v1alpha1.NodePreserved,
 						Status: corev1.ConditionTrue,
 					},
-					nodeTainted: true,
+					machineAnnotationValue: machineutils.PreserveMachineAnnotationValueWhenFailed,
+					nodeTainted:            true,
 				},
 			}),
 			Entry("when node of preserved machine is annotated with preserve value 'false', should stop preservation", testCase{
@@ -4496,12 +4490,12 @@ var _ = Describe("machine", func() {
 					preserveExpiryTime:  &metav1.Time{Time: metav1.Now().Add(1 * time.Hour)},
 				},
 				expect: expect{
-					laNodePreserveValue:     machineutils.PreserveMachineAnnotationValueFalse,
 					preserveExpiryTimeIsSet: false,
 					nodeCondition:           nil,
+					machineAnnotationValue:  machineutils.PreserveMachineAnnotationValueFalse,
 				},
 			}),
-			Entry("when machine is annotated for auto-preservation by MCM, should start preservation", testCase{
+			Entry("when machine is annotated for auto-preservation by MCM, should start preservation and keep the auto-preserved marker on the machine", testCase{
 				setup: setup{
 					machineAnnotationValue: machineutils.PreserveMachineAnnotationValueAutoPreserved,
 					machineAnnotated:       true,
@@ -4518,7 +4512,7 @@ var _ = Describe("machine", func() {
 					nodeTainted:            true,
 				},
 			}),
-			Entry("when machine is annotated with preserve=now and preservation times out, should stop preservation, and remove annotation", testCase{
+			Entry("when machine is annotated with preserve=now and preservation times out while not Failed, should stop preservation", testCase{
 				setup: setup{
 					machineAnnotationValue: machineutils.PreserveMachineAnnotationValueNow,
 					machineAnnotated:       true,
@@ -4531,7 +4525,7 @@ var _ = Describe("machine", func() {
 					nodeCondition:           &corev1.NodeCondition{Type: v1alpha1.NodePreserved, Status: corev1.ConditionFalse},
 				},
 			}),
-			Entry("when machine is annotated with preserve=when-failed and preservation times out, should stop preservation, and remove annotation", testCase{
+			Entry("when machine is annotated with preserve=when-failed and preservation times out while Failed, preservation is not stopped (left for machineSet to terminate)", testCase{
 				setup: setup{
 					machineAnnotationValue: machineutils.PreserveMachineAnnotationValueWhenFailed,
 					machineAnnotated:       true,
@@ -4541,8 +4535,37 @@ var _ = Describe("machine", func() {
 					nodeTainted:            true,
 				},
 				expect: expect{
+					preserveExpiryTimeIsSet: true,
+					nodeCondition:           nil,
+					machineAnnotationValue:  machineutils.PreserveMachineAnnotationValueWhenFailed,
+					nodeTainted:             true,
+				},
+			}),
+			Entry("when a preserved non-Failed machine has no annotation and its preservation times out, should stop preservation", testCase{
+				setup: setup{
+					nodeName:           "node-1",
+					machinePhase:       v1alpha1.MachineRunning,
+					preserveExpiryTime: &metav1.Time{Time: metav1.Now().Add(-1 * time.Minute)},
+				},
+				expect: expect{
 					preserveExpiryTimeIsSet: false,
 					nodeCondition:           &corev1.NodeCondition{Type: v1alpha1.NodePreserved, Status: corev1.ConditionFalse},
+					err:                     nil,
+				},
+			}),
+			Entry("when a preserved non-Failed machine has an invalid annotation and its preservation times out, should stop preservation", testCase{
+				setup: setup{
+					machineAnnotationValue: "invalidValue",
+					machineAnnotated:       true,
+					nodeName:               "node-1",
+					machinePhase:           v1alpha1.MachineRunning,
+					preserveExpiryTime:     &metav1.Time{Time: metav1.Now().Add(-1 * time.Minute)},
+				},
+				expect: expect{
+					preserveExpiryTimeIsSet: false,
+					nodeCondition:           &corev1.NodeCondition{Type: v1alpha1.NodePreserved, Status: corev1.ConditionFalse},
+					machineAnnotationValue:  "",
+					err:                     nil,
 				},
 			}),
 			Entry("when invalid preserve annotation is added on un-preserved machine, and node is not annotated should do nothing  ", testCase{
@@ -4586,7 +4609,7 @@ var _ = Describe("machine", func() {
 					err:                     nil,
 				},
 			}),
-			Entry("when preservation times out for a machine annotated with preserve=now, but has no backing node, should stop preservation", testCase{
+			Entry("when preservation times out for a machine annotated with preserve=now but has no backing node and is not Failed, should stop preservation", testCase{
 				setup: setup{
 					machineAnnotationValue: machineutils.PreserveMachineAnnotationValueNow,
 					machineAnnotated:       true,
@@ -4597,6 +4620,7 @@ var _ = Describe("machine", func() {
 				expect: expect{
 					preserveExpiryTimeIsSet: false,
 					nodeCondition:           nil,
+					machineAnnotationValue:  "",
 					err:                     nil,
 				},
 			}),
@@ -4631,7 +4655,7 @@ var _ = Describe("machine", func() {
 					err:                     nil,
 				},
 			}),
-			Entry("when node is annotated with 'now' and machine is annotated with 'when-failed', should start preservation and remove preserve annotation from machine", testCase{
+			Entry("when node is annotated with 'now' and machine is annotated with 'when-failed', should start preservation and sync the node's value onto the machine", testCase{
 				setup: setup{
 					nodeAnnotationValue:    machineutils.PreserveMachineAnnotationValueNow,
 					nodeAnnotated:          true,
@@ -4641,20 +4665,19 @@ var _ = Describe("machine", func() {
 					machinePhase:           v1alpha1.MachineRunning,
 				},
 				expect: expect{
-					laNodePreserveValue:     machineutils.PreserveMachineAnnotationValueNow,
 					preserveExpiryTimeIsSet: true,
 					nodeCondition: &corev1.NodeCondition{
 						Type:   v1alpha1.NodePreserved,
 						Status: corev1.ConditionTrue,
 					},
-					machineAnnotationValue: "",
+					machineAnnotationValue: machineutils.PreserveMachineAnnotationValueNow,
 					err:                    nil,
 				},
 			}),
-			// case possible when MCM goes down and node annotation value is cleared and machine is annotated
-			Entry("when node and machine are found to be annotated with \"\", and 'now', respectively and last applied node preserve value is 'now', should stop preservation", testCase{
+			// Node present but unannotated: the machine annotation drives preservation and is copied onto
+			// the node while remaining on the machine.
+			Entry("when node is present but unannotated and machine carries 'now', preservation runs and the annotation is copied onto the node", testCase{
 				setup: setup{
-					laNodePreserveValue:    "now",
 					machineAnnotationValue: "now",
 					machineAnnotated:       true,
 					nodeName:               "node-1",
@@ -4662,14 +4685,13 @@ var _ = Describe("machine", func() {
 					preserveExpiryTime:     &metav1.Time{Time: metav1.Now().Add(1 * time.Hour)},
 				},
 				expect: expect{
-					preserveExpiryTimeIsSet: false,
-					nodeCondition:           &corev1.NodeCondition{Type: v1alpha1.NodePreserved, Status: corev1.ConditionFalse},
-					machineAnnotationValue:  "",
-					laNodePreserveValue:     "",
+					preserveExpiryTimeIsSet: true,
+					nodeCondition:           nil,
+					machineAnnotationValue:  machineutils.PreserveMachineAnnotationValueNow,
 					err:                     nil,
 				},
 			}),
-			Entry("when preserved machine with preserve=when-failed recovers to Running, should stop preservation and untaint node", func() testCase {
+			Entry("when preserved machine with preserve=when-failed recovers to Running, should stop preservation, untaint node and keep the annotation on both", func() testCase {
 				return testCase{
 					setup: setup{
 						machineAnnotationValue: machineutils.PreserveMachineAnnotationValueWhenFailed,
@@ -4687,7 +4709,7 @@ var _ = Describe("machine", func() {
 					},
 				}
 			}()),
-			Entry("when preserved machine with preserve=when-failed has expired preservation while in Failed phase, should stop preservation and untaint node", func() testCase {
+			Entry("when preserved machine with preserve=when-failed has expired preservation while in Failed phase, preservation is not stopped and node stays tainted", func() testCase {
 				return testCase{
 					setup: setup{
 						machineAnnotationValue: machineutils.PreserveMachineAnnotationValueWhenFailed,
@@ -4698,10 +4720,10 @@ var _ = Describe("machine", func() {
 						nodeTainted:            true,
 					},
 					expect: expect{
-						preserveExpiryTimeIsSet: false,
-						nodeCondition:           &corev1.NodeCondition{Type: v1alpha1.NodePreserved, Status: corev1.ConditionFalse},
-						machineAnnotationValue:  "",
-						nodeTainted:             false,
+						preserveExpiryTimeIsSet: true,
+						nodeCondition:           nil,
+						machineAnnotationValue:  machineutils.PreserveMachineAnnotationValueWhenFailed,
+						nodeTainted:             true,
 					},
 				}
 			}()),
@@ -4715,14 +4737,14 @@ var _ = Describe("machine", func() {
 						nodeTainted:         true,
 					},
 					expect: expect{
-						laNodePreserveValue:     machineutils.PreserveMachineAnnotationValueWhenFailed,
 						preserveExpiryTimeIsSet: true,
 						nodeCondition:           &corev1.NodeCondition{Type: v1alpha1.NodePreserved, Status: corev1.ConditionTrue},
+						machineAnnotationValue:  machineutils.PreserveMachineAnnotationValueWhenFailed,
 						nodeTainted:             true,
 					},
 				}
 			}()),
-			Entry("when preserve=now machine is Failed with active preservation and tainted node, node should stay tainted", func() testCase {
+			Entry("when preserve=now machine is Failed with active preservation and tainted node, node should stay tainted and annotation flows to node", func() testCase {
 				return testCase{
 					setup: setup{
 						machineAnnotationValue: machineutils.PreserveMachineAnnotationValueNow,
@@ -4739,11 +4761,10 @@ var _ = Describe("machine", func() {
 					},
 				}
 			}()),
-			Entry("when node has preserve=now annotation and preservation times out, stopPreservationIfActive should clear node's annotation and updatePreserveAnnotationOnMachine should clear machine's lastApplied annotation", testCase{
+			Entry("when node has preserve=now annotation and preservation times out while not Failed, should stop preservation", testCase{
 				setup: setup{
 					nodeAnnotationValue: machineutils.PreserveMachineAnnotationValueNow,
 					nodeAnnotated:       true,
-					laNodePreserveValue: machineutils.PreserveMachineAnnotationValueNow,
 					nodeName:            "node-1",
 					machinePhase:        v1alpha1.MachineRunning,
 					preserveExpiryTime:  &metav1.Time{Time: metav1.Now().Add(-1 * time.Minute)},
@@ -4752,7 +4773,6 @@ var _ = Describe("machine", func() {
 					preserveExpiryTimeIsSet: false,
 					nodeCondition:           &corev1.NodeCondition{Type: v1alpha1.NodePreserved, Status: corev1.ConditionFalse},
 					machineAnnotationValue:  "",
-					laNodePreserveValue:     "",
 					err:                     nil,
 				},
 			}),
@@ -4810,22 +4830,23 @@ var _ = Describe("machine", func() {
 		)
 	})
 
-	Describe("#updatePreserveAnnotationOnMachine", func() {
+	Describe("#syncPreservationAnnotation", func() {
 		type setup struct {
 			machineAnnotations map[string]string
+			node               *corev1.Node
 		}
 		type expect struct {
-			lastAppliedNodeValue   string
-			preserveAnnotationGone bool
-			err                    error
+			// machineValue/nodeValue are the expected final preserve-annotation values; "" means the
+			// annotation is expected to be absent.
+			machineValue string
+			nodeValue    string
 		}
 		type testCase struct {
-			setup     setup
-			nodeValue string
-			expect    expect
+			setup  setup
+			expect expect
 		}
 
-		DescribeTable("updatePreserveAnnotationOnMachine scenarios",
+		DescribeTable("syncPreservationAnnotation scenarios",
 			func(tc testCase) {
 				stop := make(chan struct{})
 				defer close(stop)
@@ -4839,66 +4860,88 @@ var _ = Describe("machine", func() {
 					},
 				}
 
-				c, trackers := createController(stop, testNamespace, []runtime.Object{machine}, nil, nil, nil, false)
+				var targetCoreObjects []runtime.Object
+				if tc.setup.node != nil {
+					targetCoreObjects = append(targetCoreObjects, tc.setup.node)
+				}
+
+				c, trackers := createController(stop, testNamespace, []runtime.Object{machine}, nil, targetCoreObjects, nil, false)
 				defer trackers.Stop()
 				waitForCacheSync(stop, c)
 
-				_, err := c.updatePreserveAnnotationOnMachine(context.TODO(), tc.nodeValue, machine)
-				if tc.expect.err != nil {
-					Expect(err).To(HaveOccurred())
-				} else {
-					Expect(err).ToNot(HaveOccurred())
-					updated, getErr := c.controlMachineClient.Machines(testNamespace).Get(context.TODO(), machine.Name, metav1.GetOptions{})
-					Expect(getErr).ToNot(HaveOccurred())
-					Expect(updated.Annotations[machineutils.LastAppliedNodePreserveValueAnnotationKey]).To(Equal(tc.expect.lastAppliedNodeValue))
-					_, hasPreserve := updated.Annotations[machineutils.PreserveMachineAnnotationKey]
-					Expect(hasPreserve).To(Equal(!tc.expect.preserveAnnotationGone))
+				_, err := c.syncPreservationAnnotation(context.TODO(), machine, tc.setup.node)
+				Expect(err).ToNot(HaveOccurred())
+
+				updated, getErr := c.controlMachineClient.Machines(testNamespace).Get(context.TODO(), machine.Name, metav1.GetOptions{})
+				Expect(getErr).ToNot(HaveOccurred())
+				Expect(updated.Annotations[machineutils.PreserveMachineAnnotationKey]).To(Equal(tc.expect.machineValue))
+
+				if tc.setup.node != nil {
+					updatedNode, nodeErr := c.targetCoreClient.CoreV1().Nodes().Get(context.TODO(), tc.setup.node.Name, metav1.GetOptions{})
+					Expect(nodeErr).ToNot(HaveOccurred())
+					Expect(updatedNode.Annotations[machineutils.PreserveMachineAnnotationKey]).To(Equal(tc.expect.nodeValue))
 				}
 			},
-			Entry("machine has no annotations and nodeValue='now': should set last-applied='now' and leave no preserve annotation", testCase{
-				setup:     setup{machineAnnotations: nil},
-				nodeValue: machineutils.PreserveMachineAnnotationValueNow,
-				expect: expect{
-					lastAppliedNodeValue:   machineutils.PreserveMachineAnnotationValueNow,
-					preserveAnnotationGone: true,
-				},
-			}),
-			Entry("machine has preserve='now' and nodeValue='now': should clear preserve annotation and set last-applied='now'", testCase{
+			Entry("node is nil: machine keeps its annotation (machine is the carrier)", testCase{
 				setup: setup{
 					machineAnnotations: map[string]string{
 						machineutils.PreserveMachineAnnotationKey: machineutils.PreserveMachineAnnotationValueNow,
 					},
+					node: nil,
 				},
-				nodeValue: machineutils.PreserveMachineAnnotationValueNow,
-				expect: expect{
-					lastAppliedNodeValue:   machineutils.PreserveMachineAnnotationValueNow,
-					preserveAnnotationGone: true,
-				},
+				expect: expect{machineValue: machineutils.PreserveMachineAnnotationValueNow},
 			}),
-			Entry("machine has preserve='now' and last-applied='now' and nodeValue='': should clear preserve annotation and set last-applied=''", testCase{
+			Entry("machine has invalid annotation, node unannotated: no-op, invalid value not propagated", testCase{
+				setup: setup{
+					machineAnnotations: map[string]string{machineutils.PreserveMachineAnnotationKey: "garbage"},
+					node:               &corev1.Node{ObjectMeta: metav1.ObjectMeta{Name: "node-1"}},
+				},
+				expect: expect{machineValue: "garbage", nodeValue: ""},
+			}),
+			Entry("machine annotated, node unannotated: value copied onto node, kept on machine", testCase{
 				setup: setup{
 					machineAnnotations: map[string]string{
-						machineutils.PreserveMachineAnnotationKey:              machineutils.PreserveMachineAnnotationValueNow,
-						machineutils.LastAppliedNodePreserveValueAnnotationKey: machineutils.PreserveMachineAnnotationValueNow,
+						machineutils.PreserveMachineAnnotationKey: machineutils.PreserveMachineAnnotationValueNow,
 					},
+					node: &corev1.Node{ObjectMeta: metav1.ObjectMeta{Name: "node-1"}},
 				},
-				nodeValue: "",
-				expect: expect{
-					lastAppliedNodeValue:   "",
-					preserveAnnotationGone: true,
-				},
+				expect: expect{machineValue: machineutils.PreserveMachineAnnotationValueNow, nodeValue: machineutils.PreserveMachineAnnotationValueNow},
 			}),
-			Entry("machine has last-applied='now' and nodeValue='when-failed': should clear preserve annotation and overwrite last-applied='when-failed'", testCase{
+			Entry("machine valid, node has invalid annotation: no-op, neither value changes", testCase{
 				setup: setup{
 					machineAnnotations: map[string]string{
-						machineutils.LastAppliedNodePreserveValueAnnotationKey: machineutils.PreserveMachineAnnotationValueNow,
+						machineutils.PreserveMachineAnnotationKey: machineutils.PreserveMachineAnnotationValueNow,
 					},
+					node: &corev1.Node{ObjectMeta: metav1.ObjectMeta{
+						Name:        "node-1",
+						Annotations: map[string]string{machineutils.PreserveMachineAnnotationKey: "garbage"},
+					}},
 				},
-				nodeValue: machineutils.PreserveMachineAnnotationValueWhenFailed,
-				expect: expect{
-					lastAppliedNodeValue:   machineutils.PreserveMachineAnnotationValueWhenFailed,
-					preserveAnnotationGone: true,
+				expect: expect{machineValue: machineutils.PreserveMachineAnnotationValueNow, nodeValue: "garbage"},
+			}),
+			Entry("machine and node valid but differ: node is source of truth, flows onto machine", testCase{
+				setup: setup{
+					machineAnnotations: map[string]string{
+						machineutils.PreserveMachineAnnotationKey: machineutils.PreserveMachineAnnotationValueWhenFailed,
+					},
+					node: &corev1.Node{ObjectMeta: metav1.ObjectMeta{
+						Name:        "node-1",
+						Annotations: map[string]string{machineutils.PreserveMachineAnnotationKey: machineutils.PreserveMachineAnnotationValueNow},
+					}},
 				},
+				expect: expect{machineValue: machineutils.PreserveMachineAnnotationValueNow, nodeValue: machineutils.PreserveMachineAnnotationValueNow},
+			}),
+			Entry("machine and node valid and equal: no-op", testCase{
+				setup: setup{
+					machineAnnotations: map[string]string{
+						machineutils.PreserveMachineAnnotationKey: machineutils.PreserveMachineAnnotationValueNow,
+					},
+					node: &corev1.Node{ObjectMeta: metav1.ObjectMeta{
+						Name:        "node-1",
+						Annotations: map[string]string{machineutils.PreserveMachineAnnotationKey: machineutils.PreserveMachineAnnotationValueNow},
+					}},
+				},
+				expect: expect{machineValue: machineutils.PreserveMachineAnnotationValueNow, nodeValue: machineutils.PreserveMachineAnnotationValueNow},
 			}),
 		)
 	})

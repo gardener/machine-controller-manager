@@ -747,13 +747,14 @@ func (s ActiveMachines) Len() int      { return len(s) }
 func (s ActiveMachines) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
 
 func (s ActiveMachines) Less(i, j int) bool {
+	// Sorting order: 'greater' machines have lower priority for deletion.
 	// Preserved machines are considered `greater` than other machines.
 	// If one is preserved and the other is not, the preserved one is `greater`.
 	// If both are preserved or both are not preserved, we check for other criteria.
 	isPreservedI := machineutils.IsPreserved(s[i])
 	isPreservedJ := machineutils.IsPreserved(s[j])
 	if isPreservedI != isPreservedJ {
-		// if s[i] preserved, it is `greater`, therefore, `less` is false
+		// if s[i] preserved, it is `greater`, therefore, `less()` is false
 		return !isPreservedI
 	}
 	// TODO: the check for preserve value only expects the annotation to be on machine.
