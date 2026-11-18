@@ -1498,7 +1498,8 @@ func (c *controller) drainNodeForInPlace(ctx context.Context, machine *v1alpha1.
 
 	if node != nil {
 		cond := nodeops.GetCondition(node, v1alpha1.NodeInPlaceUpdate)
-		if cond != nil && cond.Reason == v1alpha1.SelectedForUpdate {
+		// if DisableMachineDrainTimeout is enabled do not set timeoutOccurred to continue with normal drain.
+		if cond != nil && cond.Reason == v1alpha1.SelectedForUpdate && !c.safetyOptions.DisableMachineDrainTimeout {
 			timeOutOccurred = utiltime.HasTimeOutOccurred(cond.LastTransitionTime, timeOutDuration)
 		}
 	}
@@ -1561,6 +1562,9 @@ func (c *controller) drainNodeForInPlace(ctx context.Context, machine *v1alpha1.
 		c.volumeAttachmentHandler,
 		c.podSynced,
 	)
+
+	// set DisableDrainTimeout to the same values as from the parameter to check for it inside the drain process.
+	drainOptions.DisableDrainTimeout = c.safetyOptions.DisableMachineDrainTimeout
 
 	klog.V(3).Infof("(drainNode) Invoking RunDrain, forceDeletePods: %t, timeOutDuration: %s", forceDeletePods, timeOutDuration)
 	err = drainOptions.RunDrain(ctx)
@@ -1653,7 +1657,10 @@ func (c *controller) drainNode(ctx context.Context, deleteMachineRequest *driver
 		printLogInitError(message, &err, &description, machine, false)
 	}
 
-	timeOutOccurred = utiltime.HasTimeOutOccurred(*machine.DeletionTimestamp, timeOutDuration)
+	// if DisableMachineDrainTimeout is enabled do not set timeoutOccurred to continue with normal drain.
+	if !c.safetyOptions.DisableMachineDrainTimeout {
+		timeOutOccurred = utiltime.HasTimeOutOccurred(*machine.DeletionTimestamp, timeOutDuration)
+	}
 
 	if forceDeleteLabelPresent || timeOutOccurred {
 		// To perform forceful machine drain/delete either one of the below conditions must be satisfied
@@ -1746,6 +1753,9 @@ func (c *controller) drainNode(ctx context.Context, deleteMachineRequest *driver
 		c.volumeAttachmentHandler,
 		c.podSynced,
 	)
+
+	// set DisableDrainTimeout to the same values as from the parameter to check for it inside the drain process.
+	drainOptions.DisableDrainTimeout = c.safetyOptions.DisableMachineDrainTimeout
 
 	klog.V(3).Infof("(drainNode) Invoking RunDrain, forceDeleteMachine: %t, forceDeletePods: %t, timeOutDuration: %s", forceDeletePods, forceDeleteMachine, timeOutDuration)
 	err = drainOptions.RunDrain(ctx)
@@ -2732,7 +2742,11 @@ func (c *controller) drainPreservedNode(ctx context.Context, machine *v1alpha1.M
 	// TODO@thiyyakat: how to calculate timeout? In the case of preserve=now, PreserveExpiryTime will not coincide with time of failure in which case pods will get force
 	// drained.
 	// current solution: since we want to know when machine transitioned to Failed, the code uses LastUpdateTime.
-	timeOutOccurred = utiltime.HasTimeOutOccurred(machine.Status.CurrentStatus.LastUpdateTime, timeOutDuration)
+	// also do not set timeOutOccurred if DisableMachineDrainTimeout is enabled to continue with normal drain.
+	if !c.safetyOptions.DisableMachineDrainTimeout {
+		timeOutOccurred = utiltime.HasTimeOutOccurred(machine.Status.CurrentStatus.LastUpdateTime, timeOutDuration)
+	}
+
 	if forceDrainLabelPresent || timeOutOccurred {
 		forceDeletePods = true
 		timeOutDuration = 1 * time.Minute
@@ -2796,6 +2810,10 @@ func (c *controller) drainPreservedNode(ctx context.Context, machine *v1alpha1.M
 		c.volumeAttachmentHandler,
 		c.podSynced,
 	)
+
+	// need to add the flag to the drainOptions to handle it in the drain process
+	drainOptions.DisableDrainTimeout = c.safetyOptions.DisableMachineDrainTimeout
+
 	klog.V(3).Infof("(drainPreservedNode) Invoking RunDrain, timeOutDuration: %s", timeOutDuration)
 	err = drainOptions.RunDrain(ctx)
 	if err != nil {
