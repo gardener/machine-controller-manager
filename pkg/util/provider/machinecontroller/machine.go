@@ -901,63 +901,73 @@ func (c *controller) manageMachinePreservation(ctx context.Context, machine *v1a
 
 // syncPreservationAnnotation copies the machine's preserve annotation onto the node (only when a node
 // exists and does not already carry it), and copies the node's preserve annotation onto the machine if
-// it does. When no node exists the annotation is kept on the machine.
+// it does. An explicit preserve=false on the machine is authoritative and is propagated onto the node
+// instead of being overwritten. When no node exists the annotation is kept on the machine.
 func (c *controller) syncPreservationAnnotation(ctx context.Context, machine *v1alpha1.Machine, node *corev1.Node) (*v1alpha1.Machine, error) {
-	if node == nil { // No node yet: the machine remains the carrier of the annotation.
+	if node == nil {
 		return machine, nil
 	}
 
 	machineValue, machineHasAnnotation := machine.Annotations[machineutils.PreserveMachineAnnotationKey]
 	nodeValue, nodeHasAnnotation := node.Annotations[machineutils.PreserveMachineAnnotationKey]
 
-	if !nodeHasAnnotation {
-		// Node does not carry a valid annotation. Copy the machine's value onto the node when the machine has a valid one
-		if !machineHasAnnotation || !machineutils.AllowedPreserveAnnotationValues.Has(machineValue) {
-			return machine, nil
-		}
-		klog.V(3).Infof(
-			"Copying annotation:%q=%q from machine %q onto node %q",
-			machineutils.PreserveMachineAnnotationKey,
-			machineValue,
-			machine.Name,
-			node.Name,
-		)
-		patch := fmt.Appendf(nil, `{"metadata":{"annotations":{%q:%q}}}`, machineutils.PreserveMachineAnnotationKey, machineValue)
-		if _, err := c.targetCoreClient.CoreV1().Nodes().Patch(ctx, node.Name, types.StrategicMergePatchType, patch, metav1.PatchOptions{}); err != nil {
-			klog.Errorf("error trying to copy preserve annotation onto node %q: %v", node.Name, err)
-			return machine, err
-		}
+	if nodeValue == machineValue {
+		// If the node and machine have the same value, no action is needed.
 		return machine, nil
 	}
 
-	// Copy the node's value onto the machine when they differ (this also populates a machine with a missing or invalid value).
-	if machineutils.AllowedPreserveAnnotationValues.Has(nodeValue) && nodeValue != machineValue {
-		klog.V(3).Infof(
-			"Copying annotation:%q=%q from node %q onto machine %q",
-			machineutils.PreserveMachineAnnotationKey,
-			nodeValue,
-			node.Name,
-			machine.Name,
-		)
-		updatedMachine, err := machineutils.PatchMachine(
-			ctx,
-			c.controlMachineClient.Machines(machine.Namespace),
-			machine,
-			func(m *v1alpha1.Machine) error {
-				if m.Annotations == nil {
-					m.Annotations = make(map[string]string)
-				}
-				m.Annotations[machineutils.PreserveMachineAnnotationKey] = nodeValue
-				return nil
-			},
-			true,
-		)
-		if err != nil {
-			klog.Errorf("error trying to copy preserve annotation onto machine %q: %v", machine.Name, err)
-			return machine, err
+	if machineHasAnnotation && machineutils.AllowedPreserveAnnotationValues.Has(machineValue) { // if machine value is valid
+		if !nodeHasAnnotation || machineValue == machineutils.PreserveMachineAnnotationValueFalse { // if node does not have annotation or machine explicitly sets false
+			return machine, c.copyPreserveAnnotationToNode(ctx, node, machineValue)
 		}
-		return updatedMachine, nil
+	}
+
+	if nodeHasAnnotation && machineutils.AllowedPreserveAnnotationValues.Has(nodeValue) { // if node value is valid
+		return c.copyPreserveAnnotationToMachine(ctx, machine, node, nodeValue)
 	}
 
 	return machine, nil
+}
+
+func (c *controller) copyPreserveAnnotationToNode(ctx context.Context, node *corev1.Node, value string) error {
+	klog.V(3).Infof(
+		"Copying annotation:%q=%q from machine onto node %q",
+		machineutils.PreserveMachineAnnotationKey,
+		value,
+		node.Name,
+	)
+	patch := fmt.Appendf(nil, `{"metadata":{"annotations":{%q:%q}}}`, machineutils.PreserveMachineAnnotationKey, value)
+	if _, err := c.targetCoreClient.CoreV1().Nodes().Patch(ctx, node.Name, types.StrategicMergePatchType, patch, metav1.PatchOptions{}); err != nil {
+		klog.Errorf("error trying to copy preserve annotation onto node %q: %v", node.Name, err)
+		return err
+	}
+	return nil
+}
+
+func (c *controller) copyPreserveAnnotationToMachine(ctx context.Context, machine *v1alpha1.Machine, node *corev1.Node, value string) (*v1alpha1.Machine, error) {
+	klog.V(3).Infof(
+		"Copying annotation:%q=%q from node %q onto machine %q",
+		machineutils.PreserveMachineAnnotationKey,
+		value,
+		node.Name,
+		machine.Name,
+	)
+	updatedMachine, err := machineutils.PatchMachine(
+		ctx,
+		c.controlMachineClient.Machines(machine.Namespace),
+		machine,
+		func(m *v1alpha1.Machine) error {
+			if m.Annotations == nil {
+				m.Annotations = make(map[string]string)
+			}
+			m.Annotations[machineutils.PreserveMachineAnnotationKey] = value
+			return nil
+		},
+		true,
+	)
+	if err != nil {
+		klog.Errorf("error trying to copy preserve annotation onto machine %q: %v", machine.Name, err)
+		return machine, err
+	}
+	return updatedMachine, nil
 }
