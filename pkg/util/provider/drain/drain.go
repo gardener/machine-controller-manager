@@ -180,7 +180,7 @@ var (
 	// DefaultMaxEvictRetries is the default value for MaxEvictRetries
 	DefaultMaxEvictRetries = int32(DefaultMachineDrainTimeout.Seconds() / PodEvictionRetryInterval.Seconds())
 	// PodCacheSyncTimeout is the timeout for waiting for the pod cache to sync
-	PodCacheSyncTimeout = 30 * time.Second
+	PodCacheSyncTimeout = 2 * time.Minute
 )
 
 // NewDrainOptions creates a new DrainOptions struct and returns a pointer to it
