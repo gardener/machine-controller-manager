@@ -1536,8 +1536,10 @@ func (c *IntegrationTestFramework) ControllerTests() {
 				ginkgo.By(fmt.Sprintf("add the node.machine.sapcloud.io/preserve=when-failed annotation to the running machine: %s", runningMachines[0].Name))
 				ginkgo.DeferCleanup(func() {
 					ginkgo.By(fmt.Sprintf("remove the node.machine.sapcloud.io/preserve=when-failed annotation from the preserved machine: %s", runningMachines[0].Name))
-					err = c.ControlCluster.PatchMachineAnnotations(ctx, runningMachines[0].Name, controlClusterNamespace, nil)
-					gomega.Expect(err).To(gomega.BeNil())
+					// the machine may already be gone by the time cleanup runs; a missing machine is the expected end state here
+					if err := c.ControlCluster.PatchMachineAnnotations(ctx, runningMachines[0].Name, controlClusterNamespace, nil); err != nil {
+						gomega.Expect(apierrors.IsNotFound(err)).To(gomega.BeTrue()) // if there is an error, expect it to be NotFound
+					}
 				})
 				err = c.ControlCluster.PatchMachineAnnotations(ctx, runningMachines[0].Name, controlClusterNamespace, map[string]any{
 					mc_utils.PreserveMachineAnnotationKey: mc_utils.PreserveMachineAnnotationValueWhenFailed,
@@ -1690,7 +1692,13 @@ func (c *IntegrationTestFramework) ControllerTests() {
 					mc_utils.PreserveMachineAnnotationKey: mc_utils.PreserveMachineAnnotationValueWhenFailed,
 				})
 				gomega.Expect(err).To(gomega.BeNil())
-
+				ginkgo.DeferCleanup(func() {
+					ginkgo.By(fmt.Sprintf("remove the node.machine.sapcloud.io/preserve=when-failed annotation from the preserved machine: %s", runningMachines[1].Name))
+					// the machine may already be gone by the time cleanup runs; a missing machine is the expected end state here
+					if err := c.ControlCluster.PatchMachineAnnotations(ctx, runningMachines[1].Name, controlClusterNamespace, nil); err != nil {
+						gomega.Expect(apierrors.IsNotFound(err)).To(gomega.BeTrue()) // if there is an error, expect it to be NotFound
+					}
+				})
 				// Simulate kubelet failure for the second node.
 				// The first node is already auto-preserved and counts towards AutoPreserveFailedMachineMax.
 				// We expect this machine to be preserved as well since it is explicitly marked
@@ -1704,10 +1712,6 @@ func (c *IntegrationTestFramework) ControllerTests() {
 					c.pollingInterval).
 					WithArguments(ctx, controlClusterNamespace, []string{runningMachines[0].Name, runningMachines[1].Name}).
 					Should(gomega.BeTrue())
-
-				ginkgo.By(fmt.Sprintf("remove the node.machine.sapcloud.io/preserve=when-failed annotation from the preserved machine: %s", runningMachines[1].Name))
-				err = c.ControlCluster.PatchMachineAnnotations(ctx, runningMachines[1].Name, controlClusterNamespace, nil)
-				gomega.Expect(err).To(gomega.BeNil())
 			})
 		})
 	})
