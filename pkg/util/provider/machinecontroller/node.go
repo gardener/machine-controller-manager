@@ -12,10 +12,10 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/gardener/machine-controller-manager/pkg/controller/autoscaler"
-
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
+	"github.com/gardener/machine-controller-manager/pkg/controller/autoscaler"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/machineutils"
+	taintutils "github.com/gardener/machine-controller-manager/pkg/util/taints"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/klog/v2"
 
@@ -27,6 +27,8 @@ import (
 	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/sets"
+
+	jsonpatch "gopkg.in/evanphx/json-patch.v4"
 )
 
 var (
@@ -365,19 +367,30 @@ func (c *controller) cordonNode(ctx context.Context, nodeName string) error {
 	return nil
 }
 
-// removePreservationRelatedAnnotationsOnNode removes the cluster-autoscaler annotation that disables scale down of preserved node
-func (c *controller) removePreservationRelatedAnnotationsOnNode(ctx context.Context, node *corev1.Node, removePreserveAnnotation bool) (*corev1.Node, error) {
-	// Check if annotation already absent
-	if node.Annotations == nil {
-		return node, nil
+// removePreservedNodeAnnotationsAndTaint removes the preservation annotation, the CA scale-down-disabled annotation
+// and preservation taint from the node based on opts passed.
+func removePreservedNodeAnnotationsAndTaint(node *corev1.Node, opts stopPreservationOptions) *corev1.Node {
+	nodeClone := node.DeepCopy()
+	nodeClone.Spec.Taints, _ = taintutils.DeleteTaint(nodeClone.Spec.Taints, &corev1.Taint{
+		Key:    machineutils.NodePreservedTaintKey,
+		Effect: corev1.TaintEffectNoSchedule,
+	})
+	if nodeClone.Annotations == nil {
+		return nodeClone
 	}
-	updateRequired := false
-	// If CA scale-down disabled annotation was added by MCM, it can be safely removed.
-	// If the annotation was added by some other entity, then it should not be removed.
-	if node.Annotations[autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationByMCMKey] == autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationByMCMValue {
-		delete(node.Annotations, autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationKey)
-		delete(node.Annotations, autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationByMCMKey)
-		updateRequired = true
+
+	if opts.removeCAScaleDownDisabledAnnotation && nodeClone.Annotations[autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationByMCMKey] == autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationByMCMValue {
+		delete(nodeClone.Annotations, autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationKey)
+		delete(nodeClone.Annotations, autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationByMCMKey)
+	}
+
+	if opts.removePreserveAnnotations && nodeClone.Annotations[machineutils.PreserveMachineAnnotationKey] != "" {
+		delete(nodeClone.Annotations, machineutils.PreserveMachineAnnotationKey)
+	}
+
+	return nodeClone
+}
+
 // patchNode computes a merge patch between the given node and the mutated node produced by mutateFn, and applies it.
 // If optimisticLock is set to true, the patch carries the node's resourceVersion so concurrent modifications are detected as conflicts.
 // It returns the node unchanged (without an API call) when the mutation produces no diff.
