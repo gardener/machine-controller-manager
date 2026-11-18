@@ -822,7 +822,7 @@ func (c *controller) machineCreateErrorHandler(ctx context.Context, machine *v1a
 				klog.V(3).Infof("node %q not found.", machine.Labels[v1alpha1.NodeLabelKey])
 			}
 		}
-		c.setFailedState(machine, node, &machineCurrentStatus)
+		c.setPreserveExpiryTimeOnFailure(machine, node, &machineCurrentStatus)
 	}
 
 	updateRetryPeriod, updateErr := c.machineStatusUpdate(
@@ -1157,7 +1157,7 @@ func (c *controller) reconcileMachineHealth(ctx context.Context, machine *v1alph
 					PreserveExpiryTime: machine.Status.CurrentStatus.PreserveExpiryTime,
 				}
 				// check if preservation is needed for the failed machine
-				c.setFailedState(machine, node, &clone.Status.CurrentStatus)
+				c.setPreserveExpiryTimeOnFailure(machine, node, &clone.Status.CurrentStatus)
 				cloneDirty = true
 				if machineClass != nil {
 					metrics.IncrementNumFailedToJoin(machine, machineClass)
@@ -2161,10 +2161,10 @@ func (c *controller) getEffectiveMachinePreserveTimeout(machine *v1alpha1.Machin
 	return effectivePreserveTimeout
 }
 
-// setFailedState sets PreserveExpiryTime on status to now + the effective preserve timeout when the
+// setPreserveExpiryTimeOnFailure sets PreserveExpiryTime on status to (now + the effective preserve timeout) when the
 // machine's effective preserve annotation is "when-failed" and no expiry is set yet. It is called
 // when a machine transitions to the Failed state.
-func (c *controller) setFailedState(machine *v1alpha1.Machine, node *v1.Node, status *v1alpha1.CurrentStatus) {
+func (c *controller) setPreserveExpiryTimeOnFailure(machine *v1alpha1.Machine, node *v1.Node, status *v1alpha1.CurrentStatus) {
 	if status.PreserveExpiryTime != nil {
 		return
 	}
@@ -2251,7 +2251,7 @@ func (c *controller) updateMachineToFailedState(ctx context.Context, description
 	}
 
 	// check if preservation is needed for the failed machine
-	c.setFailedState(machine, node, &clone.Status.CurrentStatus)
+	c.setPreserveExpiryTimeOnFailure(machine, node, &clone.Status.CurrentStatus)
 
 	_, err = c.controlMachineClient.Machines(clone.Namespace).UpdateStatus(ctx, clone, metav1.UpdateOptions{})
 	updated := false

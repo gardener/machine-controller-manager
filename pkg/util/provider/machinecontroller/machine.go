@@ -698,7 +698,7 @@ func (c *controller) initializeMachine(ctx context.Context, machine *v1alpha1.Ma
 					klog.V(3).Infof("node %q not found.", machine.Labels[v1alpha1.NodeLabelKey])
 				}
 			}
-			c.setFailedState(machine, node, &machineCurrentStatus)
+			c.setPreserveExpiryTimeOnFailure(machine, node, &machineCurrentStatus)
 		}
 
 		updateRetryPeriod, updateErr := c.machineStatusUpdate(
