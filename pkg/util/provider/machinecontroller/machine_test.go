@@ -4371,8 +4371,9 @@ var _ = Describe("machine", func() {
 					}
 					node := &corev1.Node{
 						ObjectMeta: metav1.ObjectMeta{
-							Name:        tc.setup.nodeName,
-							Annotations: nodeAnnotations,
+							Name:            tc.setup.nodeName,
+							ResourceVersion: "1",
+							Annotations:     nodeAnnotations,
 						},
 						Spec: corev1.NodeSpec{
 							Taints: []corev1.Taint{},

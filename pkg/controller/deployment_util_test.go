@@ -6,6 +6,7 @@ package controller
 
 import (
 	"context"
+
 	machinev1 "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -767,6 +768,125 @@ var _ = Describe("deployment_util", func() {
 					),
 					err: false,
 				},
+			}),
+		)
+	})
+
+	Describe("#setNewMachineSetAutoPreservation", func() {
+		type entry struct {
+			strategy        machinev1.MachineDeploymentStrategyType
+			deploymentAPFMM int32
+			newISAPFMM      int32
+			oldISs          []*machinev1.MachineSet
+			expectedAPFMM   int32
+			expectedChanged bool
+		}
+
+		activeOldIS := func(replicas int32) *machinev1.MachineSet {
+			return &machinev1.MachineSet{
+				Spec:   machinev1.MachineSetSpec{Replicas: replicas},
+				Status: machinev1.MachineSetStatus{Replicas: replicas, AvailableReplicas: replicas, ReadyReplicas: replicas, FullyLabeledReplicas: replicas},
+			}
+		}
+		historyIS := func() *machinev1.MachineSet {
+			return &machinev1.MachineSet{
+				Spec:   machinev1.MachineSetSpec{Replicas: 0},
+				Status: machinev1.MachineSetStatus{},
+			}
+		}
+
+		DescribeTable("#table",
+			func(e entry) {
+				deployment := &machinev1.MachineDeployment{
+					Spec: machinev1.MachineDeploymentSpec{
+						AutoPreserveFailedMachineMax: e.deploymentAPFMM,
+						Strategy: machinev1.MachineDeploymentStrategy{
+							Type: e.strategy,
+						},
+					},
+				}
+				newIS := &machinev1.MachineSet{
+					Spec: machinev1.MachineSetSpec{AutoPreserveFailedMachineMax: e.newISAPFMM},
+				}
+				changed := setNewMachineSetAutoPreservation(deployment, newIS, e.oldISs)
+				Expect(changed).To(Equal(e.expectedChanged))
+				Expect(newIS.Spec.AutoPreserveFailedMachineMax).To(Equal(e.expectedAPFMM))
+			},
+			Entry("rolling update in progress: sets apfmm to 0", entry{
+				strategy:        machinev1.RollingUpdateMachineDeploymentStrategyType,
+				deploymentAPFMM: 3,
+				newISAPFMM:      3,
+				oldISs:          []*machinev1.MachineSet{activeOldIS(3)},
+				expectedAPFMM:   0,
+				expectedChanged: true,
+			}),
+			Entry("rolling update in progress: already 0, no change", entry{
+				strategy:        machinev1.RollingUpdateMachineDeploymentStrategyType,
+				deploymentAPFMM: 3,
+				oldISs:          []*machinev1.MachineSet{activeOldIS(3)},
+				expectedAPFMM:   0,
+				expectedChanged: false,
+			}),
+			Entry("inplace update in progress: sets apfmm to 0", entry{
+				strategy:        machinev1.InPlaceUpdateMachineDeploymentStrategyType,
+				deploymentAPFMM: 2,
+				newISAPFMM:      2,
+				oldISs:          []*machinev1.MachineSet{activeOldIS(2)},
+				expectedAPFMM:   0,
+				expectedChanged: true,
+			}),
+			Entry("inplace update in progress: already 0, no change", entry{
+				strategy:        machinev1.InPlaceUpdateMachineDeploymentStrategyType,
+				deploymentAPFMM: 2,
+				oldISs:          []*machinev1.MachineSet{activeOldIS(2)},
+				expectedAPFMM:   0,
+				expectedChanged: false,
+			}),
+			Entry("no updates ongoing: only history-retained old ISes (scaled to zero), syncs from deployment", entry{
+				strategy:        machinev1.RollingUpdateMachineDeploymentStrategyType,
+				deploymentAPFMM: 3,
+				oldISs:          []*machinev1.MachineSet{historyIS()},
+				expectedAPFMM:   3,
+				expectedChanged: true,
+			}),
+			Entry("no old ISes (first creation), syncs from deployment", entry{
+				strategy:        machinev1.RollingUpdateMachineDeploymentStrategyType,
+				deploymentAPFMM: 3,
+				newISAPFMM:      0,
+				oldISs:          nil,
+				expectedAPFMM:   3,
+				expectedChanged: true,
+			}),
+			Entry("recreate: no old ISes (first creation), syncs from deployment", entry{
+				strategy:        machinev1.RecreateMachineDeploymentStrategyType,
+				deploymentAPFMM: 3,
+				newISAPFMM:      0,
+				oldISs:          nil,
+				expectedAPFMM:   3,
+				expectedChanged: true,
+			}),
+			Entry("recreate: always syncs from deployment", entry{
+				strategy:        machinev1.RecreateMachineDeploymentStrategyType,
+				deploymentAPFMM: 3,
+				newISAPFMM:      2,
+				oldISs:          []*machinev1.MachineSet{activeOldIS(3)},
+				expectedAPFMM:   3,
+				expectedChanged: true,
+			}),
+			Entry("no updates ongoing: deployment's APFMM changed, syncs from deployment", entry{
+				strategy:        machinev1.RollingUpdateMachineDeploymentStrategyType,
+				deploymentAPFMM: 3,
+				newISAPFMM:      2,
+				expectedAPFMM:   3,
+				expectedChanged: true,
+			}),
+			Entry("steady state: new IS already matches deployment, no change", entry{
+				strategy:        machinev1.RollingUpdateMachineDeploymentStrategyType,
+				deploymentAPFMM: 3,
+				newISAPFMM:      3,
+				oldISs:          nil,
+				expectedAPFMM:   3,
+				expectedChanged: false,
 			}),
 		)
 	})
