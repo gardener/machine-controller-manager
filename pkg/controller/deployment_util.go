@@ -444,6 +444,43 @@ func SetNewMachineSetConfig(deployment *v1alpha1.MachineDeployment, newIS *v1alp
 	return configChanged
 }
 
+// setNewMachineSetAutoPreservation sets the value of AutoPreserveFailedMachineMax in the new machine set by checking the deployment's strategy and
+// if there is a rolling or in-place update in progress, it sets the value to 0 to disable auto-preservation on the new machine set.
+// In the case of a recreate update, or if there is no update ongoing, it syncs the deployment's AutoPreserveFailedMachineMax value to the new machine set.
+// It returns true if the value of AutoPreserveFailedMachineMax in the new machine set is changed.
+func setNewMachineSetAutoPreservation(deployment *v1alpha1.MachineDeployment, newIS *v1alpha1.MachineSet, oldISs []*v1alpha1.MachineSet) bool {
+	if (deployment.Spec.Strategy.Type == v1alpha1.RollingUpdateMachineDeploymentStrategyType ||
+		deployment.Spec.Strategy.Type == v1alpha1.InPlaceUpdateMachineDeploymentStrategyType) &&
+		len(oldISs) > 0 &&
+		!machineSetsFullyScaledDown(oldISs) {
+		// we assign AutoPreserveFailedMachineMax=0 in the new machineset, until all old machinesets are fully scaled-down.
+		// Since autoPreserveFailedMachineMax is specified in the MCD's spec and is synced to the MCSs,
+		// having multiple active MCSs can cause discrepancies in the enforcement of the max.
+		if newIS.Spec.AutoPreserveFailedMachineMax != 0 {
+			newIS.Spec.AutoPreserveFailedMachineMax = 0
+			klog.V(2).Infof("Setting AutoPreserveFailedMachineMax to 0 on machineSet %s as there is a rolling or in-place update in progress.", newIS.Name)
+			return true
+		}
+	} else if newIS.Spec.AutoPreserveFailedMachineMax != deployment.Spec.AutoPreserveFailedMachineMax {
+		klog.V(4).Infof("Syncing AutoPreserveFailedMachineMax = %d from machineDeployment %s to machineSet %s.", deployment.Spec.AutoPreserveFailedMachineMax, deployment.Name, newIS.Name)
+		newIS.Spec.AutoPreserveFailedMachineMax = deployment.Spec.AutoPreserveFailedMachineMax
+		return true
+	}
+	return false
+}
+
+// machineSetsFullyScaledDown returns true only when the elements in machineSets have both
+// Spec.Replicas and Status.Replicas equal to zero, meaning no machines from them
+// remain (not even in a terminating state).
+func machineSetsFullyScaledDown(machineSets []*v1alpha1.MachineSet) bool {
+	for _, ms := range machineSets {
+		if ms.Spec.Replicas != 0 || ms.Status.Replicas != 0 {
+			return false
+		}
+	}
+	return true
+}
+
 // UpdateMachineSetClassKind updates class.Kind appropriately by updating its revision and
 // copying required deployment class.Kind to it; it returns true if machine set's class.Kind is changed.
 func UpdateMachineSetClassKind(deployment *v1alpha1.MachineDeployment, newIS *v1alpha1.MachineSet, _ string, _ bool) bool {
