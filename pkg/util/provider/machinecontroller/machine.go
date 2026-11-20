@@ -846,13 +846,8 @@ func (c *controller) manageMachinePreservation(ctx context.Context, machine *v1a
 		n, err = c.nodeLister.Get(machine.Labels[v1alpha1.NodeLabelKey])
 		if err == nil {
 			node = n.DeepCopy()
-		} else if apierrors.IsNotFound(err) {
-			// a missing node is expected (machine may have none yet); do not surface it as an error
-			klog.V(3).Infof("node %q not found. Will check the machine %q for annotation:%q", machine.Labels[v1alpha1.NodeLabelKey], machine.Name, machineutils.PreserveMachineAnnotationKey)
-			err = nil
 		} else {
-			klog.Warningf("could not get node %q for machine %q: %v. Will check the machine for annotation:%q", machine.Labels[v1alpha1.NodeLabelKey], machine.Name, err, machineutils.PreserveMachineAnnotationKey)
-			err = nil
+			klog.V(3).Infof("node %q not found. Will check the machine %q for annotation:%q", machine.Labels[v1alpha1.NodeLabelKey], machine.Name, machineutils.PreserveMachineAnnotationKey)
 		}
 	}
 	preserveAnnotationValue, shouldHandlePreservation := machineutils.DeterminePreservationAction(machine, node)
