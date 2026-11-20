@@ -111,7 +111,7 @@ To prevent confusion and unintended behaviour, it is recommended to use preserva
 
 Removing the preserve annotation is a **no-op**: it does not stop an ongoing preservation. To stop preservation, the machine/node must be annotated with `node.machine.sapcloud.io/preserve=false`.
 
-When a machine/node is annotated with value `false`, the annotation is not removed by MCM and persists on the object until an operator removes it. This explicitly indicates that the machine should not be auto-preserved by MCM, and it will keep suppressing auto-preservation for as long as it is present. If this `false` annotation is later deleted, MCM will again auto-preserve the machine if it is in `Failed` phase and the `AutoPreserveFailedMachineMax` limit is not reached.
+When a machine/node is annotated with `false`, the annotation persists until manually removed, and the machine is not auto-preserved while it is present. Once removed, a Failed machine becomes eligible for auto-preservation again, subject to the AutoPreserveFailedMachineMax limit.
 
 ---
 ### How to manually stop preservation before PreserveExpiryTime:

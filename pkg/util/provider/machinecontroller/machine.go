@@ -851,7 +851,8 @@ func (c *controller) manageMachinePreservation(ctx context.Context, machine *v1a
 			klog.V(3).Infof("node %q not found. Will check the machine %q for annotation:%q", machine.Labels[v1alpha1.NodeLabelKey], machine.Name, machineutils.PreserveMachineAnnotationKey)
 			err = nil
 		} else {
-			return machine, err
+			klog.Warningf("could not get node %q for machine %q: %v. Will check the machine for annotation:%q", machine.Labels[v1alpha1.NodeLabelKey], machine.Name, err, machineutils.PreserveMachineAnnotationKey)
+			err = nil
 		}
 	}
 	preserveAnnotationValue, shouldHandlePreservation := machineutils.DeterminePreservationAction(machine, node)
