@@ -81,8 +81,6 @@ spec:
 - `maxTotalUnreadyPercentage`: Maximum percentage of unready nodes in the cluster. If the unready nodes percentage crosses this, autoscaling activities are stopped. Since auto-preserved nodes are unready, the value `AutoPreserveFailedMachineMax/Worker.Maximum * 100` must be lower than `maxTotalUnreadyPercentage` to prevent these nodes from halting autoscaling. Cluster Autoscaler performs this readiness check both at the cluster level and at the worker level.
 - `machinePreserveTimeout` : Duration after which preserved machines are automatically released. This defaults to `96h` (4 days).
 
-> Note: For auto-preserved machines, the `PreserveExpiryTime` uses the machine's `MachineConfiguration.MachinePreserveTimeout` if set, otherwise the built-in default (`96h`). The machine-controller's `--machine-preserve-timeout` flag only applies to preservations driven by the machine controller, not to auto-preservation set by the machineSet controller.
-
 > Note: ⚠️ Changes to machinePreserveTimeout apply only to preservations that occur after the change.
 > If AutoPreserveFailedMachineMax is decreased, auto-preserved machines are de-preserved first, followed by manually preserved machines, until the count is within the new limit. When deciding between two auto-preserved or two manually preserved machines to de-preserve, the machine with the earlier PreserveExpiryTime is de-preserved first.
 
@@ -107,19 +105,19 @@ annotation key: `node.machine.sapcloud.io/preserve`
 ### ⚠️ Preservation Annotation semantics:
 
 Both node and machine objects can be annotated for preservation.
-Whenever a backing node exists, the node is the source of truth for the preserve annotation: MCM copies the preserve value from the machine onto the node (if the node does not already carry it) and removes the annotation from the machine. If both the machine and node are annotated, the node's value is honoured and the machine's annotation is removed (with the exception of `preserve=false`, see below).
-If there is no backing node, the annotation stays on the machine and drives preservation.
+Whenever a backing node exists and carries a (valid) preserve annotation, the node is the source of truth: its value drives preservation and the machine's own preserve annotation is removed (since the node's value is the one honoured). If both the machine and node are annotated, the node's value wins and the machine's annotation is deleted. The annotation is not written onto the node by MCM.
+If there is no backing node (or the node is not annotated), the machine's own preserve annotation drives preservation.
+To prevent confusion and unintended behaviour, it is recommended to use preservation by annotating the node object, if it exists and can be accessed.
 
 Removing the preserve annotation is a **no-op**: it does not stop an ongoing preservation. To stop preservation, the machine/node must be annotated with `node.machine.sapcloud.io/preserve=false`.
 
 When a machine/node is annotated with value `false`, the annotation is not removed by MCM and persists on the object until an operator removes it. This explicitly indicates that the machine should not be auto-preserved by MCM, and it will keep suppressing auto-preservation for as long as it is present. If this `false` annotation is later deleted, MCM will again auto-preserve the machine if it is in `Failed` phase and the `AutoPreserveFailedMachineMax` limit is not reached.
-`false` can either be added to a machine/or to a node to stop preservation. This annotation is also copied over to the node from the machine if it exists.
 
 ---
 ### How to manually stop preservation before PreserveExpiryTime:
 To stop an ongoing preservation (manual or auto), annotate the machine/node with `node.machine.sapcloud.io/preserve=false`.
 Deleting the preserve annotation does **not** stop preservation; only the `false` value does.
-As with all preservation annotations, if a backing node exists the `false` value is honoured on the node and the machine's annotation is removed.
+As with all preservation annotations, if a backing node carries the `false` value it is honoured and the machine's own annotation is removed.
 
 ---
 
@@ -128,7 +126,7 @@ As with all preservation annotations, if a backing node exists the `false` value
 To prevent a `Failed` machine from being auto-preserved the node/machine object must be annotated with `node.machine.sapcloud.io/preserve=false`. If a currently preserved machine is annotated with `false`, the preservation will be stopped.
 Here too, the preservation annotation semantics from above applies - if both machine and node are annotated, the node's annotation value is honoured and the machine's annotation is deleted.
 
-If the `false` annotation is later deleted, MCM will again auto-preserve the machine if it is in `Failed` phase and the `AutoPreserveFailedMachineMax` limit is not reached.
+The `false` annotation must stay in place to keep suppressing auto-preservation. If it is later deleted, MCM will again auto-preserve the machine if it is in `Failed` phase and the `AutoPreserveFailedMachineMax` limit is not reached. (Deleting a non-`false` preserve annotation, by contrast, is a no-op and does not stop an ongoing preservation.)
 
 >Note: If the machine/node is annotated with `node.machine.sapcloud.io/preserve=<invalid-value>`, this would end up preventing the machine from being `auto-preserved`.
 

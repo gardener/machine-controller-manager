@@ -1534,6 +1534,10 @@ func (c *IntegrationTestFramework) ControllerTests() {
 
 				// Add the node.machine.sapcloud.io/preserve=when-failed annotation to the running machine to ensure it is preserved when it fails
 				ginkgo.By(fmt.Sprintf("add the node.machine.sapcloud.io/preserve=when-failed annotation to the running machine: %s", runningMachines[0].Name))
+				err = c.ControlCluster.PatchMachineAnnotations(ctx, runningMachines[0].Name, controlClusterNamespace, map[string]any{
+					mc_utils.PreserveMachineAnnotationKey: mc_utils.PreserveMachineAnnotationValueWhenFailed,
+				})
+				gomega.Expect(err).To(gomega.BeNil())
 				ginkgo.DeferCleanup(func() {
 					ginkgo.By(fmt.Sprintf("remove the node.machine.sapcloud.io/preserve=when-failed annotation from the preserved machine: %s", runningMachines[0].Name))
 					// the machine may already be gone by the time cleanup runs; a missing machine is the expected end state here
@@ -1541,10 +1545,6 @@ func (c *IntegrationTestFramework) ControllerTests() {
 						gomega.Expect(apierrors.IsNotFound(err)).To(gomega.BeTrue()) // if there is an error, expect it to be NotFound
 					}
 				})
-				err = c.ControlCluster.PatchMachineAnnotations(ctx, runningMachines[0].Name, controlClusterNamespace, map[string]any{
-					mc_utils.PreserveMachineAnnotationKey: mc_utils.PreserveMachineAnnotationValueWhenFailed,
-				})
-				gomega.Expect(err).To(gomega.BeNil())
 
 				// Simulate kubelet failure for the node
 				targetNodes := []string{runningMachines[0].ObjectMeta.Labels[v1alpha1.NodeLabelKey]}
@@ -1604,15 +1604,15 @@ func (c *IntegrationTestFramework) ControllerTests() {
 				nodeName := runningMachines[0].ObjectMeta.Labels[v1alpha1.NodeLabelKey]
 				gomega.Expect(len(nodeName)).Should(gomega.BeNumerically(">", 0))
 				ginkgo.By(fmt.Sprintf("add the node.machine.sapcloud.io/preserve=when-failed annotation to the running node: %s", runningMachines[0].Name))
+				err = c.ControlCluster.PatchMachineAnnotations(ctx, runningMachines[0].Name, controlClusterNamespace, map[string]any{
+					mc_utils.PreserveMachineAnnotationKey: mc_utils.PreserveMachineAnnotationValueWhenFailed,
+				})
+				gomega.Expect(err).To(gomega.BeNil())
 				ginkgo.DeferCleanup(func() {
 					ginkgo.By(fmt.Sprintf("remove the node.machine.sapcloud.io/preserve=when-failed annotation from the preserved node: %s", runningMachines[0].Name))
 					err = c.ControlCluster.PatchMachineAnnotations(ctx, runningMachines[0].Name, controlClusterNamespace, nil)
 					gomega.Expect(err).To(gomega.BeNil())
 				})
-				err = c.ControlCluster.PatchMachineAnnotations(ctx, runningMachines[0].Name, controlClusterNamespace, map[string]any{
-					mc_utils.PreserveMachineAnnotationKey: mc_utils.PreserveMachineAnnotationValueWhenFailed,
-				})
-				gomega.Expect(err).To(gomega.BeNil())
 
 				// Simulate kubelet failure for the node
 				targetNodes := []string{runningMachines[0].ObjectMeta.Labels[v1alpha1.NodeLabelKey]}
