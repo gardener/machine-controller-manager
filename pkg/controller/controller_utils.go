@@ -747,6 +747,7 @@ func (s ActiveMachines) Len() int      { return len(s) }
 func (s ActiveMachines) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
 
 func (s ActiveMachines) Less(i, j int) bool {
+	// Sorting order: 'greater' machines are de-prioritized for deletion.
 	// Preserved machines are considered `greater` than other machines.
 	// If one is preserved and the other is not, the preserved one is `greater`.
 	// If both are preserved or both are not preserved, we check for other criteria.
