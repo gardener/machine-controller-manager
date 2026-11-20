@@ -34,6 +34,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	annotationsutils "github.com/gardener/machine-controller-manager/pkg/util/annotations"
 	taintutils "github.com/gardener/machine-controller-manager/pkg/util/taints"
@@ -2741,10 +2742,13 @@ func (c *controller) drainPreservedNode(ctx context.Context, machine *v1alpha1.M
 			maxEvictRetries,
 		)
 	}
-	// Add the NodeDrained condition to the node object before starting the drain operation.
 	var err error
-	if node, err = c.computeAndPatchNodeDrainedCondition(ctx, node, v1alpha1.DrainStarted, ""); err != nil {
-		return err
+
+	// check if the NodeDrained condition needs to be added
+	if existingCond := nodeops.GetCondition(node, v1alpha1.NodeDrained); existingCond == nil {
+		if node, err = c.setNodeDrainStarted(ctx, node); err != nil {
+			return err
+		}
 	}
 
 	// since we do not wish to change a user's explicit cordoning of a node, for preservation, we make use of
@@ -2758,7 +2762,7 @@ func (c *controller) drainPreservedNode(ctx context.Context, machine *v1alpha1.M
 	nodeWithTaint, updated, err := taintutils.AddOrUpdateTaint(node, preservationTaint)
 	if err != nil {
 		klog.Errorf("error trying to add NodePreserved taint on node object for node %q of machine %q : %v", nodeName, machine.Name, err)
-		_, updateStatusErr := c.computeAndPatchNodeDrainedCondition(ctx, node, v1alpha1.DrainFailed, err.Error())
+		_, updateStatusErr := c.setNodeDrainFailed(ctx, node, err.Error())
 		return errors.Join(err, updateStatusErr)
 	}
 
@@ -2766,7 +2770,7 @@ func (c *controller) drainPreservedNode(ctx context.Context, machine *v1alpha1.M
 		node, err = nodeops.PatchNodeTaints(ctx, c.targetCoreClient, node, nodeWithTaint)
 		if err != nil {
 			klog.Errorf("error during node UPDATE to add NodePreserved taint: %q for node %q of machine %q with providerID %q : %v", machineutils.NodePreservedTaintKey, nodeName, machine.Name, getProviderID(machine), err)
-			_, updateStatusErr := c.computeAndPatchNodeDrainedCondition(ctx, node, v1alpha1.DrainFailed, err.Error())
+			_, updateStatusErr := c.setNodeDrainFailed(ctx, node, err.Error())
 			return errors.Join(err, updateStatusErr)
 		}
 	}
@@ -2800,25 +2804,20 @@ func (c *controller) drainPreservedNode(ctx context.Context, machine *v1alpha1.M
 	)
 	klog.V(3).Infof("(drainPreservedNode) Invoking RunDrain, timeOutDuration: %s", timeOutDuration)
 	err = drainOptions.RunDrain(ctx)
-
-	drainReason := v1alpha1.DrainCompleted
-	drainMsg := ""
 	if err != nil {
 		klog.Errorf("drain failed for preserved machine %q, providerID %q, backing node %q. \nBuf:%v \nErrBuf:%v \nErr-Message:%v", machine.Name, getProviderID(machine), getNodeName(machine), buf, errBuf, err)
-		drainReason = v1alpha1.DrainFailed
-		drainMsg = err.Error()
+		drainMsg := err.Error()
 		if errBuf.Len() > 0 {
 			drainMsg = drainMsg + ": " + errBuf.String()
 		}
+		_, updateStatusErr := c.setNodeDrainFailed(ctx, node, drainMsg)
+		return errors.Join(err, updateStatusErr)
 	}
 
-	if _, updateErr := c.computeAndPatchNodeDrainedCondition(ctx, node, drainReason, drainMsg); updateErr != nil {
+	if _, updateErr := c.setNodeDrainCompleted(ctx, node); updateErr != nil {
 		return errors.Join(err, updateErr)
 	}
 
-	if err != nil {
-		return err
-	}
 	if forceDeletePods {
 		klog.V(3).Infof("Force drain successful for preserved machine %q, providerID %q, backing node %q.", machine.Name, getProviderID(machine), getNodeName(machine))
 	} else {
@@ -2848,6 +2847,18 @@ func (c *controller) computeAndPatchNodeDrainedCondition(ctx context.Context, no
 	return updatedNode, nil
 }
 
+func (c *controller) setNodeDrainStarted(ctx context.Context, node *v1.Node) (*v1.Node, error) {
+	return c.computeAndPatchNodeDrainedCondition(ctx, node, v1alpha1.DrainStarted, "")
+}
+
+func (c *controller) setNodeDrainFailed(ctx context.Context, node *v1.Node, errMsg string) (*v1.Node, error) {
+	return c.computeAndPatchNodeDrainedCondition(ctx, node, v1alpha1.DrainFailed, errMsg)
+}
+
+func (c *controller) setNodeDrainCompleted(ctx context.Context, node *v1.Node) (*v1.Node, error) {
+	return c.computeAndPatchNodeDrainedCondition(ctx, node, v1alpha1.DrainCompleted, "")
+}
+
 // computeNodeDrainedCondition builds the NodeDrained condition for the given drain reason and message.
 func computeNodeDrainedCondition(existingCondition *v1.NodeCondition, reason string, errMsg string) v1.NodeCondition {
 	now := metav1.Now()
@@ -2865,7 +2876,7 @@ func computeNodeDrainedCondition(existingCondition *v1.NodeCondition, reason str
 		truncateMsg := " (see logs for details)."
 		maxLen := 256 - len(msgPrefix)
 		if len(errMsg) > maxLen {
-			errMsg = errMsg[:maxLen-len(truncateMsg)] + truncateMsg
+			errMsg = truncateAtRuneBoundary(errMsg, maxLen-len(truncateMsg)) + truncateMsg
 		}
 		nodeDrainedCondition.Message = fmt.Sprintf("%s%v", msgPrefix, errMsg)
 	case v1alpha1.DrainCompleted:
@@ -2876,4 +2887,20 @@ func computeNodeDrainedCondition(existingCondition *v1.NodeCondition, reason str
 		nodeDrainedCondition.LastTransitionTime = existingCondition.LastTransitionTime
 	}
 	return nodeDrainedCondition
+}
+
+// truncateAtRuneBoundary returns s capped to at most maxBytes bytes,
+// cut back to the nearest rune boundary that does not violate maxBytes.
+func truncateAtRuneBoundary(s string, maxBytes int) string {
+	if maxBytes <= 0 {
+		return ""
+	}
+	if len(s) <= maxBytes {
+		return s
+	}
+	cut := maxBytes
+	for cut > 0 && !utf8.RuneStart(s[cut]) {
+		cut--
+	}
+	return s[:cut]
 }

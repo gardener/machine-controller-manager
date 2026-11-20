@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/gardener/machine-controller-manager/pkg/controller/autoscaler"
 	"k8s.io/klog/v2"
@@ -4980,6 +4981,28 @@ var _ = Describe("machine_util", func() {
 				setup:  setup{},
 				expect: expect{preserveExpiryTimeSet: false},
 			}),
+		)
+	})
+
+	Describe("truncateAtRuneBoundary", func() {
+		DescribeTable("##table",
+			func(input string, maxBytes int, expected string) {
+				result := truncateAtRuneBoundary(input, maxBytes)
+				Expect(result).To(Equal(expected))
+				Expect(len(result)).To(BeNumerically("<=", len(input)))
+				Expect(utf8.ValidString(result)).To(BeTrue())
+			},
+			Entry("maxBytes zero returns empty", "hello", 0, ""),
+			Entry("maxBytes negative returns empty", "hello", -1, ""),
+			Entry("ascii shorter than limit is unchanged", "hello", 10, "hello"),
+			Entry("ascii equal to limit is unchanged", "hello", 5, "hello"),
+			Entry("ascii longer than limit is cut at the byte", "hello world", 5, "hello"),
+			Entry("empty string returns empty", "", 5, ""),
+			Entry("cut on a multi-byte boundary keeps the whole rune", "a€b", 4, "a€"),
+			Entry("cut inside a multi-byte rune backs off to the boundary", "a€b", 2, "a"),
+			Entry("cut at the first byte of a multi-byte rune drops it", "a€b", 1, "a"),
+			Entry("multi-byte rune longer than limit yields empty", "€", 2, ""),
+			Entry("four-byte rune cut mid-rune backs off to boundary", "x🙂y", 3, "x"),
 		)
 	})
 })
