@@ -7,10 +7,13 @@ package nodeops
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/strategicpatch"
 	clientset "k8s.io/client-go/kubernetes"
 	clientretry "k8s.io/client-go/util/retry"
 )
@@ -106,4 +109,78 @@ func UpdateNodeConditions(ctx context.Context, c clientset.Interface, nodeName s
 		return nil, fmt.Errorf("failed to create/update conditions on node %q: %v", nodeName, err)
 	}
 	return updatedNode, nil
+}
+
+// SetNodeCondition returns an array of node conditions after replacing an existing entry of the
+// same type, or appending it if absent.
+func SetNodeCondition(conditions []v1.NodeCondition, condition v1.NodeCondition) []v1.NodeCondition {
+	for i := range conditions {
+		if conditions[i].Type == condition.Type {
+			conditions[i] = condition
+			return conditions
+		}
+	}
+	return append(conditions, condition)
+}
+
+// PatchNodeConditions adds or updates the given conditions on the node's status, matched by type.
+// Conditions present on the node whose type is not in conditionsToChange are left unchanged. Each
+// condition is written exactly as given, including its timestamps. No API server call is made when
+// the conditions already match. The patch does not conflict with concurrent writes to other conditions.
+func PatchNodeConditions(ctx context.Context, c clientset.Interface, node *v1.Node, conditionsToChange []v1.NodeCondition) (*v1.Node, error) {
+	original := &v1.Node{
+		ObjectMeta: metav1.ObjectMeta{Name: node.Name},
+		Status:     v1.NodeStatus{Conditions: node.Status.Conditions},
+	}
+	base, err := json.Marshal(original)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal old node %q: %w", node.Name, err)
+	}
+
+	modified := original.DeepCopy()
+	for _, updatedCondition := range conditionsToChange {
+		modified.Status.Conditions = SetNodeCondition(modified.Status.Conditions, updatedCondition)
+	}
+	modifiedJSON, err := json.Marshal(modified)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal new node %q: %w", node.Name, err)
+	}
+
+	patch, err := strategicpatch.CreateTwoWayMergePatch(base, modifiedJSON, v1.Node{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to create status patch for node %q: %w", node.Name, err)
+	}
+	if string(patch) == "{}" {
+		return node, nil
+	}
+	return c.CoreV1().Nodes().Patch(ctx, node.Name, types.StrategicMergePatchType, patch, metav1.PatchOptions{}, "status")
+}
+
+// RemoveNodeConditions deletes the conditions of the given types from the node's status. Types not
+// present on the node are ignored, and no API server call is made when none of them are present.
+// Conditions of other types are left unchanged, and it does not conflict with concurrent writes to them.
+func RemoveNodeConditions(ctx context.Context, c clientset.Interface, node *v1.Node, conditionTypesToRemove []v1.NodeConditionType) (*v1.Node, error) {
+	var conditionPatches []map[string]any
+	for _, conditionType := range conditionTypesToRemove {
+		if GetCondition(node, conditionType) == nil {
+			continue
+		}
+		conditionPatches = append(conditionPatches, map[string]any{
+			"type":   conditionType,
+			"$patch": "delete",
+		})
+	}
+	if len(conditionPatches) == 0 {
+		return node, nil
+	}
+
+	patch, err := json.Marshal(map[string]any{
+		"status": map[string]any{
+			"conditions": conditionPatches,
+		},
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to create condition removal patch for node %q: %w", node.Name, err)
+	}
+	return c.CoreV1().Nodes().Patch(ctx, node.Name, types.StrategicMergePatchType, patch, metav1.PatchOptions{}, "status")
 }
