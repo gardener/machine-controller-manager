@@ -2763,7 +2763,7 @@ func (c *controller) drainPreservedNode(ctx context.Context, machine *v1alpha1.M
 	}
 
 	if updated {
-		node, err = taintutils.PatchNodeTaints(ctx, c.targetCoreClient, node, nodeWithTaint)
+		node, err = nodeops.PatchNodeTaints(ctx, c.targetCoreClient, node, nodeWithTaint)
 		if err != nil {
 			klog.Errorf("error during node UPDATE to add NodePreserved taint: %q for node %q of machine %q with providerID %q : %v", machineutils.NodePreservedTaintKey, nodeName, machine.Name, getProviderID(machine), err)
 			_, updateStatusErr := c.computeAndPatchNodeDrainedCondition(ctx, node, v1alpha1.DrainFailed, err.Error())

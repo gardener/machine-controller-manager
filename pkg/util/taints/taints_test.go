@@ -22,16 +22,11 @@ Modifications Contributors to the Gardener project
 package taints
 
 import (
-	"context"
 	"reflect"
 	"strings"
 	"testing"
 
 	"k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
-	k8sfake "k8s.io/client-go/kubernetes/fake"
-	k8stesting "k8s.io/client-go/testing"
 
 	"github.com/spf13/pflag"
 )
@@ -119,88 +114,4 @@ func TestAddOrUpdateTaint(t *testing.T) {
 	node = newNode
 	newNode, result, err = AddOrUpdateTaint(node, taint)
 	checkResult("Add Duplicate Taint", newNode, taint, result, false, err)
-}
-
-func TestPatchNodeTaints(t *testing.T) {
-	cases := []struct {
-		name            string
-		resourceVersion string
-		existingTaints  []v1.Taint
-		newTaints       []v1.Taint
-		expectPatch     bool
-		expectKeys      []string
-	}{
-		{
-			name:            "applies a new taint and preserves existing taints",
-			resourceVersion: "1",
-			existingTaints:  []v1.Taint{{Key: "existing", Effect: v1.TaintEffectNoSchedule}},
-			newTaints: []v1.Taint{
-				{Key: "existing", Effect: v1.TaintEffectNoSchedule},
-				{Key: "node.machine.sapcloud.io/preserved", Effect: v1.TaintEffectNoSchedule},
-			},
-			expectPatch: true,
-			expectKeys:  []string{"existing", "node.machine.sapcloud.io/preserved"},
-		},
-		{
-			name:           "makes no API call when taints and resourceVersion are both identical",
-			existingTaints: []v1.Taint{{Key: "node.machine.sapcloud.io/preserved", Effect: v1.TaintEffectNoSchedule}},
-			newTaints:      []v1.Taint{{Key: "node.machine.sapcloud.io/preserved", Effect: v1.TaintEffectNoSchedule}},
-			expectPatch:    false,
-			expectKeys:     []string{"node.machine.sapcloud.io/preserved"},
-		},
-		{
-			name:            "removes a taint when absent from newNode",
-			resourceVersion: "1",
-			existingTaints: []v1.Taint{
-				{Key: "existing", Effect: v1.TaintEffectNoSchedule},
-				{Key: "node.machine.sapcloud.io/preserved", Effect: v1.TaintEffectNoSchedule},
-			},
-			newTaints:   []v1.Taint{{Key: "existing", Effect: v1.TaintEffectNoSchedule}},
-			expectPatch: true,
-			expectKeys:  []string{"existing"},
-		},
-	}
-
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			node := &v1.Node{
-				ObjectMeta: metav1.ObjectMeta{Name: "node-1", ResourceVersion: tc.resourceVersion},
-				Spec:       v1.NodeSpec{Taints: tc.existingTaints},
-			}
-			c := k8sfake.NewSimpleClientset(node)
-
-			patched := false
-			c.Fake.PrependReactor("patch", "nodes", func(_ k8stesting.Action) (bool, runtime.Object, error) {
-				patched = true
-				return false, nil, nil
-			})
-
-			newNode := node.DeepCopy()
-			newNode.Spec.Taints = tc.newTaints
-			result, err := PatchNodeTaints(context.Background(), c, node, newNode)
-			if err != nil {
-				t.Fatalf("unexpected error: %v", err)
-			}
-			if patched != tc.expectPatch {
-				t.Errorf("expected patch=%v, got %v", tc.expectPatch, patched)
-			}
-			if !tc.expectPatch && result != node {
-				t.Errorf("expected original node returned when no patch needed")
-			}
-
-			updatedNode, err := c.CoreV1().Nodes().Get(context.Background(), node.Name, metav1.GetOptions{})
-			if err != nil {
-				t.Fatalf("unexpected error getting node: %v", err)
-			}
-			keys := map[string]bool{}
-			for _, taint := range updatedNode.Spec.Taints {
-				keys[taint.Key] = true
-			}
-			for _, key := range tc.expectKeys {
-				if !keys[key] {
-					t.Errorf("expected taint key %q to be present", key)
-				}
-			}
-		})
-	}
 }
