@@ -24,6 +24,8 @@
 // Package codes defines the canonical error codes used by machineAPIs for gardener/machine-controller-manager
 package codes
 
+import "fmt"
+
 // Code is an unsigned int representing aa canonical error code for machineAPIs
 type Code uint32
 
@@ -172,10 +174,43 @@ var strToCode = map[string]Code{
 	"Uninitialized":      Uninitialized,
 }
 
+var codeToDescription = map[Code]string{
+	OK:                 "Operation completed successfully.",
+	Canceled:           "The cloud provider operation was canceled.",
+	Unknown:            "An unknown error occurred.",
+	InvalidArgument:    "The cloud provider rejected the request as invalid.",
+	DeadlineExceeded:   "The operation expired before completion.",
+	NotFound:           "The requested resource was not found by the cloud provider.",
+	AlreadyExists:      "The resource already exists at the cloud provider.",
+	PermissionDenied:   "Insufficient permissions at the cloud provider.",
+	ResourceExhausted:  "Resource limit exceeded at the cloud provider.",
+	FailedPrecondition: "The operation was rejected because the VM is not in the required state.",
+	Aborted:            "The cloud provider operation was aborted.",
+	OutOfRange:         "The operation was attempted past the valid range at the cloud provider.",
+	Unimplemented:      "The operation is not implemented or not supported in this service.",
+	Internal:           "An internal error occurred at the cloud provider.",
+	Unavailable:        "The cloud provider is temporarily unavailable.",
+	DataLoss:           "Unrecoverable data loss or corruption occurred.",
+	Unauthenticated:    "Authentication with the cloud provider failed.",
+	Uninitialized:      "The VM instance initialization was not performed.",
+}
+
 // StringToCode coverts string into the Code.
 func StringToCode(input string) Code {
 	if code, ok := strToCode[input]; ok {
 		return code
 	}
 	return Unknown
+}
+
+// Description returns the description of the Code. If the Code is not recognized, it returns a generic error message.
+func (c Code) Description() string {
+	if desc, ok := codeToDescription[c]; ok {
+		if c != OK {
+			desc = desc + " See MCM logs for details."
+		}
+		return desc
+	}
+	// This should never happen, but if it does, we want to make sure that the error description is still useful.
+	return fmt.Sprintf("Cloud provider operation failed with error code %q. See MCM logs for details.", c.String())
 }

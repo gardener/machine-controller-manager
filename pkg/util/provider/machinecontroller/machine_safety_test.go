@@ -10,6 +10,7 @@ import (
 
 	v1alpha1 "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/driver"
+	"github.com/gardener/machine-controller-manager/pkg/util/provider/machinecodes/codes"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/machineutils"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -87,7 +88,7 @@ var _ = Describe("safety_logic", func() {
 					newMachineObject: &v1alpha1.Machine{
 						Status: v1alpha1.MachineStatus{
 							LastOperation: v1alpha1.LastOperation{
-								Description: "Cloud provider message - machine codes error: code = [NotFound] message = [AWS plugin is returning multiple VM instances backing this machine object. IDs for all backing VMs - [i-1234abcd i-5678efgh]",
+								ErrorCode: codes.NotFound.String(),
 							},
 						},
 					},
@@ -102,7 +103,7 @@ var _ = Describe("safety_logic", func() {
 					newMachineObject: &v1alpha1.Machine{
 						Status: v1alpha1.MachineStatus{
 							LastOperation: v1alpha1.LastOperation{
-								Description: "Cloud provider message - machine codes error: code = [OutOfRange] message = [AWS plugin is returning multiple VM instances backing this machine object. IDs for all backing VMs - [i-1234abcd i-5678efgh]",
+								ErrorCode: codes.OutOfRange.String(),
 							},
 						},
 					},
@@ -117,7 +118,7 @@ var _ = Describe("safety_logic", func() {
 						ObjectMeta: metav1.ObjectMeta{ResourceVersion: "1"},
 						Status: v1alpha1.MachineStatus{
 							LastOperation: v1alpha1.LastOperation{
-								Description: "Cloud provider message - machine codes error: code = [OutOfRange] message = [AWS plugin is returning multiple VM instances backing this machine object. IDs for all backing VMs - [i-1234abcd i-5678efgh]",
+								ErrorCode: codes.OutOfRange.String(),
 							},
 						},
 					},
@@ -125,7 +126,7 @@ var _ = Describe("safety_logic", func() {
 						ObjectMeta: metav1.ObjectMeta{ResourceVersion: "1"},
 						Status: v1alpha1.MachineStatus{
 							LastOperation: v1alpha1.LastOperation{
-								Description: "Machine abc successfully joined the cluster",
+								ErrorCode: "",
 							},
 						},
 					},
