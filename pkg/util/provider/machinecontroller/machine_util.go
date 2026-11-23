@@ -807,21 +807,40 @@ func (c *controller) machineCreateErrorHandler(ctx context.Context, machine *v1a
 		lastKnownState = createMachineResponse.LastKnownState
 	}
 
+	lastUpdateTime := metav1.Now()
+	machineCurrentStatus := v1alpha1.CurrentStatus{
+		Phase:              c.getCreateFailurePhase(machine),
+		LastUpdateTime:     lastUpdateTime,
+		PreserveExpiryTime: machine.Status.CurrentStatus.PreserveExpiryTime,
+	}
+	if machineCurrentStatus.Phase == v1alpha1.MachineFailed {
+		var node *v1.Node
+		var gerr error
+		if c.nodeLister != nil {
+			node, gerr = c.nodeLister.Get(machine.Labels[v1alpha1.NodeLabelKey])
+			if gerr != nil {
+				klog.V(3).Infof("node %q not found.", machine.Labels[v1alpha1.NodeLabelKey])
+			}
+		}
+		if val, shouldHandlePreservation := machineutils.DeterminePreservationAction(machine, node); shouldHandlePreservation && val == machineutils.PreserveMachineAnnotationValueWhenFailed {
+			if machineCurrentStatus.PreserveExpiryTime == nil {
+				machineCurrentStatus.PreserveExpiryTime = &metav1.Time{Time: metav1.Now().Add(c.getEffectiveMachinePreserveTimeout(machine).Duration)}
+			}
+		}
+	}
+
+	klog.V(2).Infof("Machine creation failed for %q, cloud provider error: %v", machine.Name, err)
 	updateRetryPeriod, updateErr := c.machineStatusUpdate(
 		ctx,
 		machine,
 		v1alpha1.LastOperation{
-			Description:    "Cloud provider message - " + err.Error(),
+			Description:    machineErr.Code().Description(),
 			ErrorCode:      machineErr.Code().String(),
 			State:          v1alpha1.MachineStateFailed,
 			Type:           v1alpha1.MachineOperationCreate,
-			LastUpdateTime: metav1.Now(),
+			LastUpdateTime: lastUpdateTime,
 		},
-		v1alpha1.CurrentStatus{
-			Phase:              c.getCreateFailurePhase(machine),
-			LastUpdateTime:     metav1.Now(),
-			PreserveExpiryTime: machine.Status.CurrentStatus.PreserveExpiryTime,
-		},
+		machineCurrentStatus,
 		lastKnownState,
 	)
 
@@ -1142,6 +1161,12 @@ func (c *controller) reconcileMachineHealth(ctx context.Context, machine *v1alph
 					LastUpdateTime:     metav1.Now(),
 					PreserveExpiryTime: machine.Status.CurrentStatus.PreserveExpiryTime,
 				}
+				// check if preservation is needed for the failed machine
+				if val, shouldHandlePreservation := machineutils.DeterminePreservationAction(machine, node); shouldHandlePreservation && val == machineutils.PreserveMachineAnnotationValueWhenFailed {
+					if clone.Status.CurrentStatus.PreserveExpiryTime == nil {
+						clone.Status.CurrentStatus.PreserveExpiryTime = &metav1.Time{Time: metav1.Now().Add(c.getEffectiveMachinePreserveTimeout(machine).Duration)}
+					}
+				}
 				cloneDirty = true
 				if machineClass != nil {
 					metrics.IncrementNumFailedToJoin(machine, machineClass)
@@ -1349,12 +1374,13 @@ func (c *controller) updateMachineStatusAndNodeLabel(ctx context.Context, getMac
 			}
 			isNodeLabelUpdated = true
 		} else {
+			klog.V(2).Infof("error fetching node name for %q, cloud provider error: %v", getMachineStatusRequest.Machine.Name, err)
 			if machineErr, ok := status.FromError(err); !ok {
 				// Error occurred with decoding machine error status, aborting without retry.
-				description = "Error occurred with decoding machine error status while getting VM status, aborting without retry. " + err.Error() + " " + machineutils.GetVMStatus
+				description = "Error occurred decoding machine error status while getting VM status, aborting. " + machineErr.Code().Description() + " " + machineutils.GetVMStatus
 				state = v1alpha1.MachineStateFailed
 				retry = machineutils.LongRetry
-				err = fmt.Errorf("machine deletion has failed. %s", description)
+				err = fmt.Errorf("machine deletion has failed. %s. Raw error: %v", description, err)
 			} else {
 				// Decoding machine error code
 				switch machineErr.Code() {
@@ -1379,7 +1405,7 @@ func (c *controller) updateMachineStatusAndNodeLabel(ctx context.Context, getMac
 					retry = machineutils.ShortRetry
 				default:
 					// Error occurred with decoding machine error status, abort with retry.
-					description = "Error occurred with decoding machine error status while getting VM status, aborting without retry. machine code: " + err.Error() + " " + machineutils.GetVMStatus
+					description = "Error occurred decoding machine error status while getting VM status, aborting. " + machineErr.Code().Description() + " " + machineutils.GetVMStatus
 					state = v1alpha1.MachineStateFailed
 					retry = machineutils.MediumRetry
 				}
@@ -1742,7 +1768,7 @@ func (c *controller) drainNode(ctx context.Context, deleteMachineRequest *driver
 		}
 		err = fmt.Errorf("%s", description)
 		state = v1alpha1.MachineStateProcessing
-		metrics.UpdateMetricsForMachineDurations(machine, nil, metrics.MachineDurations{Drain: drainOptions.GetDrainDuration()})
+		metrics.UpdateMetricsForMachineDurations(machine, deleteMachineRequest.MachineClass, metrics.MachineDurations{Drain: drainOptions.GetDrainDuration()})
 
 		// Return error even when machine object is updated
 	} else if err != nil && forceDeleteMachine {
@@ -1903,7 +1929,7 @@ func (c *controller) deleteVM(ctx context.Context, deleteMachineRequest *driver.
 				switch machineErr.Code() {
 				case codes.Unknown, codes.DeadlineExceeded, codes.Aborted, codes.Unavailable:
 					retryRequired = machineutils.ShortRetry
-					description = fmt.Sprintf("VM deletion failed due to - %s. However, will re-try in the next resync. %s", err.Error(), machineutils.InitiateVMDeletion)
+					description = fmt.Sprintf("VM deletion failed, will re-try in the next resync. Error - %s %s", machineErr.Code().Description(), machineutils.InitiateVMDeletion)
 					state = v1alpha1.MachineStateFailed
 				case codes.NotFound:
 					retryRequired = machineutils.ShortRetry
@@ -1911,12 +1937,12 @@ func (c *controller) deleteVM(ctx context.Context, deleteMachineRequest *driver.
 					state = v1alpha1.MachineStateProcessing
 				default:
 					retryRequired = machineutils.LongRetry
-					description = fmt.Sprintf("VM deletion failed due to - %s. Aborting operation. %s", err.Error(), machineutils.InitiateVMDeletion)
+					description = fmt.Sprintf("VM deletion failed due to - %s. Aborting operation. %s", machineErr.Code().Description(), machineutils.InitiateVMDeletion)
 					state = v1alpha1.MachineStateFailed
 				}
 			} else {
 				retryRequired = machineutils.LongRetry
-				description = fmt.Sprintf("Error occurred while decoding machine error: %s. %s", err.Error(), machineutils.InitiateVMDeletion)
+				description = fmt.Sprintf("Error occurred while decoding machine error: %s. %s", machineErr.Code().Description(), machineutils.InitiateVMDeletion)
 				state = v1alpha1.MachineStateFailed
 			}
 
@@ -2219,6 +2245,9 @@ func (c *controller) UpdateNodeTerminationCondition(ctx context.Context, machine
 }
 
 func (c *controller) updateMachineToFailedState(ctx context.Context, description string, machine, clone *v1alpha1.Machine) (bool, error) {
+	var node *v1.Node
+	var err error
+
 	// Log the error message for machine failure
 	klog.Error(description)
 
@@ -2235,7 +2264,21 @@ func (c *controller) updateMachineToFailedState(ctx context.Context, description
 		PreserveExpiryTime: machine.Status.CurrentStatus.PreserveExpiryTime,
 	}
 
-	_, err := c.controlMachineClient.Machines(clone.Namespace).UpdateStatus(ctx, clone, metav1.UpdateOptions{})
+	if c.nodeLister != nil {
+		node, err = c.nodeLister.Get(machine.Labels[v1alpha1.NodeLabelKey])
+		if err != nil {
+			klog.Infof("Error fetching the node %q: %v", machine.Labels[v1alpha1.NodeLabelKey], err)
+		}
+	}
+
+	// check if preservation is needed for the failed machine
+	if val, shouldHandlePreservation := machineutils.DeterminePreservationAction(machine, node); shouldHandlePreservation && val == machineutils.PreserveMachineAnnotationValueWhenFailed {
+		if clone.Status.CurrentStatus.PreserveExpiryTime == nil {
+			clone.Status.CurrentStatus.PreserveExpiryTime = &metav1.Time{Time: metav1.Now().Add(c.getEffectiveMachinePreserveTimeout(machine).Duration)}
+		}
+	}
+
+	_, err = c.controlMachineClient.Machines(clone.Namespace).UpdateStatus(ctx, clone, metav1.UpdateOptions{})
 	updated := false
 	if err != nil {
 		// Keep retrying until update goes through
@@ -2455,29 +2498,21 @@ Utility Functions for Machine Preservation
 */
 
 // preserveMachine contains logic to start the preservation of a machine and node.
-func (c *controller) preserveMachine(ctx context.Context, machine *v1alpha1.Machine, preserveValue string) (*v1alpha1.Machine, error) {
+func (c *controller) preserveMachine(ctx context.Context, machine *v1alpha1.Machine, node *v1.Node, preserveValue string) (*v1alpha1.Machine, *v1.Node, error) {
 	var err error
 	if machine.Status.CurrentStatus.PreserveExpiryTime == nil {
 		klog.V(4).Infof("Starting preservation flow for machine %q.", machine.Name)
 		// Step 1: Add preserveExpiryTime to machine status
 		machine, err = c.setPreserveExpiryTimeOnMachine(ctx, machine)
 		if err != nil {
-			return machine, err
+			return machine, node, err
 		}
 	}
 
-	nodeName := machine.Labels[v1alpha1.NodeLabelKey]
-	if nodeName == "" {
-		// Machine has no backing node( such as in the case of self-hosted shoots), preservation is complete
-		klog.V(2).Infof("Machine %q without backing node is preserved successfully till %v.", machine.Name, machine.Status.CurrentStatus.PreserveExpiryTime)
-		return machine, nil
+	if node == nil {
+		return machine, node, nil
 	}
-	// Machine has a backing node
-	node, err := c.nodeLister.Get(nodeName)
-	if err != nil {
-		klog.Errorf("error trying to get node %q of machine %q: %v. Retrying.", nodeName, machine.Name, err)
-		return machine, err
-	}
+
 	existingNodePreservedCondition := nodeops.GetCondition(node, v1alpha1.NodePreserved)
 	drainRequired := shouldPreservedNodeBeDrained(existingNodePreservedCondition, machine.Status.CurrentStatus.Phase)
 	// For a Running machine, preservation is complete when ConditionStatus is True. However, for a Failed machine,
@@ -2488,12 +2523,12 @@ func (c *controller) preserveMachine(ctx context.Context, machine *v1alpha1.Mach
 	// Failed, the preservation needs to be considered as incomplete.
 	if existingNodePreservedCondition != nil && existingNodePreservedCondition.Status == v1.ConditionTrue &&
 		!drainRequired {
-		return machine, nil
+		return machine, node, nil
 	}
 	// Step 2: Add annotations to prevent scale down of node by CA
-	updatedNode, err := c.addCAScaleDownDisabledAnnotationOnNode(ctx, node)
+	node, err = c.addCAScaleDownDisabledAnnotationOnNode(ctx, node)
 	if err != nil {
-		return machine, err
+		return machine, node, err
 	}
 	var drainErr error
 	if drainRequired {
@@ -2503,108 +2538,71 @@ func (c *controller) preserveMachine(ctx context.Context, machine *v1alpha1.Mach
 	newCond, needsUpdate := computeNewNodePreservedCondition(machine.Status.CurrentStatus, preserveValue, drainErr, existingNodePreservedCondition)
 	if needsUpdate {
 		// Step 4: Update NodePreserved Condition on Node, with drain status
-		_, err = nodeops.AddOrUpdateConditionsOnNode(ctx, c.targetCoreClient, updatedNode.Name, *newCond)
+		node, err = nodeops.AddOrUpdateConditionsOnNode(ctx, c.targetCoreClient, node.Name, *newCond)
 		if err != nil {
-			klog.Errorf("error trying to update node preserved condition for node %q of machine %q : %v", nodeName, machine.Name, err)
+			klog.Errorf("error trying to update node preserved condition for node %q of machine %q : %v", machine.Labels[v1alpha1.NodeLabelKey], machine.Name, err)
 		}
 	}
 	if drainErr != nil || err != nil {
-		return machine, errors.Join(drainErr, err)
+		return machine, node, errors.Join(drainErr, err)
 	}
-	klog.V(2).Infof("Machine %q and backing node %q preserved successfully till %v.", machine.Name, nodeName, machine.Status.CurrentStatus.PreserveExpiryTime)
-	return machine, nil
+	klog.V(2).Infof("Machine %q and backing node %q preserved successfully till %v.", machine.Name, node.Name, machine.Status.CurrentStatus.PreserveExpiryTime)
+	return machine, node, nil
 }
 
-// stopPreservationIfActive stops the preservation of the machine and node, if preserved, and returns true if machine object has been updated
-func (c *controller) stopPreservationIfActive(ctx context.Context, machine *v1alpha1.Machine, removePreservationAnnotations bool) (*v1alpha1.Machine, error) {
+// stopPreservationIfActive stops the preservation of the machine and node
+func (c *controller) stopPreservationIfActive(ctx context.Context, machine *v1alpha1.Machine, node *v1.Node, removePreservationAnnotations bool) (*v1alpha1.Machine, *v1.Node, error) {
 	var err error
 	// removal of preserveExpiryTime is the last step of stopping preservation
 	// therefore, if preserveExpiryTime is not set, machine is not preserved
 	if machine.Status.CurrentStatus.PreserveExpiryTime == nil {
-		return machine, nil
+		return machine, node, nil
 	}
 
-	nodeName := machine.Labels[v1alpha1.NodeLabelKey]
-	// if there is no backing node (such as in the case of self-hosted shoots), only machine object should be updated
-	if nodeName == "" {
-		// remove annotation from machine if needed
-		if removePreservationAnnotations {
-			machine, err = c.removePreserveAnnotationOnMachine(ctx, machine)
-			if err != nil {
-				return nil, err
-			}
+	if node != nil {
+		// prepare NodeCondition to set preservation as stopped
+		preservedConditionFalse := v1.NodeCondition{
+			Type:               v1alpha1.NodePreserved,
+			Status:             v1.ConditionFalse,
+			LastTransitionTime: metav1.Now(),
+			Reason:             v1alpha1.PreservationStopped,
 		}
-		machine, err = c.clearMachinePreserveExpiryTime(ctx, machine)
+		// Step 1: change node condition to reflect that preservation has stopped
+		node, err = nodeops.AddOrUpdateConditionsOnNode(ctx, c.targetCoreClient, node.Name, preservedConditionFalse)
 		if err != nil {
-			return nil, err
+			return machine, node, err
 		}
-		klog.V(2).Infof("Preservation of machine %q with no backing node has stopped.", machine.Name)
-		return machine, nil
+		// Step 2: remove annotations from node
+		node, err = c.removePreservationRelatedAnnotationsOnNode(ctx, node, removePreservationAnnotations)
+		if err != nil {
+			return machine, node, err
+		}
+		// Step 3: remove preservation-related taint regardless of machine phase.
+		// If machine is in Running, workload can get scheduled onto it.
+		err = nodeops.RemoveTaintOffNode(ctx, c.targetCoreClient, node.Name, node, &v1.Taint{
+			Key:    machineutils.NodePreservedTaintKey,
+			Effect: v1.TaintEffectNoSchedule,
+		})
+		if err != nil {
+			return machine, node, err
+		}
+		klog.V(2).Infof("Node %q updated to stop preservation.", node.Name)
 	}
 
-	// Machine has a backing node
-	node, err := c.nodeLister.Get(nodeName)
-	if err != nil {
-		// If node is not found and error is simply returned, then preservation will never be stopped on the machine.
-		if apierrors.IsNotFound(err) {
-			klog.Warningf("Node %q of machine %q not found. Proceeding to stop preservation on machine.", nodeName, machine.Name)
-			if removePreservationAnnotations {
-				machine, err = c.removePreserveAnnotationOnMachine(ctx, machine)
-				if err != nil {
-					return nil, err
-				}
-			}
-			machine, err = c.clearMachinePreserveExpiryTime(ctx, machine)
-			if err != nil {
-				return nil, err
-			}
-			klog.V(2).Infof("Preservation of machine %q has stopped.", machine.Name)
-			return machine, nil
-		}
-		klog.Errorf("error trying to get node %q of machine %q: %v. Retrying.", nodeName, machine.Name, err)
-		return nil, err
-	}
-	// prepare NodeCondition to set preservation as stopped
-	preservedConditionFalse := v1.NodeCondition{
-		Type:               v1alpha1.NodePreserved,
-		Status:             v1.ConditionFalse,
-		LastTransitionTime: metav1.Now(),
-		Reason:             v1alpha1.PreservationStopped,
-	}
-	// Step 1: change node condition to reflect that preservation has stopped
-	updatedNode, err := nodeops.AddOrUpdateConditionsOnNode(ctx, c.targetCoreClient, node.Name, preservedConditionFalse)
-	if err != nil {
-		return nil, err
-	}
-	// Step 2: remove annotations from node
-	updatedNode, err = c.removePreservationRelatedAnnotationsOnNode(ctx, updatedNode, removePreservationAnnotations)
-	if err != nil {
-		return nil, err
-	}
-	// Step 3: remove annotation from machine if needed
+	// Step 4: remove annotation from machine if needed
 	if removePreservationAnnotations {
 		machine, err = c.removePreserveAnnotationOnMachine(ctx, machine)
 		if err != nil {
-			return nil, err
+			return nil, node, err
 		}
-	}
-
-	// Step 4: remove preservation-related taint regardless of machine phase.
-	// If machine is in Running, workload can get scheduled onto it.
-	err = nodeops.RemoveTaintOffNode(ctx, c.targetCoreClient, updatedNode.Name, updatedNode, &v1.Taint{
-		Key:    machineutils.NodePreservedTaintKey,
-		Effect: v1.TaintEffectNoSchedule,
-	})
-	if err != nil {
-		return nil, err
 	}
 	// Step 5: update machine status to set preserve expiry time to nil
 	machine, err = c.clearMachinePreserveExpiryTime(ctx, machine)
 	if err != nil {
-		return nil, err
+		return nil, node, err
 	}
-	klog.V(2).Infof("Preservation of machine %q with backing node %q has stopped.", machine.Name, nodeName)
-	return machine, nil
+	klog.V(2).Infof("Preservation of machine %q has stopped.", machine.Name)
+	return machine, node, nil
 }
 
 // setPreserveExpiryTimeOnMachine sets the PreserveExpiryTime on the machine object's Status.CurrentStatus to now + preserve timeout

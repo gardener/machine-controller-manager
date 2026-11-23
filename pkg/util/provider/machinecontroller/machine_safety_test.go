@@ -10,6 +10,7 @@ import (
 
 	v1alpha1 "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/driver"
+	"github.com/gardener/machine-controller-manager/pkg/util/provider/machinecodes/codes"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/machineutils"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -49,7 +50,7 @@ var _ = Describe("safety_logic", func() {
 		},
 			Entry("should enqueue the machine key", &data{
 				setup: setup{
-					machineObject: &v1alpha1.Machine{},
+					machineObject: &v1alpha1.Machine{ObjectMeta: metav1.ObjectMeta{ResourceVersion: "1"}},
 				},
 				expect: expect{
 					expectedQueueSize: 1,
@@ -74,8 +75,8 @@ var _ = Describe("safety_logic", func() {
 		},
 			Entry("shouldn't enqueue machine key if OutOfRange error not there in last reconciliation", &data{
 				setup: setup{
-					machineObject:    &v1alpha1.Machine{},
-					newMachineObject: &v1alpha1.Machine{},
+					machineObject:    &v1alpha1.Machine{ObjectMeta: metav1.ObjectMeta{ResourceVersion: "1"}},
+					newMachineObject: &v1alpha1.Machine{ObjectMeta: metav1.ObjectMeta{ResourceVersion: "1"}},
 				},
 				expect: expect{
 					expectedQueueSize: 0,
@@ -83,11 +84,11 @@ var _ = Describe("safety_logic", func() {
 			}),
 			Entry("shouldn't enqueue machine key if no OutOfRange error in last reconciliation", &data{
 				setup: setup{
-					machineObject: &v1alpha1.Machine{},
+					machineObject: &v1alpha1.Machine{ObjectMeta: metav1.ObjectMeta{ResourceVersion: "1"}},
 					newMachineObject: &v1alpha1.Machine{
 						Status: v1alpha1.MachineStatus{
 							LastOperation: v1alpha1.LastOperation{
-								Description: "Cloud provider message - machine codes error: code = [NotFound] message = [AWS plugin is returning multiple VM instances backing this machine object. IDs for all backing VMs - [i-1234abcd i-5678efgh]",
+								ErrorCode: codes.NotFound.String(),
 							},
 						},
 					},
@@ -98,11 +99,11 @@ var _ = Describe("safety_logic", func() {
 			}),
 			Entry("should enqueue machine key if OutOfRange error in last reconciliation", &data{
 				setup: setup{
-					machineObject: &v1alpha1.Machine{},
+					machineObject: &v1alpha1.Machine{ObjectMeta: metav1.ObjectMeta{ResourceVersion: "1"}},
 					newMachineObject: &v1alpha1.Machine{
 						Status: v1alpha1.MachineStatus{
 							LastOperation: v1alpha1.LastOperation{
-								Description: "Cloud provider message - machine codes error: code = [OutOfRange] message = [AWS plugin is returning multiple VM instances backing this machine object. IDs for all backing VMs - [i-1234abcd i-5678efgh]",
+								ErrorCode: codes.OutOfRange.String(),
 							},
 						},
 					},
@@ -114,16 +115,18 @@ var _ = Describe("safety_logic", func() {
 			Entry("shouldn't enqueue if new machine obj doesn't have OutOfRange error which old machine obj had", &data{
 				setup: setup{
 					machineObject: &v1alpha1.Machine{
+						ObjectMeta: metav1.ObjectMeta{ResourceVersion: "1"},
 						Status: v1alpha1.MachineStatus{
 							LastOperation: v1alpha1.LastOperation{
-								Description: "Cloud provider message - machine codes error: code = [OutOfRange] message = [AWS plugin is returning multiple VM instances backing this machine object. IDs for all backing VMs - [i-1234abcd i-5678efgh]",
+								ErrorCode: codes.OutOfRange.String(),
 							},
 						},
 					},
 					newMachineObject: &v1alpha1.Machine{
+						ObjectMeta: metav1.ObjectMeta{ResourceVersion: "1"},
 						Status: v1alpha1.MachineStatus{
 							LastOperation: v1alpha1.LastOperation{
-								Description: "Machine abc successfully joined the cluster",
+								ErrorCode: "",
 							},
 						},
 					},
@@ -155,8 +158,9 @@ var _ = Describe("safety_logic", func() {
 
 				testMachine := &v1alpha1.Machine{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      "testmachine1",
-						Namespace: testNamespace,
+						Name:            "testmachine1",
+						Namespace:       testNamespace,
+						ResourceVersion: "1",
 					},
 					Status: v1alpha1.MachineStatus{
 						CurrentStatus: v1alpha1.CurrentStatus{
@@ -355,8 +359,9 @@ var _ = Describe("safety_logic", func() {
 					machineObjects: []*v1alpha1.Machine{
 						{
 							ObjectMeta: metav1.ObjectMeta{
-								Name:      "testmachine_1",
-								Namespace: testNamespace,
+								Name:            "testmachine_1",
+								Namespace:       testNamespace,
+								ResourceVersion: "1",
 							},
 							Status: v1alpha1.MachineStatus{
 								CurrentStatus: v1alpha1.CurrentStatus{
@@ -381,8 +386,9 @@ var _ = Describe("safety_logic", func() {
 					machineObjects: []*v1alpha1.Machine{
 						{
 							ObjectMeta: metav1.ObjectMeta{
-								Name:      "testmachine_1",
-								Namespace: testNamespace,
+								Name:            "testmachine_1",
+								Namespace:       testNamespace,
+								ResourceVersion: "1",
 							},
 							Status: v1alpha1.MachineStatus{
 								CurrentStatus: v1alpha1.CurrentStatus{
@@ -405,8 +411,9 @@ var _ = Describe("safety_logic", func() {
 					machineObjects: []*v1alpha1.Machine{
 						{
 							ObjectMeta: metav1.ObjectMeta{
-								Name:      "testmachine_1",
-								Namespace: testNamespace,
+								Name:            "testmachine_1",
+								Namespace:       testNamespace,
+								ResourceVersion: "1",
 							},
 							Status: v1alpha1.MachineStatus{
 								CurrentStatus: v1alpha1.CurrentStatus{
@@ -432,8 +439,9 @@ var _ = Describe("safety_logic", func() {
 					machineObjects: []*v1alpha1.Machine{
 						{
 							ObjectMeta: metav1.ObjectMeta{
-								Name:      "testmachine_1",
-								Namespace: testNamespace,
+								Name:            "testmachine_1",
+								Namespace:       testNamespace,
+								ResourceVersion: "1",
 							},
 							Status: v1alpha1.MachineStatus{
 								CurrentStatus: v1alpha1.CurrentStatus{
@@ -486,8 +494,9 @@ var _ = Describe("safety_logic", func() {
 					//optional machine object for test-node-1 ie data.setup.node
 					testMachineObject := &v1alpha1.Machine{
 						ObjectMeta: metav1.ObjectMeta{
-							Name:      "testmachine_0",
-							Namespace: testNamespace,
+							Name:            "testmachine_0",
+							Namespace:       testNamespace,
+							ResourceVersion: "1",
 							Labels: map[string]string{
 								v1alpha1.NodeLabelKey: data.setup.node.Name,
 							},
@@ -504,8 +513,9 @@ var _ = Describe("safety_logic", func() {
 				//machine object for test-node-1
 				testMachineObject := &v1alpha1.Machine{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      "testmachine_1",
-						Namespace: testNamespace,
+						Name:            "testmachine_1",
+						Namespace:       testNamespace,
+						ResourceVersion: "1",
 						Labels: map[string]string{
 							v1alpha1.NodeLabelKey: "test-node-1",
 						},
@@ -521,8 +531,9 @@ var _ = Describe("safety_logic", func() {
 				//first machine object for test-node-2
 				testMachineObject = &v1alpha1.Machine{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      "testmachine_2",
-						Namespace: testNamespace,
+						Name:            "testmachine_2",
+						Namespace:       testNamespace,
+						ResourceVersion: "1",
 						Labels: map[string]string{
 							v1alpha1.NodeLabelKey: "test-node-2",
 						},
@@ -538,8 +549,9 @@ var _ = Describe("safety_logic", func() {
 				//second machine object for test-node-3
 				testMachineObject = &v1alpha1.Machine{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      "testmachine_3",
-						Namespace: testNamespace,
+						Name:            "testmachine_3",
+						Namespace:       testNamespace,
+						ResourceVersion: "1",
 						Labels: map[string]string{
 							v1alpha1.NodeLabelKey: "test-node-2",
 						},
@@ -669,7 +681,7 @@ var _ = Describe("safety_logic", func() {
 					err:   nil,
 				},
 			}),
-			Entry("Don't annotate node object when creation time is less than machineCreationTimeout (19mins old)", &data{
+			Entry("Don't annotate node object when creation time is less than machineCreationTimeout (15mins old)", &data{
 				setup: setup{
 					node: &corev1.Node{
 						TypeMeta: metav1.TypeMeta{
@@ -681,7 +693,7 @@ var _ = Describe("safety_logic", func() {
 							Annotations: map[string]string{
 								"anno1": "value1",
 							},
-							CreationTimestamp: metav1.NewTime(metav1.Now().Add(-19 * time.Minute)),
+							CreationTimestamp: metav1.NewTime(metav1.Now().Add(-15 * time.Minute)),
 						},
 					},
 				},

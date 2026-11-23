@@ -66,7 +66,7 @@ chmod "0640" "/var/lib/gardener-node-agent/credentials/machine-name"
 			targetCoreClient: targetCoreClient,
 		}
 
-		machine = &v1alpha1.Machine{ObjectMeta: metav1.ObjectMeta{Name: "foo-machine"}}
+		machine = &v1alpha1.Machine{ObjectMeta: metav1.ObjectMeta{Name: "foo-machine", ResourceVersion: "1"}}
 		_, tokenSecretName = getTokenIDAndSecretName(machine.Name)
 		userDataSecret = &corev1.Secret{
 			Data: map[string][]byte{

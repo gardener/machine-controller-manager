@@ -372,22 +372,21 @@ func (c *controller) removePreservationRelatedAnnotationsOnNode(ctx context.Cont
 		return node, nil
 	}
 	updateRequired := false
-	nodeCopy := node.DeepCopy()
 	// If CA scale-down disabled annotation was added by MCM, it can be safely removed.
 	// If the annotation was added by some other entity, then it should not be removed.
-	if nodeCopy.Annotations[autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationByMCMKey] == autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationByMCMValue {
-		delete(nodeCopy.Annotations, autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationKey)
-		delete(nodeCopy.Annotations, autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationByMCMKey)
+	if node.Annotations[autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationByMCMKey] == autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationByMCMValue {
+		delete(node.Annotations, autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationKey)
+		delete(node.Annotations, autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationByMCMKey)
 		updateRequired = true
 	}
-	if removePreserveAnnotation && nodeCopy.Annotations[machineutils.PreserveMachineAnnotationKey] != "" {
-		delete(nodeCopy.Annotations, machineutils.PreserveMachineAnnotationKey)
+	if removePreserveAnnotation && node.Annotations[machineutils.PreserveMachineAnnotationKey] != "" {
+		delete(node.Annotations, machineutils.PreserveMachineAnnotationKey)
 		updateRequired = true
 	}
 	if !updateRequired {
 		return node, nil
 	}
-	updatedNode, err := c.targetCoreClient.CoreV1().Nodes().Update(ctx, nodeCopy, metav1.UpdateOptions{})
+	updatedNode, err := c.targetCoreClient.CoreV1().Nodes().Update(ctx, node, metav1.UpdateOptions{})
 	if err != nil {
 		klog.Errorf("node UPDATE failed for node %q. Retrying, error: %s", node.Name, err)
 		return nil, err

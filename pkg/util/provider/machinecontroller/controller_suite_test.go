@@ -117,6 +117,7 @@ func newMachines(
 					}
 				}(specTemplate.ObjectMeta.GenerateName, i),
 				Namespace:         testNamespace,
+				ResourceVersion:   "1",
 				Labels:            labels,
 				Annotations:       annotations,
 				CreationTimestamp: creationTimestamp,
