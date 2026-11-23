@@ -54,11 +54,11 @@ func validateClusterDataPresent(clustersDir string, clusterNames []string) error
 		clusterPath := filepath.Join(clustersDir, clusterName)
 		mcdFilePath := filepath.Join(clusterPath, fileNameMachineDeployment)
 		mccFilePath := filepath.Join(clusterPath, fileNameMachineClass)
-		if _, err := os.Stat(mcdFilePath); err != nil && errors.Is(err, os.ErrNotExist) {
-			return fmt.Errorf("required file %q not found", mcdFilePath)
+		if _, err := os.Stat(mcdFilePath); err != nil {
+			return err
 		}
-		if _, err := os.Stat(mccFilePath); err != nil && errors.Is(err, os.ErrNotExist) {
-			return fmt.Errorf("required file %q not found", mccFilePath)
+		if _, err := os.Stat(mccFilePath); err != nil {
+			return err
 		}
 	}
 	return nil

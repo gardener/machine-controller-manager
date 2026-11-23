@@ -125,14 +125,14 @@ func requiredDataPresent(clustersDir string, clusterNames, components []string) 
 func validateBinariesPresent(binDir string, components []string) error {
 	if slices.Contains(components, componentMCM) {
 		componentBinPath := filepath.Join(binDir, binaryNameMCM)
-		if _, err := os.Stat(componentBinPath); err != nil && errors.Is(err, os.ErrNotExist) {
-			return fmt.Errorf("required file %q not found", componentBinPath)
+		if _, err := os.Stat(componentBinPath); err != nil {
+			return err
 		}
 	}
 	if slices.Contains(components, componentMC) {
 		componentBinPath := filepath.Join(binDir, binaryNameMC)
-		if _, err := os.Stat(componentBinPath); err != nil && errors.Is(err, os.ErrNotExist) {
-			return fmt.Errorf("required file %q not found", componentBinPath)
+		if _, err := os.Stat(componentBinPath); err != nil {
+			return err
 		}
 	}
 	return nil
@@ -143,8 +143,8 @@ func validateConfigsPresent(clustersDir string, clusterNames, components []strin
 		clusterPath := filepath.Join(clustersDir, clusterName)
 		for _, component := range components {
 			configPath := filepath.Join(clusterPath, getComponentConfigFileName(component))
-			if _, err := os.Stat(configPath); err != nil && errors.Is(err, os.ErrNotExist) {
-				return fmt.Errorf("required file %q not found", configPath)
+			if _, err := os.Stat(configPath); err != nil {
+				return err
 			}
 		}
 	}
@@ -240,7 +240,7 @@ func deployResources(ctx context.Context, client klient.Client, clusterPath stri
 			return
 		}
 	}
-	return
+	return nil
 }
 
 func ensureSecretsCreation(

@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"context"
-	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -47,8 +46,8 @@ var buildCmd = &cobra.Command{
 		var outputPath string
 
 		if buildFlags.SourceMCM != "" {
-			if _, err := os.Stat(buildFlags.SourceMCM); err != nil && errors.Is(err, os.ErrNotExist) {
-				return fmt.Errorf("specified dir %q not found", buildFlags.SourceMCM)
+			if _, err := os.Stat(buildFlags.SourceMCM); err != nil {
+				return err
 			}
 
 			outputPath = filepath.Join(binDir, binaryNameMCM)
@@ -74,8 +73,8 @@ var buildCmd = &cobra.Command{
 				buildFlags.SourceCA = filepath.Join(buildFlags.SourceCA, "cluster-autoscaler")
 			}
 
-			if _, err := os.Stat(buildFlags.SourceCA); err != nil && errors.Is(err, os.ErrNotExist) {
-				return fmt.Errorf("specified dir %q not found", buildFlags.SourceCA)
+			if _, err := os.Stat(buildFlags.SourceCA); err != nil {
+				return err
 			}
 
 			outputPath = filepath.Join(binDir, binaryNameCA)

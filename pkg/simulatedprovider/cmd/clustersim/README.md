@@ -39,22 +39,23 @@ The main command takes two flags, one optional and one required.
 
 ### `build`
 
-Builds the specified components, fallsback to building both `machine-controller-manager` and the `simulated-provider` if unspecifed. Requires a mandatory flag `source-dir` pointing to the `machine-controller-manager` source root directory.
+Builds the components `mcm` and `simulater-provider` if `source-mcm` is specified and `cluster-autoscaler` when `source-ca` is.
 
 ```
 ./bin/clustersim build -h
 Builds the specified components (machine-controller-manager, simulated provider).
 
 Usage:
-clustersim build {--source-dir ..} [--components mcm]...
+clustersim build {--source-ca ...} {--source-mcm ...}
 
 Examples:
-clustersim build --source-dir ../../../../ --components "mcm,mc"
+clustersim build --source-mcm ../../../../
 
 Flags:
--c, --components strings   comma separated list of components to build (default [mcm,mc])
 -h, --help                 help for build
---source-dir string    machine-controller-manager source root directory path (required)
+--source-mcm string        machine-controller-manager source root directory path
+--source-ca string         cluster-autoscaler source root directory path
+(atleast one path needs to be passed)
 ```
 
 ### `setup`
@@ -95,11 +96,11 @@ In case a developer needs to quickly generate some dummy data for testing, a `ge
 Generates MachineClasses and MachineDeployments with the specified parameters.
 
 Usage:
-clustersim gencluster {--clusters name} {--zones zone}... {--instances inst}...
+clustersim gencluster {--clusters name} {--zones zone}... {--instance inst}...
 
 Flags:
 -h, --help                help for gencluster
--i, --instances strings   comma separated list of instances to use (required)
+-i, --instance strings    comma separated list of instances to use (required)
 -z, --zones strings       comma separated list of zones to use (required)
 ```
 
