@@ -28,6 +28,10 @@ var stopCmd = &cobra.Command{
 	// It should just log the error and continue with the removal to atleast perform
 	// whatever cleanup can be done.
 	PreRun: func(cmd *cobra.Command, cmdArgs []string) {
+		// If killall specified, override specified components with all
+		if stopFlags.KillAll {
+			stopFlags.Components = allComponents
+		}
 		err := validateComponents(stopFlags.Components)
 		if err != nil {
 			logErr(err)
@@ -78,11 +82,6 @@ func init() {
 		&stopFlags.Components, "components", "c", allComponents,
 		"comma separated list of components to stop",
 	)
-
-	// If killall specified, override specified components with all
-	if stopFlags.KillAll {
-		stopFlags.Components = allComponents
-	}
 }
 
 func stopComponent(component, clusterPath string) error {

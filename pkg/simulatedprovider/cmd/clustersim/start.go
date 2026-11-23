@@ -255,7 +255,7 @@ func ensureSecretsCreation(
 				err := client.Resources().Get(
 					ctx, mcc.SecretRef.Name, mcc.SecretRef.Namespace, &secret,
 				)
-				if err != nil {
+				if err != nil && !apierrors.IsNotFound(err) {
 					return false, err
 				}
 			}
@@ -263,7 +263,7 @@ func ensureSecretsCreation(
 				err := client.Resources().Get(
 					ctx, mcc.CredentialsSecretRef.Name, mcc.CredentialsSecretRef.Namespace, &secret,
 				)
-				if err != nil {
+				if err != nil && !apierrors.IsNotFound(err) {
 					return false, err
 				}
 			}
