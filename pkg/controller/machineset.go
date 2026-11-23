@@ -952,7 +952,7 @@ func (c *controller) manageAutoPreservationOfFailedMachines(ctx context.Context,
 
 		klog.V(2).Infof("Setting PreserveExpiryTime on machine %q for auto-preservation as part of machine set %q", machine.Name, machineSet.Name)
 		preservedMachine, err := machineutils.PatchMachine(ctx, c.controlMachineClient.Machines(annotatedMachine.Namespace), annotatedMachine, func(m *v1alpha1.Machine) error {
-			if m.Spec.MachineConfiguration != nil && m.Spec.MachineConfiguration.MachinePreserveTimeout != nil {
+			if m.Spec.MachineConfiguration.MachinePreserveTimeout != nil {
 				m.Status.CurrentStatus.PreserveExpiryTime = &metav1.Time{Time: metav1.Now().Add(m.Spec.MachineConfiguration.MachinePreserveTimeout.Duration)}
 			} else {
 				m.Status.CurrentStatus.PreserveExpiryTime = &metav1.Time{Time: metav1.Now().Add(v1alpha1.DefaultMachinePreserveTimeout)}
