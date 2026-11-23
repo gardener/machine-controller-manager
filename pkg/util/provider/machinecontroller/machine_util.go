@@ -1399,7 +1399,7 @@ func (c *controller) updateMachineStatusAndNodeLabel(ctx context.Context, getMac
 					retry = machineutils.ShortRetry
 				default:
 					// Error occurred with decoding machine error status, abort with retry.
-					description = "Error occurred with decoding machine error status while getting VM status, aborting without retry. machine error: " + machineErr.Code().Description() + " " + machineutils.GetVMStatus
+					description = "Error occurred decoding machine error status while getting VM status, aborting. " + machineErr.Code().Description() + " " + machineutils.GetVMStatus
 					state = v1alpha1.MachineStateFailed
 					retry = machineutils.MediumRetry
 				}
