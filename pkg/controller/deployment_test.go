@@ -3140,6 +3140,37 @@ var _ = Describe("machineDeployment", func() {
 				},
 			),
 
+			Entry("healthy joins reset stale replace-cycle-count so failures after recovery need a full threshold",
+				func(d *machinev1.MachineDeployment) {
+					// Timeout was grown to 40m; last applied 50m ago (cooldown satisfied).
+					// A stale replace-cycle-count of 2 is present from before recovery and should be cleared.
+					d.Annotations[machinev1.AnnotationKeyMachineEffectiveCreationTimeout] = "40m"
+					d.Annotations[machinev1.AnnotationKeyMachineEffectiveCreationTimeoutLastAppliedAt] = now.Add(-50 * time.Minute).Format(time.RFC3339)
+					d.Annotations[machinev1.AnnotationKeyMachineReplaceCycleCount] = "2"
+					d.Annotations[machinev1.AnnotationKeyMachineReplaceCycleCountLastAppliedAt] = now.Add(-50 * time.Minute).Format(time.RFC3339)
+				},
+				func() map[types.UID]*machinev1.MachineList {
+					return map[types.UID]*machinev1.MachineList{
+						"ms1": {Items: []machinev1.Machine{
+							newMachineInSet("m1", "ms1", 25*time.Minute, machineJoinedCond(now.Add(-3*time.Minute))),
+							newMachineInSet("m2", "ms1", 28*time.Minute, machineJoinedCond(now.Add(-3*time.Minute))),
+						}},
+					}
+				},
+				func(result *machinev1.MachineDeployment) {
+					// Timeout shrinks; stale replace-cycle-count must be reset to 0 and timestamp refreshed.
+					effectiveTimeout, err := annotations.GetMachineEffectiveCreationTimeout(result)
+					Expect(err).NotTo(HaveOccurred())
+					Expect(effectiveTimeout.Duration).To(Equal(25 * time.Minute))
+					cycleCount, err := annotations.GetMachineReplaceCycleCount(result)
+					Expect(err).NotTo(HaveOccurred())
+					Expect(cycleCount).To(Equal(int32(0)))
+					cycleCountLastAppliedAt, err := annotations.GetMachineReplaceCycleCountLastAppliedAt(result)
+					Expect(err).NotTo(HaveOccurred())
+					Expect(cycleCountLastAppliedAt.Time).To(Equal(now.Truncate(time.Second)))
+				},
+			),
+
 			Entry("machines joined after previous timeout increase: effective-creation-timeout reduces to actual max join duration",
 				func(d *machinev1.MachineDeployment) {
 					// MCD previously had timeout grown to 40m; last adjusted 50m ago (cooldown satisfied)

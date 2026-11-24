@@ -853,12 +853,15 @@ func (c *controller) checkAndAdjustMachineEffectiveCreationTimeout(ctx context.C
 		}
 	} else if stats.numFailedInWindow == 0 && stats.numJoinedInWindow >= constants.DefaultSuccessJoinCountThreshold && oldInfo.isEffectiveCreationTimeoutWindowElapsed(now) {
 		// Machines are joining healthily; thus shrink the timeout back towards the observed max join duration, floored at the spec timeout.
-		// numFailedInWindow (not numFailedTotal) is intentional: shrink is window-scoped,
-		// older failed machines outside the window do not block it.
+		// numFailedInWindow (not numFailedTotal) is intentional: shrink is window-scoped, older failed machines outside the
+		// window do not block it.
 		newInfo.effectiveCreationTimeout.Duration = max(specCreationTimeout.Duration, stats.maxJoinDurationInWindow.Duration)
 		if newInfo.effectiveCreationTimeout != oldInfo.effectiveCreationTimeout {
 			newInfo.effectiveCreationTimeoutLastAppliedAt = now
 		}
+		// Reset stale cycle count so failures after a healthy period require a full threshold to grow again.
+		newInfo.replaceCycleCount = 0
+		newInfo.replaceCycleCountLastAppliedAt = now
 	}
 	klog.V(5).Infof("For MachineDeployment %q, old CreationTimeoutAdjustInfo=%s, new CreationTimeoutAdjustInfo=%s", mcd.Name, oldInfo, newInfo)
 	modifiedAnnotations, deletedAnnotationKeys := diffCreationTimeoutAnnotations(oldInfo, newInfo)
