@@ -2392,7 +2392,7 @@ var _ = Describe("machineDeployment", func() {
 
 				defer trackers.Stop()
 				waitForCacheSync(stop, c)
-				err := c.updateMachineAndMachineDeploymentDeletionAnnotations(context.TODO(), testMachineDeployment)
+				_, err := c.updateMachineAndMachineDeploymentDeletionAnnotations(context.TODO(), testMachineDeployment, map[types.UID]*machinev1.MachineList{})
 				Expect(err).To(BeNil())
 
 				waitForCacheSync(stop, c)
