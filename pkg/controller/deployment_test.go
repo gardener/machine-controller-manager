@@ -2774,7 +2774,7 @@ var _ = Describe("machineDeployment", func() {
 		)
 	})
 
-	Describe("#getNumFailedJoinedAndMaxJoinDurationSince", func() {
+	Describe("#getMachineJoinWindowStats", func() {
 		var (
 			now             time.Time
 			windowStartMark time.Time
