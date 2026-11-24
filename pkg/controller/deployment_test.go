@@ -2799,24 +2799,25 @@ var _ = Describe("machineDeployment", func() {
 		DescribeTable("should compute numFailedInWindow, numJoinedInWindow, maxJoinDurationInWindow for machines correctly",
 			func(
 				buildMachines func() []machinev1.Machine,
-				expectedFailed, expectedJoined int,
+				expectedFailed, expectedJoined, expectedPending int,
 				checkMaxJoinDuration func(metav1.Duration),
 			) {
 				s := getMachineJoinWindowStats(buildMachines(), windowStartMark)
 				Expect(s.numFailedInWindow).To(Equal(expectedFailed))
 				Expect(s.numJoinedInWindow).To(Equal(expectedJoined))
+				Expect(s.numPending).To(Equal(expectedPending))
 				checkMaxJoinDuration(s.maxJoinDurationInWindow)
 			},
 			Entry("empty slice yields all zeros",
 				func() []machinev1.Machine { return nil },
-				0, 0,
+				0, 0, 0,
 				func(d metav1.Duration) { Expect(d.Duration).To(BeZero()) },
 			),
 			Entry("machine with no conditions is ignored",
 				func() []machinev1.Machine {
 					return []machinev1.Machine{newMachine("m1", 15*time.Minute)}
 				},
-				0, 0,
+				0, 0, 0,
 				func(d metav1.Duration) { Expect(d.Duration).To(BeZero()) },
 			),
 			Entry("machine that joined within window is counted and contributes to maxJoinDurationInWindow",
@@ -2824,7 +2825,7 @@ var _ = Describe("machineDeployment", func() {
 					// created 15m ago, joined 5m ago (after mark) -> join duration = 10m
 					return []machinev1.Machine{newMachine("m1", 15*time.Minute, machineJoinedCond(now.Add(-5*time.Minute)))}
 				},
-				0, 1,
+				0, 1, 0,
 				func(d metav1.Duration) { Expect(d.Duration).To(Equal(10 * time.Minute)) },
 			),
 			Entry("machine that joined before windowStartMark is not counted",
@@ -2832,21 +2833,21 @@ var _ = Describe("machineDeployment", func() {
 					// created 30m ago, joined 25m ago (before windowStartMark)
 					return []machinev1.Machine{newMachine("m1", 30*time.Minute, machineJoinedCond(now.Add(-25*time.Minute)))}
 				},
-				0, 0,
+				0, 0, 0,
 				func(d metav1.Duration) { Expect(d.Duration).To(BeZero()) },
 			),
 			Entry("machine that failed to join within window is counted",
 				func() []machinev1.Machine {
 					return []machinev1.Machine{newMachine("m1", 25*time.Minute, machineFailedJoinCond(now.Add(-5*time.Minute)))}
 				},
-				1, 0,
+				1, 0, 0,
 				func(d metav1.Duration) { Expect(d.Duration).To(BeZero()) },
 			),
 			Entry("machine that failed to join before windowStartMark is not counted",
 				func() []machinev1.Machine {
 					return []machinev1.Machine{newMachine("m1", 25*time.Minute, machineFailedJoinCond(now.Add(-15*time.Minute)))}
 				},
-				0, 0,
+				0, 0, 0,
 				func(d metav1.Duration) { Expect(d.Duration).To(BeZero()) },
 			),
 			Entry("mix of joined and failed: maxJoinDurationInWindow is max across in-window joiners",
@@ -2859,9 +2860,27 @@ var _ = Describe("machineDeployment", func() {
 						newMachine("m3", 25*time.Minute, machineFailedJoinCond(now.Add(-3*time.Minute))),
 					}
 				},
-				1, 2,
+				1, 2, 0,
 				// max(15m, 10m) = 15m
 				func(d metav1.Duration) { Expect(d.Duration).To(Equal(15 * time.Minute)) },
+			),
+			Entry("running machine with no MachineJoined condition is not counted as pending",
+				func() []machinev1.Machine {
+					m := newMachine("m1", 30*time.Minute)
+					m.Status.CurrentStatus = machinev1.CurrentStatus{Phase: machinev1.MachineRunning}
+					return []machinev1.Machine{m}
+				},
+				0, 0, 0,
+				func(d metav1.Duration) { Expect(d.Duration).To(BeZero()) },
+			),
+			Entry("pending machine with no MachineJoined condition is counted as pending",
+				func() []machinev1.Machine {
+					m := newMachine("m1", 1*time.Minute)
+					m.Status.CurrentStatus = machinev1.CurrentStatus{Phase: machinev1.MachinePending}
+					return []machinev1.Machine{m}
+				},
+				0, 0, 1,
+				func(d metav1.Duration) { Expect(d.Duration).To(BeZero()) },
 			),
 		)
 	})
@@ -3354,10 +3373,14 @@ var _ = Describe("machineDeployment", func() {
 				func() map[types.UID]*machinev1.MachineList {
 					// Fresh Pending machines — no MachineJoined condition, so numFailedTotal==0.
 					// They are replacements for machines that already failed and were deleted.
+					withPending := func(m machinev1.Machine) machinev1.Machine {
+						m.Status.CurrentStatus = machinev1.CurrentStatus{Phase: machinev1.MachinePending}
+						return m
+					}
 					return map[types.UID]*machinev1.MachineList{
 						"ms1": {Items: []machinev1.Machine{
-							newMachineInSet("m1", "ms1", 20*time.Second),
-							newMachineInSet("m2", "ms1", 15*time.Second),
+							withPending(newMachineInSet("m1", "ms1", 20*time.Second)),
+							withPending(newMachineInSet("m2", "ms1", 15*time.Second)),
 						}},
 					}
 				},

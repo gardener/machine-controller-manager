@@ -955,7 +955,9 @@ func getMachineJoinWindowStats(machines []v1alpha1.Machine, windowStartMark time
 	for _, m := range machines {
 		machineJoinedCond := machineutils.GetMachineCondition(&m, v1alpha1.ConditionMachineJoined)
 		if machineJoinedCond == nil {
-			s.numPending++
+			if m.Status.CurrentStatus.Phase == v1alpha1.MachinePending {
+				s.numPending++
+			}
 			continue
 		}
 		if machineJoinedCond.Status == v1.ConditionTrue {
