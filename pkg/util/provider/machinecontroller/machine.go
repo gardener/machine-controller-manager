@@ -274,7 +274,7 @@ func (c *controller) reconcileClusterMachine(ctx context.Context, machine *v1alp
 		return retry, err
 	}
 
-	if machine.Labels[v1alpha1.NodeLabelKey] != "" && machine.Status.CurrentStatus.Phase != "" {
+	if c.getBackingNodeName(machine) != "" && machine.Status.CurrentStatus.Phase != "" {
 		// If reference to node object exists execute the below
 		retry, err := c.reconcileMachineHealth(ctx, machine)
 		if err != nil {
