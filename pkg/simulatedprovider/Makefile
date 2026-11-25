@@ -36,6 +36,7 @@ start:
 			--kube-api-qps=150 \
 			--kube-api-burst=200 \
 			--leader-elect=$(LEADER_ELECT) \
+			$(if $(MC_PORT),--port=$(MC_PORT)) \
 			--v=3
 
 .PHONY: start-simulated-cluster
