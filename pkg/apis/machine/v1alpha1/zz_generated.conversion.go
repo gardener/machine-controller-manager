@@ -537,6 +537,8 @@ func autoConvert_v1alpha1_MachineConfiguration_To_machine_MachineConfiguration(i
 	out.DisableHealthTimeout = (*bool)(unsafe.Pointer(in.DisableHealthTimeout))
 	out.MaxEvictRetries = (*int32)(unsafe.Pointer(in.MaxEvictRetries))
 	out.NodeConditions = (*string)(unsafe.Pointer(in.NodeConditions))
+	out.MachineCreationTimeoutGrowthPercent = (*int32)(unsafe.Pointer(in.MachineCreationTimeoutGrowthPercent))
+	out.MachineReplaceCycleCountThreshold = (*int32)(unsafe.Pointer(in.MachineReplaceCycleCountThreshold))
 	return nil
 }
 
@@ -554,6 +556,8 @@ func autoConvert_machine_MachineConfiguration_To_v1alpha1_MachineConfiguration(i
 	out.DisableHealthTimeout = (*bool)(unsafe.Pointer(in.DisableHealthTimeout))
 	out.MaxEvictRetries = (*int32)(unsafe.Pointer(in.MaxEvictRetries))
 	out.NodeConditions = (*string)(unsafe.Pointer(in.NodeConditions))
+	out.MachineCreationTimeoutGrowthPercent = (*int32)(unsafe.Pointer(in.MachineCreationTimeoutGrowthPercent))
+	out.MachineReplaceCycleCountThreshold = (*int32)(unsafe.Pointer(in.MachineReplaceCycleCountThreshold))
 	return nil
 }
 

@@ -1171,6 +1171,37 @@ This is intended to be used only for in-place updates.</p>
 <p>NodeConditions are the set of conditions if set to true for MachineHealthTimeOut, machine will be declared failed.</p>
 </td>
 </tr>
+<tr>
+<td>
+<code>creationTimeoutGrowthPercent</code>
+</td>
+<td>
+<em>
+*int32
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>MachineCreationTimeoutGrowthPercent is the percentage by which the effective-creation-timeout is grown when
+machines repeatedly fail to join the cluster (e.g. 50 means grow by 50%, equivalent to a 1.5× factor).
+Set to 0 to disable adaptive timeout growth. Must be &gt;= 0. Overrides the global &ndash;machine-creation-timeout-growth-percent flag.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>replaceCycleCountThreshold</code>
+</td>
+<td>
+<em>
+*int32
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>MachineReplaceCycleCountThreshold is the number of consecutive replace cycles with failed machine joins after
+which the effective-creation-timeout is grown. Overrides the global &ndash;machine-replace-cycle-count-threshold flag.</p>
+</td>
+</tr>
 </tbody>
 </table>
 <br>
@@ -1632,8 +1663,8 @@ newest MachineSet.</p>
 </td>
 <td>
 <em>
-<a href="#machine.sapcloud.io/v1alpha1.*../../pkg/apis/machine/v1alpha1.MachineSummary">
-[]*../../pkg/apis/machine/v1alpha1.MachineSummary
+<a href="#machine.sapcloud.io/v1alpha1.*github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.MachineSummary">
+[]*github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.MachineSummary
 </a>
 </em>
 </td>
@@ -2103,8 +2134,8 @@ LastOperation
 </td>
 <td>
 <em>
-<a href="#machine.sapcloud.io/v1alpha1.[]../../pkg/apis/machine/v1alpha1.MachineSummary">
-[]../../pkg/apis/machine/v1alpha1.MachineSummary
+<a href="#machine.sapcloud.io/v1alpha1.[]github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.MachineSummary">
+[]github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1.MachineSummary
 </a>
 </em>
 </td>

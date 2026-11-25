@@ -99,7 +99,7 @@ const (
 
 	// Aborted indicates the operation was aborted, typically due to a
 	// concurrency issue like sequencer check failures, transaction aborts,
-	// etc.
+	// etc
 	//
 	// See litmus test above for deciding between FailedPrecondition,
 	// Aborted, and Unavailable.
@@ -151,6 +151,9 @@ const (
 	// This is meant to be used by providers in implementation of
 	// [github.com/gardener/machine-controller-manager/pkg/util/provider/driver.Driver.GetMachineStatus]
 	Uninitialized Code = 17
+
+	// FailedJoin indicates that the instance failed to join the cluster (create a Ready Node) within the effective creation timeout.
+	FailedJoin Code = 18
 )
 
 var strToCode = map[string]Code{
@@ -172,6 +175,7 @@ var strToCode = map[string]Code{
 	"DataLoss":           DataLoss,
 	"Unauthenticated":    Unauthenticated,
 	"Uninitialized":      Uninitialized,
+	"FailedJoin":         FailedJoin,
 }
 
 var codeToDescription = map[Code]string{

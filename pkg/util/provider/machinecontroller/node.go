@@ -15,6 +15,7 @@ import (
 	"github.com/gardener/machine-controller-manager/pkg/controller/autoscaler"
 
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
+	"github.com/gardener/machine-controller-manager/pkg/util/nodeops"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/machineutils"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/klog/v2"
@@ -86,7 +87,7 @@ func (c *controller) updateNode(oldObj, newObj any) {
 
 	isMachineCrashLooping := machine.Status.CurrentStatus.Phase == v1alpha1.MachineCrashLoopBackOff
 	isMachineTerminating := machine.Status.CurrentStatus.Phase == v1alpha1.MachineTerminating
-	_, _, nodeConditionsHaveChanged := nodeConditionsHaveChanged(machine.Status.Conditions, node.Status.Conditions)
+	_, _, conditionsChanged := nodeops.NodeConditionsHaveChanged(machine.Status.Conditions, node.Status.Conditions)
 
 	switch {
 	// to reconcile on addition/removal of essential taints in machine lifecycle, example - critical component taint
@@ -95,7 +96,7 @@ func (c *controller) updateNode(oldObj, newObj any) {
 	case inPlaceUpdateLabelsChanged(oldNode, node):
 		c.enqueueMachine(machine, fmt.Sprintf("handling node UPDATE event. in-place update label added or updated for node %q", node.Name))
 	// Enqueue machine if node conditions have changed and machine is not in crashloop or terminating state
-	case nodeConditionsHaveChanged && !isMachineCrashLooping && !isMachineTerminating:
+	case conditionsChanged && !isMachineCrashLooping && !isMachineTerminating:
 		c.enqueueMachine(machine, fmt.Sprintf("handling node UPDATE event. Conditions of node %q differ from machine status", node.Name))
 	// to reconcile on change in annotations related to preservation
 	case node.Annotations[machineutils.PreserveMachineAnnotationKey] != oldNode.Annotations[machineutils.PreserveMachineAnnotationKey]:
