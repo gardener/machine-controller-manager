@@ -920,6 +920,161 @@ var _ = Describe("drain", func() {
 			}),
 	)
 
+	Describe("DisableDrainTimeout", func() {
+		var (
+			ctx      context.Context
+			nodeName string
+			drain    *Options
+		)
+
+		BeforeEach(func() {
+			ctx = context.Background()
+			nodeName = oldNodeName
+			drain = &Options{
+				ErrOut:                       GinkgoWriter,
+				Out:                          GinkgoWriter,
+				nodeName:                     nodeName,
+				IgnorePodsWithoutControllers: true,
+				IgnoreDaemonsets:             true,
+				DeleteLocalData:              true,
+				Timeout:                      2 * time.Minute,
+			}
+		})
+
+		It("should return a cancelable context without deadline when DisableDrainTimeout is true", func() {
+			drain.DisableDrainTimeout = true
+			drainCtx, cancel := drain.getDrainContext(ctx)
+			defer cancel()
+
+			_, hasDeadline := drainCtx.Deadline()
+			Expect(hasDeadline).To(BeFalse())
+		})
+
+		It("should return a context with deadline when DisableDrainTimeout is false", func() {
+			drain.DisableDrainTimeout = false
+			drainCtx, cancel := drain.getDrainContext(ctx)
+			defer cancel()
+
+			_, hasDeadline := drainCtx.Deadline()
+			Expect(hasDeadline).To(BeTrue())
+		})
+
+		It("should time out waiting for pod cache to sync within PodCacheSyncTimeout even if DisableDrainTimeout is true", func() {
+			origTimeout := PodCacheSyncTimeout
+			PodCacheSyncTimeout = 100 * time.Millisecond
+			defer func() { PodCacheSyncTimeout = origTimeout }()
+
+			drain.podSynced = func() bool { return false }
+			drain.DisableDrainTimeout = true
+
+			err := drain.RunDrain(ctx)
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(Equal("timed out waiting for pod cache to sync"))
+		})
+
+		It("should not force-delete pods when DisableDrainTimeout is true and retries are exhausted", func() {
+			stop := make(chan struct{})
+			defer close(stop)
+
+			pod := getPodWithoutPV(testNamespace, "pod-blocked", nodeName, terminationGracePeriodShort, nil)
+			fakeClient, fakePVLister, fakePVCLister, fakeNodeLister, fakePodLister, pvcSynced, pvSynced, nodeSynced, podSynced, tracker := createFakeController(
+				stop, testNamespace, []runtime.Object{pod, getNode(nodeName, nil)},
+			)
+			defer tracker.Stop()
+			Expect(cache.WaitForCacheSync(stop, pvcSynced, pvSynced, nodeSynced, podSynced)).To(BeTrue())
+
+			fakeClient.(*fakeclient.Clientset).FakeDiscovery.Resources = []*metav1.APIResourceList{
+				{
+					GroupVersion: "policy/v1",
+				},
+				{
+					GroupVersion: "v1",
+					APIResources: []metav1.APIResource{
+						{
+							Name: EvictionSubresource,
+							Kind: EvictionKind,
+						},
+					},
+				},
+			}
+			evictionAttempts := 0
+			fakeClient.(*fakeclient.Clientset).PrependReactor("post", "pods", func(_ k8stesting.Action) (handled bool, ret runtime.Object, err error) {
+				evictionAttempts++
+				return true, nil, apierrors.NewTooManyRequestsError("PDB prevents eviction")
+			})
+
+			drain.client = fakeClient
+			drain.pvcLister = fakePVCLister
+			drain.pvLister = fakePVLister
+			drain.nodeLister = fakeNodeLister
+			drain.podLister = fakePodLister
+			drain.podSynced = podSynced
+			drain.SetPodProvider(&podProvider{Lister: fakePodLister})
+			drain.MaxEvictRetries = 0
+			drain.DisableDrainTimeout = true
+
+			err := drain.RunDrain(ctx)
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("retries exhausted"))
+			Expect(evictionAttempts).To(Equal(1))
+
+			// Verify the pod was NOT deleted from the API server
+			remainingPod, getErr := fakeClient.CoreV1().Pods(testNamespace).Get(ctx, pod.Name, metav1.GetOptions{})
+			Expect(getErr).NotTo(HaveOccurred())
+			Expect(remainingPod).NotTo(BeNil())
+		})
+
+		It("should force-delete pods when DisableDrainTimeout is false and retries are exhausted", func() {
+			stop := make(chan struct{})
+			defer close(stop)
+
+			pod := getPodWithoutPV(testNamespace, "pod-blocked", nodeName, terminationGracePeriodShort, nil)
+			fakeClient, fakePVLister, fakePVCLister, fakeNodeLister, fakePodLister, pvcSynced, pvSynced, nodeSynced, podSynced, tracker := createFakeController(
+				stop, testNamespace, []runtime.Object{pod, getNode(nodeName, nil)},
+			)
+			defer tracker.Stop()
+			Expect(cache.WaitForCacheSync(stop, pvcSynced, pvSynced, nodeSynced, podSynced)).To(BeTrue())
+
+			fakeClient.(*fakeclient.Clientset).FakeDiscovery.Resources = []*metav1.APIResourceList{
+				{
+					GroupVersion: "policy/v1",
+				},
+				{
+					GroupVersion: "v1",
+					APIResources: []metav1.APIResource{
+						{
+							Name: EvictionSubresource,
+							Kind: EvictionKind,
+						},
+					},
+				},
+			}
+			evictionAttempts := 0
+			fakeClient.(*fakeclient.Clientset).PrependReactor("post", "pods", func(_ k8stesting.Action) (handled bool, ret runtime.Object, err error) {
+				evictionAttempts++
+				return true, nil, apierrors.NewTooManyRequestsError("PDB prevents eviction")
+			})
+
+			drain.client = fakeClient
+			drain.pvcLister = fakePVCLister
+			drain.pvLister = fakePVLister
+			drain.nodeLister = fakeNodeLister
+			drain.podLister = fakePodLister
+			drain.podSynced = podSynced
+			drain.SetPodProvider(&podProvider{Lister: fakePodLister})
+			drain.MaxEvictRetries = 0
+			drain.DisableDrainTimeout = false
+
+			err := drain.RunDrain(ctx)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(evictionAttempts).To(Equal(1))
+
+			// Verify the pod WAS deleted
+			_, getErr := fakeClient.CoreV1().Pods(testNamespace).Get(ctx, pod.Name, metav1.GetOptions{})
+			Expect(apierrors.IsNotFound(getErr)).To(BeTrue())
+		})
+	})
+
 	Describe("getPodsForDeletion", func() {
 		var (
 			ctx      context.Context
