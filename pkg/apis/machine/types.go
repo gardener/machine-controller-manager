@@ -412,6 +412,9 @@ type MachineSetStatus struct {
 	// PreservedFailedReplicas is the number of preserved replicas in Failed phase for this replica set
 	PreservedFailedReplicas int32
 
+	// MaintenanceReplicas is the number of machines in the Maintenance phase.
+	MaintenanceReplicas int32
+
 	// ObservedGeneration is the most recent generation observed by the controller.
 	ObservedGeneration int64
 
@@ -642,6 +645,9 @@ type MachineDeploymentStatus struct {
 
 	// PreservedFailedReplicas is the number of preserved machines in Failed phase targeted by this MachineDeployment
 	PreservedFailedReplicas int32
+
+	// MaintenanceReplicas is the number of machines in the Maintenance phase.
+	MaintenanceReplicas int32
 
 	// Total number of unavailable machines targeted by this MachineDeployment. This is the total number of
 	// machines that are still required for the MachineDeployment to have 100% available capacity. They may

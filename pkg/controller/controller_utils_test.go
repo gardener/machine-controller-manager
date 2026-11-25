@@ -279,6 +279,72 @@ var _ = Describe("#controllerUtils", func() {
 			sortedPreservedAndUnpreservedMachines[1].DeepCopy(),
 		}
 
+		sortedMaintenanceAndRegularMachines := []*machinev1.Machine{
+			newMachine(
+				&machinev1.MachineTemplateSpec{
+					ObjectMeta: *newObjectMeta(objMeta, 0),
+					Spec: machinev1.MachineSpec{
+						Class: machinev1.ClassSpec{
+							Kind: AWSMachineClass,
+							Name: TestMachineClass,
+						},
+					},
+				},
+				&machinev1.MachineStatus{
+					CurrentStatus: machinev1.CurrentStatus{
+						Phase: machinev1.MachineFailed,
+					},
+				},
+				nil,
+				nil,
+				nil,
+			),
+			newMachine(
+				&machinev1.MachineTemplateSpec{
+					ObjectMeta: *newObjectMeta(objMeta, 0),
+					Spec: machinev1.MachineSpec{
+						Class: machinev1.ClassSpec{
+							Kind: AWSMachineClass,
+							Name: TestMachineClass,
+						},
+					},
+				},
+				&machinev1.MachineStatus{
+					CurrentStatus: machinev1.CurrentStatus{
+						Phase: machinev1.MachineRunning,
+					},
+				},
+				nil,
+				nil,
+				nil,
+			),
+			newMachine(
+				&machinev1.MachineTemplateSpec{
+					ObjectMeta: *newObjectMeta(objMeta, 0),
+					Spec: machinev1.MachineSpec{
+						Class: machinev1.ClassSpec{
+							Kind: AWSMachineClass,
+							Name: TestMachineClass,
+						},
+					},
+				},
+				&machinev1.MachineStatus{
+					CurrentStatus: machinev1.CurrentStatus{
+						Phase: machinev1.MachineMaintenance,
+					},
+				},
+				nil,
+				nil,
+				nil,
+			),
+		}
+
+		unsortedMaintenanceAndRegularMachines := []*machinev1.Machine{
+			sortedMaintenanceAndRegularMachines[2].DeepCopy(),
+			sortedMaintenanceAndRegularMachines[0].DeepCopy(),
+			sortedMaintenanceAndRegularMachines[1].DeepCopy(),
+		}
+
 		DescribeTable("###sort",
 			func(data *data) {
 				sort.Sort(ActiveMachines(data.inputMachines))
@@ -300,6 +366,10 @@ var _ = Describe("#controllerUtils", func() {
 			Entry("sort on preserved and unpreserved", &data{
 				inputMachines:  unsortedPreservedAndUnpreservedMachines,
 				outputMachines: sortedPreservedAndUnpreservedMachines,
+			}),
+			Entry("sort on maintenance and regular machines", &data{
+				inputMachines:  unsortedMaintenanceAndRegularMachines,
+				outputMachines: sortedMaintenanceAndRegularMachines,
 			}),
 		)
 	})

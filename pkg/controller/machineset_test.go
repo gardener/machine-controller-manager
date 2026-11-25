@@ -20,13 +20,15 @@ import (
 	k8sError "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/testing"
 	"k8s.io/utils/ptr"
 )
 
 const (
-	MachineRunning = "Running"
-	MachineFailed  = "Failed"
+	MachineRunning     = "Running"
+	MachineFailed      = "Failed"
+	MachineMaintenance = "Maintenance"
 )
 
 var _ = Describe("machineset", func() {
@@ -850,6 +852,35 @@ var _ = Describe("machineset", func() {
 			machines, _ = c.controlMachineClient.Machines(testNamespace).List(context.Background(), metav1.ListOptions{})
 			Expect(len(machines.Items)).To(Equal(int(testMachineSet.Spec.Replicas)))
 			Expect(Err).Should(BeNil())
+		})
+
+		It("should delete a running machine before a maintenance machine during scale-down", func(ctx SpecContext) {
+			testActiveMachine4.Status.CurrentStatus.Phase = MachineMaintenance
+			// We want to ensure that the controller does not delete it, even if it is the lowest priority machine.
+			testActiveMachine4.Annotations = map[string]string{machineutils.MachinePriority: "0"}
+
+			var objects []runtime.Object
+			objects = append(objects, testMachineSet, testActiveMachine1, testActiveMachine2, testActiveMachine3, testActiveMachine4)
+			c, trackers := createController(ctx.Done(), testNamespace, objects, nil, nil)
+			defer trackers.Stop()
+			waitForCacheSync(ctx.Done(), c)
+
+			machines, err := c.controlMachineClient.Machines(testNamespace).List(ctx, metav1.ListOptions{})
+			Expect(err).To(Succeed())
+			Expect(machines.Items).To(HaveLen(int(testMachineSet.Spec.Replicas + 1)))
+
+			activeMachines := []*machinev1.Machine{testActiveMachine1, testActiveMachine2, testActiveMachine3, testActiveMachine4}
+			Expect(c.manageReplicas(ctx, activeMachines, testMachineSet)).Should(Succeed())
+
+			machines, err = c.controlMachineClient.Machines(testNamespace).List(ctx, metav1.ListOptions{})
+			Expect(err).To(Succeed())
+			Expect(machines.Items).To(HaveLen(int(testMachineSet.Spec.Replicas)))
+
+			machineNames := sets.New[string]()
+			for _, m := range machines.Items {
+				machineNames.Insert(m.Name)
+			}
+			Expect(machineNames.Has(testActiveMachine4.Name)).To(BeTrue(), "maintenance machine must not be deleted")
 		})
 
 		It("should delete the marked machines with no change in machineSet replicas", func() {
