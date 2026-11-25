@@ -56,3 +56,23 @@ func (c *Cluster) GetNumberOfNodes() int16 {
 	nodes, _ := c.getNodes()
 	return int16(len(nodes.Items)) //#nosec G115 (CWE-190) -- Test only
 }
+
+// HasMatchingNodeConditionValues returns true if the node has a condition matching the given type, status and reason.
+func HasMatchingNodeConditionValues(node *corev1.Node, condType corev1.NodeConditionType, status corev1.ConditionStatus, reason string) bool {
+	for _, cond := range node.Status.Conditions {
+		if cond.Type == condType {
+			return cond.Status == status && cond.Reason == reason
+		}
+	}
+	return false
+}
+
+// HasNodeConditionType returns true if the node has a condition of the given type (any status/reason).
+func HasNodeConditionType(node *corev1.Node, condType corev1.NodeConditionType) bool {
+	for _, cond := range node.Status.Conditions {
+		if cond.Type == condType {
+			return true
+		}
+	}
+	return false
+}

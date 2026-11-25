@@ -160,3 +160,20 @@ In order to achieve the objectives mentioned, the following are proposed:
     - shield from CA's internals
     - make it generic and no longer CA specific
     - allow a timeout to be specified
+
+## Implementation Notes
+
+The following decisions were made during implementation that diverge from or refine the original proposal:
+
+### Node condition types and Reasons
+
+- A separate node condition type `NodeDrained` (condition type string `"Drained"`) tracks drain progress independently of preservation status. Its `Reason` is one of `DrainStarted`, `DrainCompleted`, or `DrainFailed`.
+- `NodePreserved` Reason values:
+  - `AutoPreserved` — machine was auto-preserved by MCM (was `PreservedByMCM` in the original proposal).
+  - `PreservedNowByUser` — user annotated with `preserve=now`.
+  - `PreservedWhenFailedByUser` — user annotated with `preserve=when-failed` and machine failed.
+- `NodePreserved` Status is `True` once preservation is established (CA annotation added, expiry time set), and `False` if adding the CA annotation fails (with the error in `Message`).
+
+### Condition removal on preservation stop
+
+When preservation stops both `NodePreserved` and `NodeDrained` conditions are **removed** from the node rather than being set to `ConditionFalse`. This avoids accumulating stale conditions on nodes that may never be re-preserved.

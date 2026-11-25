@@ -1183,6 +1183,26 @@ func (c *IntegrationTestFramework) ControllerTests() {
 					WithArguments(ctx, controlClusterNamespace, []string{runningMachines[0].Name}).
 					Should(gomega.BeTrue())
 
+				nodeName := runningMachines[0].Labels[v1alpha1.NodeLabelKey]
+
+				ginkgo.By(fmt.Sprintf("verify NodePreserved condition is set to True with reason AutoPreserved on the backing node: %s", nodeName))
+				gomega.Eventually(func() bool {
+					node, err := c.TargetCluster.Clientset.CoreV1().Nodes().Get(ctx, nodeName, metav1.GetOptions{})
+					if err != nil {
+						return false
+					}
+					return helpers.HasMatchingNodeConditionValues(node, v1alpha1.NodePreserved, corev1.ConditionTrue, v1alpha1.AutoPreserved)
+				}, c.timeout, c.pollingInterval).Should(gomega.BeTrue())
+
+				ginkgo.By(fmt.Sprintf("verify NodeDrained condition is set to True with reason DrainCompleted on the backing node: %s", nodeName))
+				gomega.Eventually(func() bool {
+					node, err := c.TargetCluster.Clientset.CoreV1().Nodes().Get(ctx, nodeName, metav1.GetOptions{})
+					if err != nil {
+						return false
+					}
+					return helpers.HasMatchingNodeConditionValues(node, v1alpha1.NodeDrained, corev1.ConditionTrue, v1alpha1.DrainCompleted)
+				}, c.timeout, c.pollingInterval).Should(gomega.BeTrue())
+
 				ginkgo.By(fmt.Sprintf("remove VAP and VAPB to simulate kubelet restart: %s", runningMachines[0].Name))
 				gomega.Expect(c.TargetCluster.DeleteVAPToRestartKubeletUpdates(ctx)).To(gomega.BeNil())
 
@@ -1194,6 +1214,15 @@ func (c *IntegrationTestFramework) ControllerTests() {
 					return c.ControlCluster.AreMachinesRunning(ctx, []string{runningMachines[0].Name}, controlClusterNamespace)
 				}, c.timeout, c.pollingInterval).
 					Should(gomega.BeTrue())
+
+				ginkgo.By(fmt.Sprintf("verify NodePreserved and NodeDrained conditions are removed from the backing node after recovery: %s", nodeName))
+				gomega.Eventually(func() bool {
+					node, err := c.TargetCluster.Clientset.CoreV1().Nodes().Get(ctx, nodeName, metav1.GetOptions{})
+					if err != nil {
+						return false
+					}
+					return !helpers.HasNodeConditionType(node, v1alpha1.NodePreserved) && !helpers.HasNodeConditionType(node, v1alpha1.NodeDrained)
+				}, c.timeout, c.pollingInterval).Should(gomega.BeTrue())
 			})
 		})
 
@@ -1562,6 +1591,27 @@ func (c *IntegrationTestFramework) ControllerTests() {
 					WithArguments(ctx, controlClusterNamespace, []string{runningMachines[0].Name}).
 					Should(gomega.BeTrue())
 
+				nodeNameMachineAnnotated := runningMachines[0].Labels[v1alpha1.NodeLabelKey]
+
+				ginkgo.By(fmt.Sprintf("verify NodePreserved condition is set to True with reason PreservedWhenFailedByUser on the backing node: %s", nodeNameMachineAnnotated))
+				var node *corev1.Node
+				gomega.Eventually(func() bool {
+					node, err = c.TargetCluster.Clientset.CoreV1().Nodes().Get(ctx, nodeNameMachineAnnotated, metav1.GetOptions{})
+					if err != nil {
+						return false
+					}
+					return helpers.HasMatchingNodeConditionValues(node, v1alpha1.NodePreserved, corev1.ConditionTrue, v1alpha1.PreservedWhenFailedByUser)
+				}, c.timeout, c.pollingInterval).Should(gomega.BeTrue())
+
+				ginkgo.By(fmt.Sprintf("verify NodeDrained condition is set to True with reason DrainCompleted on the backing node: %s", nodeNameMachineAnnotated))
+				gomega.Eventually(func() bool {
+					node, err = c.TargetCluster.Clientset.CoreV1().Nodes().Get(ctx, nodeNameMachineAnnotated, metav1.GetOptions{})
+					if err != nil {
+						return false
+					}
+					return helpers.HasMatchingNodeConditionValues(node, v1alpha1.NodeDrained, corev1.ConditionTrue, v1alpha1.DrainCompleted)
+				}, c.timeout, c.pollingInterval).Should(gomega.BeTrue())
+
 				ginkgo.By(fmt.Sprintf("remove VAP and VAPB to simulate kubelet restart: %s", runningMachines[0].Name))
 				gomega.Expect(c.TargetCluster.DeleteVAPToRestartKubeletUpdates(ctx)).To(gomega.BeNil())
 
@@ -1573,6 +1623,15 @@ func (c *IntegrationTestFramework) ControllerTests() {
 					return c.ControlCluster.AreMachinesRunning(ctx, []string{runningMachines[0].Name}, controlClusterNamespace)
 				}, c.timeout, c.pollingInterval).
 					Should(gomega.BeTrue())
+
+				ginkgo.By(fmt.Sprintf("verify NodePreserved and NodeDrained conditions are removed from the backing node after recovery: %s", nodeNameMachineAnnotated))
+				gomega.Eventually(func() bool {
+					node, err = c.TargetCluster.Clientset.CoreV1().Nodes().Get(ctx, nodeNameMachineAnnotated, metav1.GetOptions{})
+					if err != nil {
+						return false
+					}
+					return !helpers.HasNodeConditionType(node, v1alpha1.NodePreserved) && !helpers.HasNodeConditionType(node, v1alpha1.NodeDrained)
+				}, c.timeout, c.pollingInterval).Should(gomega.BeTrue())
 			})
 			ginkgo.It("When it's corresponding node is manually annotated with `node.machine.sapcloud.io/preserve=when-failed`", func() {
 				ginkgo.By("Create a MCD with AutoPreserveFailedMachineMax set to 0")
@@ -1630,6 +1689,24 @@ func (c *IntegrationTestFramework) ControllerTests() {
 					WithArguments(ctx, controlClusterNamespace, []string{runningMachines[0].Name}).
 					Should(gomega.BeTrue())
 
+				ginkgo.By(fmt.Sprintf("verify NodePreserved condition is set to True with reason PreservedWhenFailedByUser on the backing node: %s", nodeName))
+				gomega.Eventually(func() bool {
+					node, err := c.TargetCluster.Clientset.CoreV1().Nodes().Get(ctx, nodeName, metav1.GetOptions{})
+					if err != nil {
+						return false
+					}
+					return helpers.HasMatchingNodeConditionValues(node, v1alpha1.NodePreserved, corev1.ConditionTrue, v1alpha1.PreservedWhenFailedByUser)
+				}, c.timeout, c.pollingInterval).Should(gomega.BeTrue())
+
+				ginkgo.By(fmt.Sprintf("verify NodeDrained condition is set to True with reason DrainCompleted on the backing node: %s", nodeName))
+				gomega.Eventually(func() bool {
+					node, err := c.TargetCluster.Clientset.CoreV1().Nodes().Get(ctx, nodeName, metav1.GetOptions{})
+					if err != nil {
+						return false
+					}
+					return helpers.HasMatchingNodeConditionValues(node, v1alpha1.NodeDrained, corev1.ConditionTrue, v1alpha1.DrainCompleted)
+				}, c.timeout, c.pollingInterval).Should(gomega.BeTrue())
+
 				ginkgo.By(fmt.Sprintf("remove VAP and VAPB to simulate kubelet restart: %s", runningMachines[0].Name))
 				gomega.Expect(c.TargetCluster.DeleteVAPToRestartKubeletUpdates(ctx)).To(gomega.BeNil())
 
@@ -1641,6 +1718,90 @@ func (c *IntegrationTestFramework) ControllerTests() {
 					return c.ControlCluster.AreMachinesRunning(ctx, []string{runningMachines[0].Name}, controlClusterNamespace)
 				}, c.timeout, c.pollingInterval).
 					Should(gomega.BeTrue())
+
+				ginkgo.By(fmt.Sprintf("verify NodePreserved and NodeDrained conditions are removed from the backing node after recovery: %s", nodeName))
+				gomega.Eventually(func() bool {
+					node, err := c.TargetCluster.Clientset.CoreV1().Nodes().Get(ctx, nodeName, metav1.GetOptions{})
+					if err != nil {
+						return false
+					}
+					return !helpers.HasNodeConditionType(node, v1alpha1.NodePreserved) && !helpers.HasNodeConditionType(node, v1alpha1.NodeDrained)
+				}, c.timeout, c.pollingInterval).Should(gomega.BeTrue())
+			})
+			ginkgo.It("When a running machine is annotated with `preserve=now`, it should be preserved without draining and should be unpreserved when the annotation is removed", func() {
+				ginkgo.By("Create an MCD with AutoPreserveFailedMachineMax set to 0")
+				mcd := helpers.NewMachineDeployment(controlClusterNamespace, gnaSecretNameLabelValue, helpers.McdReplicaCount)
+				mcd.Spec.AutoPreserveFailedMachineMax = 0
+				mcd.Spec.Template.Spec.MachineConfiguration = &v1alpha1.MachineConfiguration{
+					MachineHealthTimeout: &metav1.Duration{Duration: 5 * time.Second},
+				}
+
+				err := c.ControlCluster.CreateOrUpdateMcd(ctx, mcd, controlClusterNamespace)
+				gomega.Expect(err).To(gomega.BeNil())
+
+				ginkgo.By("wait for at least one machine to start running")
+				var runningMachines []v1alpha1.Machine
+				gomega.Eventually(
+					func() int {
+						runningMachines, _ = c.ControlCluster.GetRunningMachineList(ctx, controlClusterNamespace)
+						return len(runningMachines)
+					},
+					c.timeout,
+					c.pollingInterval).Should(gomega.BeNumerically(">=", 1))
+
+				ginkgo.By(fmt.Sprintf("annotate the running machine with preserve=now: %s", runningMachines[0].Name))
+				ginkgo.DeferCleanup(func() {
+					ginkgo.By(fmt.Sprintf("remove the preserve=now annotation: %s", runningMachines[0].Name))
+					err = c.ControlCluster.PatchMachineAnnotations(ctx, runningMachines[0].Name, controlClusterNamespace, nil)
+					// the machine may have been deleted by the time cleanup runs, in which case there is nothing to un-annotate
+					if err != nil && !apierrors.IsNotFound(err) {
+						gomega.Expect(err).To(gomega.BeNil())
+					}
+				})
+				err = c.ControlCluster.PatchMachineAnnotations(ctx, runningMachines[0].Name, controlClusterNamespace, map[string]any{
+					mc_utils.PreserveMachineAnnotationKey: mc_utils.PreserveMachineAnnotationValueNow,
+				})
+				gomega.Expect(err).To(gomega.BeNil())
+
+				ginkgo.By(fmt.Sprintf("wait for machine to be preserved while remaining in Running phase and verify NodePreserved condition is set on the backing node: %s", runningMachines[0].Name))
+				nodeName := runningMachines[0].Labels[v1alpha1.NodeLabelKey]
+				gomega.Eventually(func() bool {
+					mc, err := c.ControlCluster.McmClient.MachineV1alpha1().Machines(controlClusterNamespace).Get(ctx, runningMachines[0].Name, metav1.GetOptions{})
+					if err != nil {
+						return false
+					}
+					if mc.Status.CurrentStatus.PreserveExpiryTime == nil || mc.Status.CurrentStatus.Phase != v1alpha1.MachineRunning {
+						return false
+					}
+					node, err := c.TargetCluster.Clientset.CoreV1().Nodes().Get(ctx, nodeName, metav1.GetOptions{})
+					if err != nil {
+						return false
+					}
+					return helpers.HasMatchingNodeConditionValues(node, v1alpha1.NodePreserved, corev1.ConditionTrue, v1alpha1.PreservedNowByUser)
+				}, c.timeout, c.pollingInterval).Should(gomega.BeTrue())
+
+				ginkgo.By(fmt.Sprintf("verify NodeDrained condition is absent on the backing node (no drain for Running machines): %s", nodeName))
+				// if drain had started, it would have added the condition with reason DrainStarted which should not take longer than 10s
+				gomega.Consistently(func() bool {
+					node, err := c.TargetCluster.Clientset.CoreV1().Nodes().Get(ctx, nodeName, metav1.GetOptions{})
+					if err != nil {
+						return false
+					}
+					return helpers.HasNodeConditionType(node, v1alpha1.NodeDrained)
+				}, 10*time.Second, c.pollingInterval).Should(gomega.BeFalse())
+
+				ginkgo.By(fmt.Sprintf("remove the node.machine.sapcloud.io/preserve=now annotation to stop preservation: %s", runningMachines[0].Name))
+				err = c.ControlCluster.PatchMachineAnnotations(ctx, runningMachines[0].Name, controlClusterNamespace, nil)
+				gomega.Expect(err).To(gomega.BeNil())
+
+				ginkgo.By(fmt.Sprintf("verify NodePreserved condition is removed and machine stays in Running phase after preservation stops: %s", nodeName))
+				gomega.Eventually(func() bool {
+					node, err := c.TargetCluster.Clientset.CoreV1().Nodes().Get(ctx, nodeName, metav1.GetOptions{})
+					if err != nil {
+						return false
+					}
+					return !helpers.HasNodeConditionType(node, v1alpha1.NodePreserved) && c.ControlCluster.AreMachinesRunning(ctx, []string{runningMachines[0].Name}, controlClusterNamespace)
+				}, c.timeout, c.pollingInterval).Should(gomega.BeTrue())
 			})
 		})
 		ginkgo.Context("Should ensure that machines manually annotated with `when-failed` are preserved", func() {

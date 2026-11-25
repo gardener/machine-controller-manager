@@ -30,19 +30,20 @@ A preserved machine/node has the following properties:
     - The CA scale-down-disabled annotation is added on the backing node,
     - The backing node is cordoned to prevent scheduling of new pods on it.
     - The backing node is drained of all pods but the daemonset pods remain.
-    - The `NodeCondition` of `Type=Preserved` is updated to show that the preservation was successful.
+    - The `NodeCondition` of `Type=Drained` is set to reflect the drain progress (`DrainStarted`, `DrainCompleted`, or `DrainFailed`).
+    - The `NodeCondition` of `Type=Preserved` is set to `True` to show that the preservation was successful.
     - If a machine has no backing node, only `PreserveExpiryTime` is set.
 
 ### Changes in a machine/node object when preservation stops:
 - If the machine is in `Running` phase:
     - The `PreserveExpiryTime` is cleared.
     - The CA scale-down-disabled annotation is removed.
-    - The `NodeCondition` of `Type=Preserved` is updated to show that the preservation has stopped.
+    - The `NodeCondition` of `Type=Preserved` is removed from the node.
     - If a machine has no backing node, only `PreserveExpiryTime` is cleared.
 - If the machine is in `Failed` phase:
     - The `PreserveExpiryTime` is cleared.
     - The CA scale-down-disabled annotation is removed.
-    - The `NodeCondition` of `Type=Preserved` is updated to show that the preservation has stopped.
+    - The `NodeCondition` of `Type=Preserved` and `Type=Drained` are removed from the node.
     - If a machine has no backing node, only `PreserveExpiryTime` is cleared.
     - The machine is moved to `Terminating` phase by MCM.
 
@@ -151,7 +152,7 @@ In all the cases, when the machine moves to `Running` during preservation, the b
 - Shoot hibernation overrides preservation.
 - Replica enforcement: Preserved machines count towards MachineDeployment replicas, and can be scaled down if the desired replica count is reduced below the number of preserved machines.
 - Scale-down preference: Preserved machines are the last to be scaled down.
-- Preservation status is visible via Node Conditions and Machine Status fields.
+- Preservation status is visible via Node Conditions (`NodePreserved`, `NodeDrained`) and Machine Status fields.
 - `machinePreserveTimeout` changes do not affect existing preserved machines. Operators may edit PreserveExpiryTime directly if required to extend preservation.
 - If a machine or its backing node is annotated for preservation when the machine is in the Failed phase, MCM may not be able to act on it before the machine is Terminated. Therefore, it is recommended to annotate the machine/node for preservation when the machine enters the Unknown phase, or as soon as the node is observed to be NotReady, to increase the chances of preservation taking effect before termination.
 - Similarly, if an underutilized and unneeded machine is annotated for preservation, but CA initiates scale-down before MCM can add the CA scale-down-disabled annotation as a part of its preservation logic, the machine may be scaled down before preservation takes effect. 

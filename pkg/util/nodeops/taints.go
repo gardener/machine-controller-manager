@@ -126,30 +126,36 @@ func RemoveTaintOffNode(ctx context.Context, c clientset.Interface, nodeName str
 	})
 }
 
-// PatchNodeTaints is for updating the node taints from oldNode to the newNode
-// It makes a TwoWayMergePatch by comparing the two objects
-// It calls the Patch() method to do the final patch
-func PatchNodeTaints(ctx context.Context, c clientset.Interface, nodeName string, oldNode *v1.Node, newNode *v1.Node) error {
-	oldData, err := json.Marshal(oldNode)
+// PatchNodeTaints sets the node's spec taints to those of newNode, replacing the taint list.
+// No API server call is made when the taints are already identical. The patch is guarded by oldNode's
+// resourceVersion, so it returns a conflict error if the node's spec changed on the API server in the
+// meantime.
+func PatchNodeTaints(ctx context.Context, c clientset.Interface, oldNode, newNode *v1.Node) (*v1.Node, error) {
+	original := oldNode.DeepCopy()
+	original.SetResourceVersion("")
+	base, err := json.Marshal(original)
 	if err != nil {
-		return fmt.Errorf("failed to marshal old node %#v for node %q: %v", oldNode, nodeName, err)
+		return nil, fmt.Errorf("failed to marshal old node %q: %w", oldNode.Name, err)
 	}
 
-	newTaints := newNode.Spec.Taints
-	newNodeClone := oldNode.DeepCopy()
-	newNodeClone.Spec.Taints = newTaints
-	newData, err := json.Marshal(newNodeClone)
+	modified := oldNode.DeepCopy()
+	modified.Spec.Taints = newNode.Spec.Taints
+	modifiedJSON, err := json.Marshal(modified)
 	if err != nil {
-		return fmt.Errorf("failed to marshal new node %#v for node %q: %v", newNodeClone, nodeName, err)
+		return nil, fmt.Errorf("failed to marshal new node %q: %w", oldNode.Name, err)
 	}
 
-	patchBytes, err := strategicpatch.CreateTwoWayMergePatch(oldData, newData, v1.Node{})
+	// the resourceVersion is stripped from the patch base but kept on the modified node, so it appears in the
+	// generated patch and a concurrent spec change is detected as a conflict.
+	// this is required because .spec.taints has no patch merge key and cannot be safely merged otherwise.
+	patch, err := strategicpatch.CreateTwoWayMergePatch(base, modifiedJSON, v1.Node{})
 	if err != nil {
-		return fmt.Errorf("failed to create patch for node %q: %v", nodeName, err)
+		return nil, fmt.Errorf("failed to create taint patch for node %q: %w", oldNode.Name, err)
 	}
-
-	_, err = c.CoreV1().Nodes().Patch(ctx, string(nodeName), types.StrategicMergePatchType, patchBytes, metav1.PatchOptions{})
-	return err
+	if string(patch) == "{}" {
+		return oldNode, nil
+	}
+	return c.CoreV1().Nodes().Patch(ctx, oldNode.Name, types.StrategicMergePatchType, patch, metav1.PatchOptions{})
 }
 
 // UpdateNodeTaints is for updating the node taints from oldNode to the newNode
