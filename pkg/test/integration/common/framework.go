@@ -1772,6 +1772,172 @@ func (c *IntegrationTestFramework) ControllerTests() {
 					Should(gomega.BeTrue())
 			})
 		})
+
+		ginkgo.Context("Auto-preservation during rolling updates:", func() {
+			ginkgo.It("a preserved machine from the old MachineSet should be replaced and not re-preserved in the new MachineSet", func() {
+				ginkgo.By("Creating an MCD (class v2) with AutoPreserveFailedMachineMax=1")
+				mcd := helpers.NewMachineDeployment(controlClusterNamespace, gnaSecretNameLabelValue, 2)
+				mcd.Spec.AutoPreserveFailedMachineMax = 1
+				mcd.Spec.Template.Spec.Class.Name = testMachineClassResources[1]
+				gomega.Expect(c.ControlCluster.CreateOrUpdateMcd(ctx, mcd, controlClusterNamespace)).To(gomega.BeNil())
+
+				ginkgo.By("Waiting for all machines to be running")
+				c.waitForRunningMachines(ctx, controlClusterNamespace, 2)
+
+				ginkgo.By("Failing a running machine so it gets preserved")
+				runningMachines := c.waitForRunningMachines(ctx, controlClusterNamespace, 1)
+
+				preservedMachine := runningMachines[0]
+				ginkgo.DeferCleanup(func() {
+					gomega.Expect(c.TargetCluster.DeleteVAPToRestartKubeletUpdates(ctx)).To(gomega.BeNil())
+				})
+				gomega.Expect(c.TargetCluster.CreateVAPToBlockKubeletUpdates(ctx, []string{preservedMachine.ObjectMeta.Labels[v1alpha1.NodeLabelKey]})).To(gomega.BeNil())
+
+				gomega.Eventually(
+					c.ControlCluster.AreMachinesFailedAndPreserved,
+					c.timeout,
+					c.pollingInterval).
+					WithArguments(ctx, controlClusterNamespace, []string{preservedMachine.Name}).
+					Should(gomega.BeTrue())
+
+				gomega.Expect(c.TargetCluster.DeleteVAPToRestartKubeletUpdates(ctx)).To(gomega.BeNil())
+
+				ginkgo.By("Triggering a rolling update to v2 which forces the old MachineSet (with preserved machine) to be scaled down")
+				retryErr := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+					existingMCD, err := c.ControlCluster.McmClient.MachineV1alpha1().MachineDeployments(controlClusterNamespace).Get(ctx, helpers.McdName, metav1.GetOptions{})
+					if err != nil {
+						return err
+					}
+					existingMCD.Spec.Template.Spec.Class.Name = testMachineClassResources[1]
+					existingMCD.Spec.AutoPreserveFailedMachineMax = 2
+					_, updateErr := c.ControlCluster.McmClient.MachineV1alpha1().MachineDeployments(controlClusterNamespace).Update(ctx, existingMCD, metav1.UpdateOptions{})
+					return updateErr
+				})
+				gomega.Expect(retryErr).NotTo(gomega.HaveOccurred())
+
+				ginkgo.By("Waiting for the preserved machine to be deleted as the old MachineSet is scaled down")
+				gomega.Eventually(
+					c.ControlCluster.IsMachineDeleted,
+					c.timeout,
+					c.pollingInterval).
+					WithArguments(ctx, preservedMachine.Name, controlClusterNamespace).
+					Should(gomega.BeTrue())
+
+				ginkgo.By("Waiting for the rolling update to complete")
+				c.waitForRollingUpdateComplete(ctx, helpers.McdName, controlClusterNamespace)
+
+				ginkgo.By("Verifying no machine in the new MachineSet has the auto-preserved annotation or PreserveExpiryTime set")
+				machines, err := c.ControlCluster.McmClient.MachineV1alpha1().Machines(controlClusterNamespace).List(ctx, metav1.ListOptions{})
+				gomega.Expect(err).To(gomega.BeNil())
+				machineSets, err := c.ControlCluster.GetMachineSetsForMCD(ctx, helpers.McdName, controlClusterNamespace)
+				gomega.Expect(err).To(gomega.BeNil())
+				var newMSName string
+				for i := range machineSets {
+					if machineSets[i].Spec.Template.Spec.Class.Name == testMachineClassResources[1] {
+						newMSName = machineSets[i].Name
+						break
+					}
+				}
+				gomega.Expect(newMSName).NotTo(gomega.BeEmpty())
+				for i := range machines.Items {
+					m := &machines.Items[i]
+					for _, ref := range m.OwnerReferences {
+						if ref.Name == newMSName {
+							gomega.Expect(m.Annotations[mc_utils.PreserveMachineAnnotationKey]).NotTo(gomega.Equal(mc_utils.PreserveMachineAnnotationValueAutoPreserved))
+							gomega.Expect(m.Status.CurrentStatus.PreserveExpiryTime).To(gomega.BeNil())
+						}
+					}
+				}
+			})
+
+			ginkgo.It("a machine manually annotated with when-failed should be preserved; other machines in the new MachineSet should have no auto-preserved annotation or PreserveExpiryTime", func() {
+				ginkgo.By("Waiting for the rolling update from the previous test to complete")
+				c.waitForRollingUpdateComplete(ctx, helpers.McdName, controlClusterNamespace)
+
+				ginkgo.By("Triggering a rolling update to v1")
+				retryErr := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+					existingMCD, err := c.ControlCluster.McmClient.MachineV1alpha1().MachineDeployments(controlClusterNamespace).Get(ctx, helpers.McdName, metav1.GetOptions{})
+					if err != nil {
+						return err
+					}
+					existingMCD.Spec.Template.Spec.Class.Name = testMachineClassResources[0]
+					_, updateErr := c.ControlCluster.McmClient.MachineV1alpha1().MachineDeployments(controlClusterNamespace).Update(ctx, existingMCD, metav1.UpdateOptions{})
+					return updateErr
+				})
+				gomega.Expect(retryErr).NotTo(gomega.HaveOccurred())
+
+				ginkgo.By("Waiting for a running machine in the new MachineSet (v1) and annotating it with preserve=when-failed")
+				var targetMachine v1alpha1.Machine
+				var newMSName string
+				gomega.Eventually(func() bool {
+					machineSets, err := c.ControlCluster.GetMachineSetsForMCD(ctx, helpers.McdName, controlClusterNamespace)
+					if err != nil {
+						return false
+					}
+					for i := range machineSets {
+						if machineSets[i].Spec.Template.Spec.Class.Name == testMachineClassResources[0] {
+							newMSName = machineSets[i].Name
+							break
+						}
+					}
+					if newMSName == "" {
+						return false
+					}
+					machines, err := c.ControlCluster.McmClient.MachineV1alpha1().Machines(controlClusterNamespace).List(ctx, metav1.ListOptions{})
+					if err != nil {
+						return false
+					}
+					for i := range machines.Items {
+						m := &machines.Items[i]
+						for _, ref := range m.OwnerReferences {
+							if ref.Name == newMSName && m.Status.CurrentStatus.Phase == v1alpha1.MachineRunning {
+								targetMachine = *m
+								return true
+							}
+						}
+					}
+					return false
+				}, c.timeout, c.pollingInterval).Should(gomega.BeTrue())
+
+				patchErr := c.ControlCluster.PatchMachineAnnotations(ctx, targetMachine.Name, controlClusterNamespace, map[string]any{
+					mc_utils.PreserveMachineAnnotationKey: mc_utils.PreserveMachineAnnotationValueWhenFailed,
+				})
+				gomega.Expect(patchErr).To(gomega.BeNil())
+				ginkgo.DeferCleanup(func() {
+					_ = c.ControlCluster.PatchMachineAnnotations(ctx, targetMachine.Name, controlClusterNamespace, nil)
+				})
+
+				ginkgo.By("Failing the when-failed annotated machine during the rolling update")
+				ginkgo.DeferCleanup(func() {
+					gomega.Expect(c.TargetCluster.DeleteVAPToRestartKubeletUpdates(ctx)).To(gomega.BeNil())
+				})
+				gomega.Expect(c.TargetCluster.CreateVAPToBlockKubeletUpdates(ctx, []string{targetMachine.ObjectMeta.Labels[v1alpha1.NodeLabelKey]})).To(gomega.BeNil())
+
+				ginkgo.By("Waiting for the when-failed annotated machine to be preserved despite the rolling update")
+				gomega.Eventually(
+					c.ControlCluster.AreMachinesFailedAndPreserved,
+					c.timeout,
+					c.pollingInterval).
+					WithArguments(ctx, controlClusterNamespace, []string{targetMachine.Name}).
+					Should(gomega.BeTrue())
+
+				ginkgo.By("Verifying no other machines in the new MachineSet have the auto-preserved annotation or PreserveExpiryTime set")
+				machines, err := c.ControlCluster.McmClient.MachineV1alpha1().Machines(controlClusterNamespace).List(ctx, metav1.ListOptions{})
+				gomega.Expect(err).To(gomega.BeNil())
+				for i := range machines.Items {
+					m := &machines.Items[i]
+					if m.Name == targetMachine.Name {
+						continue
+					}
+					for _, ref := range m.OwnerReferences {
+						if ref.Name == newMSName {
+							gomega.Expect(m.Annotations[mc_utils.PreserveMachineAnnotationKey]).NotTo(gomega.Equal(mc_utils.PreserveMachineAnnotationValueAutoPreserved))
+							gomega.Expect(m.Status.CurrentStatus.PreserveExpiryTime).To(gomega.BeNil())
+						}
+					}
+				}
+			})
+		})
 	})
 
 	// Testcase #04 | InPlace Updates
@@ -2596,4 +2762,23 @@ func checkMcmRepoAvailable() {
 	_, err = os.Stat(mcmRepoPath + "/.git")
 	gomega.Expect(err).To(gomega.BeNil(), "Not a git repo at: "+mcmRepoPath)
 
+}
+
+func (c *IntegrationTestFramework) waitForRunningMachines(ctx context.Context, namespace string, atLeast int) []v1alpha1.Machine {
+	var runningMachines []v1alpha1.Machine
+	gomega.Eventually(func() int {
+		runningMachines, _ = c.ControlCluster.GetRunningMachineList(ctx, namespace)
+		return len(runningMachines)
+	}, c.timeout, c.pollingInterval).Should(gomega.BeNumerically(">=", atLeast))
+	return runningMachines
+}
+
+func (c *IntegrationTestFramework) waitForRollingUpdateComplete(ctx context.Context, mcdName string, namespace string) {
+	gomega.Eventually(func() bool {
+		mcdObj, err := c.ControlCluster.McmClient.MachineV1alpha1().MachineDeployments(namespace).Get(ctx, mcdName, metav1.GetOptions{})
+		if err != nil {
+			return false
+		}
+		return mcdObj.Status.UpdatedReplicas == mcdObj.Spec.Replicas && mcdObj.Status.AvailableReplicas == mcdObj.Spec.Replicas
+	}, c.timeout, c.pollingInterval).Should(gomega.BeTrue())
 }

@@ -250,14 +250,13 @@ func (dc *controller) getNewMachineSet(ctx context.Context, d *v1alpha1.MachineD
 		// Set existing new machine set's annotation
 		annotationsUpdated := SetNewMachineSetAnnotations(d, isCopy, newRevision, true)
 		minReadySecondsNeedsUpdate := isCopy.Spec.MinReadySeconds != d.Spec.MinReadySeconds
-		autoPreserveFailedMachineMaxNeedsUpdate := isCopy.Spec.AutoPreserveFailedMachineMax != d.Spec.AutoPreserveFailedMachineMax
+		autoPreserveFailedMachineMaxUpdated := setNewMachineSetAutoPreservation(d, isCopy, oldISs)
 		nodeTemplateUpdated := SetNewMachineSetNodeTemplate(d, isCopy, newRevision, true)
 		machineConfigUpdated := SetNewMachineSetConfig(d, isCopy, newRevision, true)
 		updateMachineSetClassKind := UpdateMachineSetClassKind(d, isCopy, newRevision, true)
 
-		if annotationsUpdated || minReadySecondsNeedsUpdate || nodeTemplateUpdated || machineConfigUpdated || updateMachineSetClassKind || autoPreserveFailedMachineMaxNeedsUpdate {
+		if annotationsUpdated || minReadySecondsNeedsUpdate || nodeTemplateUpdated || machineConfigUpdated || updateMachineSetClassKind || autoPreserveFailedMachineMaxUpdated {
 			isCopy.Spec.MinReadySeconds = d.Spec.MinReadySeconds
-			isCopy.Spec.AutoPreserveFailedMachineMax = d.Spec.AutoPreserveFailedMachineMax
 			return dc.controlMachineClient.MachineSets(isCopy.Namespace).Update(ctx, isCopy, metav1.UpdateOptions{})
 		}
 
@@ -313,11 +312,10 @@ func (dc *controller) getNewMachineSet(ctx context.Context, d *v1alpha1.MachineD
 			Labels:          newISTemplate.Labels,
 		},
 		Spec: v1alpha1.MachineSetSpec{
-			Replicas:                     0,
-			MinReadySeconds:              d.Spec.MinReadySeconds,
-			Selector:                     newISSelector,
-			Template:                     newISTemplate,
-			AutoPreserveFailedMachineMax: d.Spec.AutoPreserveFailedMachineMax,
+			Replicas:        0,
+			MinReadySeconds: d.Spec.MinReadySeconds,
+			Selector:        newISSelector,
+			Template:        newISTemplate,
 		},
 	}
 	allISs := append(oldISs, &newIS)
@@ -329,6 +327,7 @@ func (dc *controller) getNewMachineSet(ctx context.Context, d *v1alpha1.MachineD
 	newIS.Spec.Replicas = newReplicasCount
 	// Set new machine set's annotation
 	SetNewMachineSetAnnotations(d, &newIS, newRevision, false)
+	setNewMachineSetAutoPreservation(d, &newIS, oldISs)
 	// Create the new ReplicaSet. If it already exists, then we need to check for possible
 	// hash collisions. If there is any other error, we need to report it in the status of
 	// the Deployment.

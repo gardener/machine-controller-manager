@@ -292,3 +292,26 @@ func (c *Cluster) AreMachinesInPhase(ctx context.Context, machineNames []string,
 
 	return true
 }
+
+// GetMachineSetsForMCD lists MachineSets owned by the given MachineDeployment using its label selector.
+func (c *Cluster) GetMachineSetsForMCD(ctx context.Context, mcdName string, namespace string) ([]v1alpha1.MachineSet, error) {
+	mcd, err := c.McmClient.MachineV1alpha1().MachineDeployments(namespace).Get(ctx, mcdName, metav1.GetOptions{})
+	if err != nil {
+		return nil, err
+	}
+	selector, err := metav1.LabelSelectorAsSelector(mcd.Spec.Selector)
+	if err != nil {
+		return nil, err
+	}
+	msList, err := c.McmClient.MachineV1alpha1().MachineSets(namespace).List(ctx, metav1.ListOptions{LabelSelector: selector.String()})
+	if err != nil {
+		return nil, err
+	}
+	var owned []v1alpha1.MachineSet
+	for i := range msList.Items {
+		if metav1.IsControlledBy(&msList.Items[i], mcd) {
+			owned = append(owned, msList.Items[i])
+		}
+	}
+	return owned, nil
+}

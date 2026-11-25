@@ -3797,6 +3797,225 @@ var _ = Describe("machine_util", func() {
 		)
 	})
 
+	Describe("#inPlaceUpdate preservation clearing", func() {
+		// This verifies the wiring: when a preserved machine enters in-place update at SelectedForUpdate,
+		// inPlaceUpdate must clear the machine's preservation state (PreserveExpiryTime, preserve annotation,
+		// preserve taint) before draining, while RETAINING the cluster-autoscaler scale-down-disabled
+		// annotation so the node is not scaled down mid-update.
+		It("should clear preservation state on the machine and node but retain the CA scale-down-disabled annotation", func() {
+			stop := make(chan struct{})
+			defer close(stop)
+
+			preserveExpiry := metav1.NewTime(metav1.Now().Add(time.Hour))
+			machine := newMachine(
+				&machinev1.MachineTemplateSpec{ObjectMeta: *newObjectMeta(&metav1.ObjectMeta{GenerateName: machineSet1Deploy1}, 0)},
+				&machinev1.MachineStatus{
+					CurrentStatus: machinev1.CurrentStatus{
+						Phase:              machinev1.MachineRunning,
+						LastUpdateTime:     metav1.Now(),
+						PreserveExpiryTime: &preserveExpiry,
+					},
+				},
+				nil,
+				map[string]string{machineutils.PreserveMachineAnnotationKey: machineutils.PreserveMachineAnnotationValueWhenFailed},
+				map[string]string{machinev1.NodeLabelKey: "node-0", machinev1.LabelKeyNodeSelectedForUpdate: "true"},
+				true, metav1.Now())
+
+			node := newNode(1,
+				nil,
+				map[string]string{
+					autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationKey:      autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationValue,
+					autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationByMCMKey: autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationByMCMValue,
+					machineutils.PreserveMachineAnnotationKey:                       machineutils.PreserveMachineAnnotationValueWhenFailed,
+				},
+				&corev1.NodeSpec{
+					Taints: []corev1.Taint{
+						{Key: machineutils.NodePreservedTaintKey, Effect: corev1.TaintEffectNoSchedule},
+					},
+				},
+				&corev1.NodeStatus{
+					Conditions: []corev1.NodeCondition{
+						{
+							Type:               machinev1.NodePreserved,
+							Status:             corev1.ConditionTrue,
+							LastTransitionTime: metav1.Now(),
+						},
+						{
+							Type:               machinev1.NodeInPlaceUpdate,
+							Status:             corev1.ConditionTrue,
+							LastTransitionTime: metav1.Now(),
+							Reason:             machinev1.SelectedForUpdate,
+							Message:            "Node is selected for in-place update",
+						},
+					},
+				})
+			node.ResourceVersion = "1"
+
+			c, trackers := createController(stop, testNamespace, []runtime.Object{machine}, nil, []runtime.Object{node}, nil, false)
+			defer trackers.Stop()
+
+			c.permitGiver = permits.NewPermitGiver(5*time.Second, 1*time.Second)
+			defer c.permitGiver.Close()
+
+			waitForCacheSync(stop, c)
+
+			// inPlaceUpdate proceeds through drain to "ready for in-place update"; it returns a retry error,
+			// which is expected and not relevant to the preservation-clearing assertions below.
+			_, _ = c.inPlaceUpdate(context.TODO(), machine)
+
+			updatedMachine, getErr := c.controlMachineClient.Machines(testNamespace).Get(context.TODO(), machine.Name, metav1.GetOptions{})
+			Expect(getErr).To(BeNil())
+			Expect(updatedMachine.Status.CurrentStatus.PreserveExpiryTime).To(BeNil())
+			Expect(updatedMachine.Annotations).NotTo(HaveKey(machineutils.PreserveMachineAnnotationKey))
+
+			updatedNode, getErr := c.targetCoreClient.CoreV1().Nodes().Get(context.TODO(), getNodeName(machine), metav1.GetOptions{})
+			Expect(getErr).To(BeNil())
+
+			hasPreserveTaint := false
+			for _, t := range updatedNode.Spec.Taints {
+				if t.Key == machineutils.NodePreservedTaintKey {
+					hasPreserveTaint = true
+				}
+			}
+			Expect(hasPreserveTaint).To(BeFalse())
+
+			preservedCond := nodeops.GetCondition(updatedNode, machinev1.NodePreserved)
+			if preservedCond != nil {
+				Expect(preservedCond.Status).NotTo(Equal(corev1.ConditionTrue))
+			}
+
+			// CA scale-down-disabled annotation must be retained during in-place update
+			Expect(updatedNode.Annotations).To(HaveKey(autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationKey))
+			Expect(updatedNode.Annotations).To(HaveKey(autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationByMCMKey))
+			// the preserve annotation on the node must be removed
+			Expect(updatedNode.Annotations).NotTo(HaveKey(machineutils.PreserveMachineAnnotationKey))
+		})
+
+		It("should clear the preserve annotation even when PreserveExpiryTime is not yet set", func() {
+			stop := make(chan struct{})
+			defer close(stop)
+
+			// machine is annotated for preservation but PreserveExpiryTime has NOT been set yet
+			// (preservation requested but not yet bound). The annotation must still be cleared on in-place update,
+			// otherwise it would cause re-preservation after the machine moves to the new MachineSet.
+			machine := newMachine(
+				&machinev1.MachineTemplateSpec{ObjectMeta: *newObjectMeta(&metav1.ObjectMeta{GenerateName: machineSet1Deploy1}, 0)},
+				&machinev1.MachineStatus{
+					CurrentStatus: machinev1.CurrentStatus{
+						Phase:          machinev1.MachineRunning,
+						LastUpdateTime: metav1.Now(),
+						// PreserveExpiryTime intentionally nil
+					},
+				},
+				nil,
+				map[string]string{machineutils.PreserveMachineAnnotationKey: machineutils.PreserveMachineAnnotationValueWhenFailed},
+				map[string]string{machinev1.NodeLabelKey: "node-0", machinev1.LabelKeyNodeSelectedForUpdate: "true"},
+				true, metav1.Now())
+
+			node := newNode(1,
+				nil,
+				map[string]string{
+					machineutils.PreserveMachineAnnotationKey: machineutils.PreserveMachineAnnotationValueWhenFailed,
+				},
+				&corev1.NodeSpec{},
+				&corev1.NodeStatus{
+					Conditions: []corev1.NodeCondition{
+						{
+							Type:               machinev1.NodeInPlaceUpdate,
+							Status:             corev1.ConditionTrue,
+							LastTransitionTime: metav1.Now(),
+							Reason:             machinev1.SelectedForUpdate,
+							Message:            "Node is selected for in-place update",
+						},
+					},
+				})
+			node.ResourceVersion = "1"
+
+			c, trackers := createController(stop, testNamespace, []runtime.Object{machine}, nil, []runtime.Object{node}, nil, false)
+			defer trackers.Stop()
+
+			c.permitGiver = permits.NewPermitGiver(5*time.Second, 1*time.Second)
+			defer c.permitGiver.Close()
+
+			waitForCacheSync(stop, c)
+
+			_, _ = c.inPlaceUpdate(context.TODO(), machine)
+
+			updatedMachine, getErr := c.controlMachineClient.Machines(testNamespace).Get(context.TODO(), machine.Name, metav1.GetOptions{})
+			Expect(getErr).To(BeNil())
+			Expect(updatedMachine.Annotations).NotTo(HaveKey(machineutils.PreserveMachineAnnotationKey))
+
+			updatedNode, getErr := c.targetCoreClient.CoreV1().Nodes().Get(context.TODO(), getNodeName(machine), metav1.GetOptions{})
+			Expect(getErr).To(BeNil())
+			Expect(updatedNode.Annotations).NotTo(HaveKey(machineutils.PreserveMachineAnnotationKey))
+		})
+
+		It("should clear preservation state when only the node (not the machine) carries the preserve annotation", func() {
+			stop := make(chan struct{})
+			defer close(stop)
+
+			// the machine object carries NO preservation markers, but the backing node still has the preserve annotation
+			// and taint. The in-place update must still clear the node-side state so the machine is not re-preserved.
+			machine := newMachine(
+				&machinev1.MachineTemplateSpec{ObjectMeta: *newObjectMeta(&metav1.ObjectMeta{GenerateName: machineSet1Deploy1}, 0)},
+				&machinev1.MachineStatus{
+					CurrentStatus: machinev1.CurrentStatus{
+						Phase:          machinev1.MachineRunning,
+						LastUpdateTime: metav1.Now(),
+						// PreserveExpiryTime intentionally nil and no preserve annotation on the machine
+					},
+				},
+				nil,
+				nil,
+				map[string]string{machinev1.NodeLabelKey: "node-0", machinev1.LabelKeyNodeSelectedForUpdate: "true"},
+				true, metav1.Now())
+
+			node := newNode(1,
+				nil,
+				map[string]string{
+					machineutils.PreserveMachineAnnotationKey: machineutils.PreserveMachineAnnotationValueWhenFailed,
+				},
+				&corev1.NodeSpec{
+					Taints: []corev1.Taint{
+						{Key: machineutils.NodePreservedTaintKey, Effect: corev1.TaintEffectNoSchedule},
+					},
+				},
+				&corev1.NodeStatus{
+					Conditions: []corev1.NodeCondition{
+						{
+							Type:               machinev1.NodeInPlaceUpdate,
+							Status:             corev1.ConditionTrue,
+							LastTransitionTime: metav1.Now(),
+							Reason:             machinev1.SelectedForUpdate,
+							Message:            "Node is selected for in-place update",
+						},
+					},
+				})
+			node.ResourceVersion = "1"
+
+			c, trackers := createController(stop, testNamespace, []runtime.Object{machine}, nil, []runtime.Object{node}, nil, false)
+			defer trackers.Stop()
+
+			c.permitGiver = permits.NewPermitGiver(5*time.Second, 1*time.Second)
+			defer c.permitGiver.Close()
+
+			waitForCacheSync(stop, c)
+
+			_, _ = c.inPlaceUpdate(context.TODO(), machine)
+
+			updatedNode, getErr := c.targetCoreClient.CoreV1().Nodes().Get(context.TODO(), getNodeName(machine), metav1.GetOptions{})
+			Expect(getErr).To(BeNil())
+			Expect(updatedNode.Annotations).NotTo(HaveKey(machineutils.PreserveMachineAnnotationKey))
+			hasPreserveTaint := false
+			for _, t := range updatedNode.Spec.Taints {
+				if t.Key == machineutils.NodePreservedTaintKey {
+					hasPreserveTaint = true
+				}
+			}
+			Expect(hasPreserveTaint).To(BeFalse())
+		})
+	})
+
 	Describe("#drainNodeForInPlace", func() {
 		type setup struct {
 			machine *machinev1.Machine
@@ -4478,7 +4697,8 @@ var _ = Describe("machine_util", func() {
 					machine.Labels[machinev1.NodeLabelKey] = tc.setup.nodeName
 					node = &corev1.Node{
 						ObjectMeta: metav1.ObjectMeta{
-							Name: "node-1",
+							Name:            "node-1",
+							ResourceVersion: "1",
 							Annotations: map[string]string{
 								machineutils.PreserveMachineAnnotationKey:                  machineutils.PreserveMachineAnnotationValueNow,
 								autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationKey: autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationValue,
@@ -4511,7 +4731,7 @@ var _ = Describe("machine_util", func() {
 				c, trackers := createController(stop, testNamespace, controlMachineObjects, nil, targetCoreObjects, nil, false)
 				defer trackers.Stop()
 				waitForCacheSync(stop, c)
-				_, _, err := c.stopPreservationIfActive(context.TODO(), machine, node, tc.setup.removePreserveAnnotation)
+				_, _, err := c.stopPreservationIfActive(context.TODO(), machine, node, stopPreservationOptions{removePreserveAnnotations: tc.setup.removePreserveAnnotation, removeCAScaleDownDisabledAnnotation: true})
 				if tc.expect.err != nil {
 					Expect(err).To(HaveOccurred())
 					Expect(err.Error()).To(Equal(tc.expect.err.Error()))
@@ -4854,26 +5074,25 @@ var _ = Describe("machine_util", func() {
 			}),
 		)
 	})
-	Describe("#removePreservationRelatedAnnotationsOnNode", func() {
+	Describe("#removePreservedNodeAnnotationsAndTaint", func() {
 		type setup struct {
-			removePreserveAnnotation bool
-			CAAnnotationPresent      bool
-			CAMCMAnnotationPresent   bool
+			removePreserveAnnotation            bool
+			removeCAScaleDownDisabledAnnotation bool
+			CAAnnotationPresent                 bool
+			CAMCMAnnotationPresent              bool
+			preserveTaintPresent                bool
 		}
 		type expect struct {
-			err                   error
 			hasAnnotationKeys     []string
 			deletedAnnotationKeys []string
+			hasPreserveTaint      bool
 		}
 		type testCase struct {
 			setup  setup
 			expect expect
 		}
-		DescribeTable("##removePreservationRelatedAnnotationsOnNode behaviour scenarios",
+		DescribeTable("##removePreservedNodeAnnotationsAndTaint behaviour scenarios",
 			func(tc *testCase) {
-				stop := make(chan struct{})
-				defer close(stop)
-				var targetCoreObjects []runtime.Object
 				node := &corev1.Node{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "node-1",
@@ -4888,68 +5107,72 @@ var _ = Describe("machine_util", func() {
 				if tc.setup.CAMCMAnnotationPresent {
 					node.Annotations[autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationByMCMKey] = autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationByMCMValue
 				}
-				targetCoreObjects = append(targetCoreObjects, node)
-				c, trackers := createController(stop, testNamespace, nil, nil, targetCoreObjects, nil, false)
-				defer trackers.Stop()
-				waitForCacheSync(stop, c)
-				_, err := c.removePreservationRelatedAnnotationsOnNode(context.TODO(), node, tc.setup.removePreserveAnnotation)
-				waitForCacheSync(stop, c)
-				updatedNode, getErr := c.targetCoreClient.CoreV1().Nodes().Get(context.TODO(), node.Name, metav1.GetOptions{})
-				Expect(getErr).To(BeNil())
-				if tc.expect.err != nil {
-					Expect(err).To(HaveOccurred())
-					Expect(err.Error()).To(Equal(tc.expect.err.Error()))
-				} else {
-					Expect(err).To(BeNil())
+				if tc.setup.preserveTaintPresent {
+					node.Spec.Taints = append(node.Spec.Taints, corev1.Taint{
+						Key:    machineutils.NodePreservedTaintKey,
+						Effect: corev1.TaintEffectNoSchedule,
+					})
 				}
+
+				cleanedNode := removePreservedNodeAnnotationsAndTaint(node, stopPreservationOptions{
+					removePreserveAnnotations:           tc.setup.removePreserveAnnotation,
+					removeCAScaleDownDisabledAnnotation: tc.setup.removeCAScaleDownDisabledAnnotation,
+				})
+
 				for _, key := range tc.expect.hasAnnotationKeys {
-					Expect(updatedNode.Annotations).To(HaveKey(key))
+					Expect(cleanedNode.Annotations).To(HaveKey(key))
 				}
-				for key := range tc.expect.deletedAnnotationKeys {
-					Expect(updatedNode.Annotations).NotTo(HaveKey(key))
+				for _, key := range tc.expect.deletedAnnotationKeys {
+					Expect(cleanedNode.Annotations).NotTo(HaveKey(key))
 				}
+				hasPreserveTaint := false
+				for _, t := range cleanedNode.Spec.Taints {
+					if t.Key == machineutils.NodePreservedTaintKey {
+						hasPreserveTaint = true
+					}
+				}
+				Expect(hasPreserveTaint).To(Equal(tc.expect.hasPreserveTaint))
 			},
-			Entry("when removePreserveAnnotation is true and ClusterAutoscalerScaleDownDisabledAnnotationByMCM annotation is present, should delete all preservation related annotations", &testCase{
+			Entry("when removePreserveAnnotation is true and ClusterAutoscalerScaleDownDisabledAnnotationByMCM annotation is present, should delete all preservation related annotations and the preserve taint", &testCase{
 				setup: setup{
-					removePreserveAnnotation: true,
-					CAAnnotationPresent:      true,
-					CAMCMAnnotationPresent:   true,
+					removePreserveAnnotation:            true,
+					removeCAScaleDownDisabledAnnotation: true,
+					CAAnnotationPresent:                 true,
+					CAMCMAnnotationPresent:              true,
+					preserveTaintPresent:                true,
 				},
 				expect: expect{
-					err:               nil,
 					hasAnnotationKeys: []string{},
 					deletedAnnotationKeys: []string{
 						machineutils.PreserveMachineAnnotationKey,
 						autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationKey,
 						autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationByMCMKey,
 					},
+					hasPreserveTaint: false,
 				},
 			}),
-			Entry("when removePreserveAnnotation is false and ClusterAutoscalerScaleDownDisabledAnnotationByMCM annotation is present, should delete only CA annotations ", &testCase{
+			Entry("when removePreserveAnnotation is false and only the plain CA annotation is present (no MCM marker), should not delete any annotations", &testCase{
 				setup: setup{
-					removePreserveAnnotation: false,
-					CAAnnotationPresent:      true,
-					CAMCMAnnotationPresent:   false,
+					removePreserveAnnotation:            false,
+					removeCAScaleDownDisabledAnnotation: true,
+					CAAnnotationPresent:                 true,
+					CAMCMAnnotationPresent:              false,
 				},
 				expect: expect{
-					err: nil,
 					hasAnnotationKeys: []string{
 						machineutils.PreserveMachineAnnotationKey,
-					},
-					deletedAnnotationKeys: []string{
 						autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationKey,
-						autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationByMCMKey,
 					},
 				},
 			}),
 			Entry("when removePreserveAnnotation is true and ClusterAutoscalerScaleDownDisabledAnnotationByMCM is not present, should delete only preserve annotation", &testCase{
 				setup: setup{
-					removePreserveAnnotation: true,
-					CAAnnotationPresent:      true,
-					CAMCMAnnotationPresent:   false,
+					removePreserveAnnotation:            true,
+					removeCAScaleDownDisabledAnnotation: true,
+					CAAnnotationPresent:                 true,
+					CAMCMAnnotationPresent:              false,
 				},
 				expect: expect{
-					err: nil,
 					hasAnnotationKeys: []string{
 						autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationKey,
 					},
@@ -4960,14 +5183,31 @@ var _ = Describe("machine_util", func() {
 			}),
 			Entry("when removePreserveAnnotation is false and ClusterAutoscalerScaleDownDisabledAnnotationByMCM is not present, should not delete any annotations", &testCase{
 				setup: setup{
-					removePreserveAnnotation: false,
-					CAAnnotationPresent:      true,
-					CAMCMAnnotationPresent:   false,
+					removePreserveAnnotation:            false,
+					removeCAScaleDownDisabledAnnotation: true,
+					CAAnnotationPresent:                 true,
+					CAMCMAnnotationPresent:              false,
 				},
 				expect: expect{
-					err: nil,
 					hasAnnotationKeys: []string{
 						autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationKey,
+						machineutils.PreserveMachineAnnotationKey,
+					},
+				},
+			}),
+			Entry("when removeCAScaleDownDisabledAnnotation is false and the CA MCM annotation is present, should retain the CA annotations and delete only the preserve annotation", &testCase{
+				setup: setup{
+					removePreserveAnnotation:            true,
+					removeCAScaleDownDisabledAnnotation: false,
+					CAAnnotationPresent:                 true,
+					CAMCMAnnotationPresent:              true,
+				},
+				expect: expect{
+					hasAnnotationKeys: []string{
+						autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationKey,
+						autoscaler.ClusterAutoscalerScaleDownDisabledAnnotationByMCMKey,
+					},
+					deletedAnnotationKeys: []string{
 						machineutils.PreserveMachineAnnotationKey,
 					},
 				},

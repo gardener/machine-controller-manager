@@ -382,8 +382,28 @@ func (c *controller) inPlaceUpdate(ctx context.Context, machine *v1alpha1.Machin
 		return machineutils.LongRetry, nil
 	}
 
-	// if the condition is present and the reason is selected for update then drain the node
+	// if the condition is present and the reason is selected for update then clear preservation state and drain the node
 	if cond.Reason == v1alpha1.SelectedForUpdate {
+		// if the machine or its backing node carries any preservation state, clear it before draining so that the
+		// in-place update does not re-preserve the machine when it next fails.
+
+		var node *v1.Node
+		if nodeName := getNodeName(machine); nodeName != "" && c.nodeLister != nil {
+			node, err = c.nodeLister.Get(nodeName)
+			if err != nil && !apierrors.IsNotFound(err) {
+				return machineutils.ShortRetry, err
+			}
+		}
+		if shouldPreservationStateBeCleared(machine, node) {
+			// The cluster-autoscaler scale-down-disabled annotation is retained (removeCAScaleDownDisabledAnnotation: false)
+			// so the node is not scaled down while the update is in progress.
+			machine, _, err = c.stopPreservationIfActive(ctx, machine, node, stopPreservationOptions{removePreserveAnnotations: true, removeCAScaleDownDisabledAnnotation: false})
+			if err != nil {
+				return machineutils.ShortRetry, err
+			}
+			klog.V(3).Infof("Preservation state removed for machine %s and backing node %s before in-place update.", machine.Name, getNodeName(machine))
+		}
+
 		retry, err := c.drainNodeForInPlace(ctx, machine)
 		if err != nil {
 			return retry, err
@@ -2527,12 +2547,38 @@ func (c *controller) preserveMachine(ctx context.Context, machine *v1alpha1.Mach
 	return machine, node, nil
 }
 
+// stopPreservationOptions controls what state stopPreservationIfActive clears.
+type stopPreservationOptions struct {
+	// removePreserveAnnotations removes the preserve annotation from both the machine and node objects.
+	removePreserveAnnotations bool
+	// removeCAScaleDownDisabledAnnotation removes the cluster-autoscaler scale-down-disabled annotation from the node.
+	// The in-place update path sets this to false so the node is not scaled down mid-update.
+	removeCAScaleDownDisabledAnnotation bool
+}
+
+// shouldPreservationStateBeCleared returns true if the machine or its backing node carries any preservation state
+// that could cause the machine to be (re-)preserved.
+func shouldPreservationStateBeCleared(machine *v1alpha1.Machine, node *v1.Node) bool {
+	if machine.Status.CurrentStatus.PreserveExpiryTime != nil {
+		return true
+	}
+	if machine.Annotations[machineutils.PreserveMachineAnnotationKey] != "" ||
+		machine.Annotations[machineutils.LastAppliedNodePreserveValueAnnotationKey] != "" {
+		return true
+	}
+	if node != nil && node.Annotations[machineutils.PreserveMachineAnnotationKey] != "" {
+		return true
+	}
+	return false
+}
+
 // stopPreservationIfActive stops the preservation of the machine and node
-func (c *controller) stopPreservationIfActive(ctx context.Context, machine *v1alpha1.Machine, node *v1.Node, removePreservationAnnotations bool) (*v1alpha1.Machine, *v1.Node, error) {
+func (c *controller) stopPreservationIfActive(ctx context.Context, machine *v1alpha1.Machine, node *v1.Node, opts stopPreservationOptions) (*v1alpha1.Machine, *v1.Node, error) {
 	var err error
-	// removal of preserveExpiryTime is the last step of stopping preservation
-	// therefore, if preserveExpiryTime is not set, machine is not preserved
-	if machine.Status.CurrentStatus.PreserveExpiryTime == nil {
+	// removal of preserveExpiryTime is the last step of stopping preservation, so a nil PreserveExpiryTime normally
+	// means the machine is not preserved. However, when the caller explicitly asks to remove preserve annotations,
+	// we must still clear the annotation/taint even if PreserveExpiryTime is nil, to prevent preservation at a later time.
+	if machine.Status.CurrentStatus.PreserveExpiryTime == nil && !opts.removePreserveAnnotations {
 		return machine, node, nil
 	}
 
@@ -2549,34 +2595,33 @@ func (c *controller) stopPreservationIfActive(ctx context.Context, machine *v1al
 		if err != nil {
 			return machine, node, err
 		}
-		// Step 2: remove annotations from node
-		node, err = c.removePreservationRelatedAnnotationsOnNode(ctx, node, removePreservationAnnotations)
+		// Step 2: remove preservation annotations and taint from the node in a single patch.
+		var unpreservedNode *v1.Node
+		unpreservedNode, err = c.patchNode(ctx, node, func(n *v1.Node) error {
+			cleaned := removePreservedNodeAnnotationsAndTaint(n, opts)
+			n.Annotations = cleaned.Annotations
+			n.Spec.Taints = cleaned.Spec.Taints
+			return nil
+		}, true)
 		if err != nil {
-			return machine, node, err
-		}
-		// Step 3: remove preservation-related taint regardless of machine phase.
-		// If machine is in Running, workload can get scheduled onto it.
-		err = nodeops.RemoveTaintOffNode(ctx, c.targetCoreClient, node.Name, node, &v1.Taint{
-			Key:    machineutils.NodePreservedTaintKey,
-			Effect: v1.TaintEffectNoSchedule,
-		})
-		if err != nil {
-			return machine, node, err
+			klog.Errorf("error while patching node %q to stop preservation: %v", node.Name, err)
+			return machine, nil, err
 		}
 		klog.V(2).Infof("Node %q updated to stop preservation.", node.Name)
+		node = unpreservedNode
 	}
 
-	// Step 4: remove annotation from machine if needed
-	if removePreservationAnnotations {
+	// Step 3: remove annotation from machine, if needed
+	if opts.removePreserveAnnotations {
 		machine, err = c.removePreserveAnnotationOnMachine(ctx, machine)
 		if err != nil {
-			return nil, node, err
+			return machine, node, err
 		}
 	}
-	// Step 5: update machine status to set preserve expiry time to nil
+	// Step 4: update machine status to set preserve expiry time to nil
 	machine, err = c.clearMachinePreserveExpiryTime(ctx, machine)
 	if err != nil {
-		return nil, node, err
+		return machine, node, err
 	}
 	klog.V(2).Infof("Preservation of machine %q has stopped.", machine.Name)
 	return machine, node, nil
