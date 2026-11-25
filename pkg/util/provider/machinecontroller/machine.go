@@ -300,6 +300,11 @@ func (c *controller) reconcileClusterMachine(ctx context.Context, machine *v1alp
 		if err != nil {
 			return retry, err
 		}
+
+		retry, err = c.triggerUpdateFlow(ctx, machine, machineClass, secretData)
+		if err != nil {
+			return retry, err
+		}
 	}
 
 	machine, err = c.manageMachinePreservation(ctx, machine)
