@@ -1241,6 +1241,69 @@ var _ = Describe("isMisconfiguredPdb", func() {
 	})
 })
 
+var _ = Describe("isPdbViolatedByUnhealthyWorkload", func() {
+	Context("Non violated PDB", Ordered, func() {
+		var pdb *policyv1.PodDisruptionBudget
+		Context("normal", func() {
+			It("returns false", func() {
+				pdb = &policyv1.PodDisruptionBudget{
+					ObjectMeta: metav1.ObjectMeta{
+						Generation: 1,
+					},
+					Spec: policyv1.PodDisruptionBudgetSpec{
+						MinAvailable: new(intstr.FromInt(2)),
+					},
+					Status: policyv1.PodDisruptionBudgetStatus{
+						ObservedGeneration: 1,
+						ExpectedPods:       3,
+						DesiredHealthy:     2, // `MinAvailable`
+						CurrentHealthy:     3,
+						DisruptionsAllowed: 1, // `CurrentHealthy` - `DesiredHealthy`
+					},
+				}
+
+				// All healthy and `DisruptionsAllowed` > 0 -> not misconfigured
+				Expect(isPdbViolatedByUnhealthyWorkload(pdb)).To(BeFalse())
+			})
+		})
+	})
+
+	Context("Violated PDB", Ordered, func() {
+		var pdb *policyv1.PodDisruptionBudget
+		Context("Workload degraded (replacement pod not becoming ready)", func() {
+			It("returns true", func() {
+				// 3 replicas with minAvailable: 2, but 1 pod crashed (CurrentHealthy: 2)
+				pdb = &policyv1.PodDisruptionBudget{
+					ObjectMeta: metav1.ObjectMeta{
+						Generation: 1,
+					},
+					Spec: policyv1.PodDisruptionBudgetSpec{
+						MinAvailable: new(intstr.FromInt(2)),
+					},
+					Status: policyv1.PodDisruptionBudgetStatus{
+						ObservedGeneration: 1,
+						ExpectedPods:       3,
+						DesiredHealthy:     2,
+						CurrentHealthy:     2,
+						DisruptionsAllowed: 0, // `CurrentHealthy` - `DesiredHealthy`
+					},
+				}
+				Expect(isPdbViolatedByUnhealthyWorkload(pdb)).To(BeTrue())
+			})
+		})
+		Context("Workload recovers (replacement pod becomes ready)", func() {
+			It("returns false", func() {
+				// Pod starts up and passes readiness probes
+				pdb.Status.CurrentHealthy = 3
+				pdb.Status.DisruptionsAllowed = 1
+
+				// Workload is healthy again not violated
+				Expect(isPdbViolatedByUnhealthyWorkload(pdb)).To(BeFalse())
+			})
+		})
+	})
+})
+
 func getPodWithoutPV(ns, name, nodeName string, terminationGracePeriod time.Duration, labels map[string]string) *corev1.Pod {
 	controller := true
 	priority := int32(0)
