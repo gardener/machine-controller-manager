@@ -2023,6 +2023,15 @@ func (c *controller) deleteNodeObject(ctx context.Context, machine *v1alpha1.Mac
 		return c.updateStatusForNodeDeletion(ctx, machine, description, state, err)
 	}
 
+	if c.targetCoreClient == nil {
+		description = fmt.Sprintf("Running without target cluster, skipping node deletion. %s", machineutils.InitiateFinalizerRemoval)
+		klog.V(2).Infof("Machine %q: %s", machine.Name, description)
+		state = v1alpha1.MachineStateProcessing
+		err = errors.New("machine deletion in process: running without target cluster")
+
+		return c.updateStatusForNodeDeletion(ctx, machine, description, state, err)
+	}
+
 	node, err = c.nodeLister.Get(nodeName)
 	if err != nil {
 		// If node object is not found, then it could have already been deleted,
@@ -2424,6 +2433,16 @@ func getProviderID(machine *v1alpha1.Machine) string {
 
 func getNodeName(machine *v1alpha1.Machine) string {
 	return machine.Labels[v1alpha1.NodeLabelKey]
+}
+
+// getBackingNodeName returns the name of the node backing the machine, which the machine controller should manage.
+// Without a target cluster, the machine controller doesn't manage any nodes, hence it returns an empty string, even if
+// the machine has the node label (e.g., because the machine was restored from another cluster).
+func (c *controller) getBackingNodeName(machine *v1alpha1.Machine) string {
+	if c.targetCoreClient == nil {
+		return ""
+	}
+	return getNodeName(machine)
 }
 
 func (c *controller) updateMachineNodeLabel(ctx context.Context, machine *v1alpha1.Machine, nodeName string) error {

@@ -3946,6 +3946,106 @@ var _ = Describe("machine", func() {
 					),
 				},
 			}),
+			Entry("without target cluster: skip node deletion of machine with node label", &data{
+				setup: setup{
+					noTargetCluster: true,
+					secrets: []*corev1.Secret{
+						{
+							ObjectMeta: *newObjectMeta(objMeta, 0),
+						},
+					},
+					machineClasses: []*v1alpha1.MachineClass{
+						{
+							ObjectMeta: *newObjectMeta(objMeta, 0),
+							SecretRef:  newSecretReference(objMeta, 0),
+						},
+					},
+					machines: newMachines(
+						1,
+						&v1alpha1.MachineTemplateSpec{
+							ObjectMeta: *newObjectMeta(objMeta, 0),
+							Spec: v1alpha1.MachineSpec{
+								Class: v1alpha1.ClassSpec{
+									Kind: "MachineClass",
+									Name: "machine-0",
+								},
+								ProviderID: "fakeID",
+							},
+						},
+						&v1alpha1.MachineStatus{
+							CurrentStatus: v1alpha1.CurrentStatus{
+								Phase:          v1alpha1.MachineTerminating,
+								LastUpdateTime: metav1.Now(),
+							},
+							LastOperation: v1alpha1.LastOperation{
+								Description:    machineutils.InitiateNodeDeletion,
+								State:          v1alpha1.MachineStateProcessing,
+								Type:           v1alpha1.MachineOperationDelete,
+								LastUpdateTime: metav1.Now(),
+							},
+						},
+						nil,
+						map[string]string{
+							machineutils.MachinePriority: "3",
+						},
+						map[string]string{v1alpha1.NodeLabelKey: "fakeID-0"},
+						true,
+						metav1.Now(),
+					),
+					nodes: []*corev1.Node{
+						{
+							ObjectMeta: metav1.ObjectMeta{
+								Name: "fakeID-0",
+							},
+						},
+					},
+				},
+				action: action{
+					machine: "machine-0",
+					fakeDriver: &driver.FakeDriver{
+						VMExists:   true,
+						ProviderID: "fakeID-0",
+						NodeName:   "fakeNode-0",
+						Err:        nil,
+					},
+				},
+				expect: expect{
+					err:         fmt.Errorf("machine deletion in process: running without target cluster"),
+					retry:       machineutils.ShortRetry,
+					nodeDeleted: false,
+					machine: newMachine(
+						&v1alpha1.MachineTemplateSpec{
+							ObjectMeta: *newObjectMeta(objMeta, 0),
+							Spec: v1alpha1.MachineSpec{
+								Class: v1alpha1.ClassSpec{
+									Kind: "MachineClass",
+									Name: "machine-0",
+								},
+								ProviderID: "fakeID",
+							},
+						},
+						&v1alpha1.MachineStatus{
+							CurrentStatus: v1alpha1.CurrentStatus{
+								Phase:          v1alpha1.MachineTerminating,
+								LastUpdateTime: metav1.Now(),
+							},
+							LastOperation: v1alpha1.LastOperation{
+								Description:    fmt.Sprintf("Running without target cluster, skipping node deletion. %s", machineutils.InitiateFinalizerRemoval),
+								State:          v1alpha1.MachineStateProcessing,
+								Type:           v1alpha1.MachineOperationDelete,
+								LastUpdateTime: metav1.Now(),
+							},
+						},
+						nil,
+						map[string]string{
+							machineutils.MachinePriority: "3",
+						},
+						map[string]string{v1alpha1.NodeLabelKey: "fakeID-0"},
+						true,
+						metav1.Now(),
+					),
+				},
+			}),
 		)
 	})
 
@@ -4907,6 +5007,46 @@ var _ = Describe("machine", func() {
 	// A new Machine can get permanently stuck with empty phase when the worker retry budget is
 	// exhausted by 409 Conflict errors from addMachineFinalizers.
 	Describe("#reconcileClusterMachineKey", func() {
+		It("should not look up the node of a machine with node label when running without target cluster", func() {
+			stop := make(chan struct{})
+			defer close(stop)
+
+			// A machine restored from another cluster carries the node label, although the machine controller doesn't
+			// manage any nodes without a target cluster.
+			machine := &v1alpha1.Machine{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:       "machine-0",
+					Namespace:  testNamespace,
+					Labels:     map[string]string{v1alpha1.NodeLabelKey: "node-0"},
+					Finalizers: []string{MCMFinalizerName},
+				},
+				Spec: v1alpha1.MachineSpec{
+					Class:      v1alpha1.ClassSpec{Kind: "MachineClass", Name: "machine-class-0"},
+					ProviderID: "fakeID-0",
+				},
+				Status: v1alpha1.MachineStatus{
+					CurrentStatus: v1alpha1.CurrentStatus{Phase: v1alpha1.MachineAvailable, LastUpdateTime: metav1.Now()},
+				},
+			}
+			machineClass := &v1alpha1.MachineClass{
+				ObjectMeta: metav1.ObjectMeta{Name: "machine-class-0", Namespace: testNamespace, Finalizers: []string{MCMFinalizerName}},
+				SecretRef:  &corev1.SecretReference{Name: "secret-0", Namespace: testNamespace},
+			}
+			secret := &corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: "secret-0", Namespace: testNamespace}}
+
+			c, trackers := createController(stop, testNamespace, []runtime.Object{machine, machineClass}, []runtime.Object{secret}, nil, nil, true)
+			defer trackers.Stop()
+			waitForCacheSync(stop, c)
+
+			var (
+				retry machineutils.RetryPeriod
+				err   error
+			)
+			Expect(func() { retry, err = c.reconcileClusterMachine(context.TODO(), machine) }).NotTo(Panic())
+			Expect(err).NotTo(HaveOccurred())
+			Expect(retry).To(Equal(machineutils.LongRetry))
+		})
+
 		It("machine should have finalizer even after MaxRetries 409 conflicts on finalizer addition", func() {
 			stop := make(chan struct{})
 			defer close(stop)
