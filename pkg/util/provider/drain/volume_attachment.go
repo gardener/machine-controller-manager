@@ -39,14 +39,22 @@ func (v *VolumeAttachmentHandler) dispatch(obj any) {
 		return
 	}
 
-	klog.V(4).Infof("Dispatching request for PV %s", *volumeAttachment.Spec.Source.PersistentVolumeName)
-	defer klog.V(4).Infof("Done dispatching request for PV %s", *volumeAttachment.Spec.Source.PersistentVolumeName)
+	// VolumeAttachmentSource is a union: either PersistentVolumeName or InlineVolumeSpec is set.
+	// InlineVolumeSpec attachments are not relevant to PV detach tracking
+	if volumeAttachment.Spec.Source.PersistentVolumeName == nil {
+		klog.V(4).Infof("Skipping VolumeAttachment %s; is an inline volume attachment", volumeAttachment.Name)
+		return
+	}
+
+	pvName := *volumeAttachment.Spec.Source.PersistentVolumeName
+	klog.V(4).Infof("Dispatching request for PV %s", pvName)
+	defer klog.V(4).Infof("Done dispatching request for PV %s", pvName)
 
 	v.Lock()
 	defer v.Unlock()
 
 	for i, worker := range v.workers {
-		klog.V(4).Infof("Dispatching request for PV %s to worker %d/%v", *volumeAttachment.Spec.Source.PersistentVolumeName, i, worker)
+		klog.V(4).Infof("Dispatching request for PV %s to worker %d/%v", pvName, i, worker)
 
 		select {
 		case worker <- volumeAttachment:

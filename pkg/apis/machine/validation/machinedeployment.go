@@ -88,6 +88,10 @@ func validateMachineDeploymentSpec(spec *machine.MachineDeploymentSpec, fldPath 
 		allErrs = append(allErrs, field.Required(fldPath.Child("replicas"), "Replicas has to be a whole number"))
 	}
 	allErrs = append(allErrs, validateUpdateStrategy(spec, fldPath)...)
+	if spec.Selector == nil {
+		allErrs = append(allErrs, field.Required(fldPath.Child("selector"), "selector is required"))
+		return allErrs
+	}
 	for k, v := range spec.Selector.MatchLabels {
 		if spec.Template.Labels[k] != v {
 			allErrs = append(allErrs, field.Required(fldPath.Child("selector.matchLabels"), "is not matching with spec.template.metadata.labels"))

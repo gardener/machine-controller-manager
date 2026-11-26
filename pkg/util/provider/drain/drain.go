@@ -978,7 +978,10 @@ func (o *Options) waitForDetach(ctx context.Context, podVolumeInfo PodVolumeInfo
 func isDesiredReattachment(volumeAttachment *storagev1.VolumeAttachment, previousNodeName string) bool {
 	// klog.Errorf("\nPV: %s = %s, \nAttached: %b, \nNode: %s = %s", *volumeAttachment.Spec.Source.PersistentVolumeName, persistentVolumeName, volumeAttachment.Status.Attached, volumeAttachment.Spec.NodeName, previousNodeName)
 	if volumeAttachment.Status.Attached && volumeAttachment.Spec.NodeName != previousNodeName {
-		klog.V(4).Infof("ReattachmentSuccessful for PV: %q", *volumeAttachment.Spec.Source.PersistentVolumeName)
+		if volumeAttachment.Spec.Source.PersistentVolumeName != nil {
+			pvName := *volumeAttachment.Spec.Source.PersistentVolumeName
+			klog.V(4).Infof("ReattachmentSuccessful for PV: %q", pvName)
+		}
 		return true
 	}
 
@@ -1017,6 +1020,9 @@ func (o *Options) waitForReattach(ctx context.Context, podVolumeInfo PodVolumeIn
 			return fmt.Errorf("%s", reattachTimeoutErr)
 
 		case incomingEvent := <-volumeAttachmentEventCh:
+			if incomingEvent.Spec.Source.PersistentVolumeName == nil {
+				continue
+			}
 			persistentVolumeName := *incomingEvent.Spec.Source.PersistentVolumeName
 			klog.V(4).Infof("VolumeAttachment event received for PV: %s", persistentVolumeName)
 
