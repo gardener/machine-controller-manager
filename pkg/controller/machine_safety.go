@@ -213,12 +213,10 @@ func (c *controller) checkAndFreezeORUnfreezeMachineSets(ctx context.Context) er
 		fullyLabeledReplicasCount := int32(0)
 		templateLabel := labels.Set(machineSet.Spec.Template.Labels).AsSelectorPreValidated()
 		for _, machine := range filteredMachines {
-			if templateLabel.Matches(labels.Set(machine.Labels)) &&
-				len(machine.OwnerReferences) >= 1 {
-				for i := range machine.OwnerReferences {
-					if machine.OwnerReferences[i].Name == machineSet.Name {
-						fullyLabeledReplicasCount++
-					}
+			if templateLabel.Matches(labels.Set(machine.Labels)) {
+				controllerRef := metav1.GetControllerOf(machine)
+				if controllerRef != nil && controllerRef.UID == machineSet.UID {
+					fullyLabeledReplicasCount++
 				}
 			}
 		}
