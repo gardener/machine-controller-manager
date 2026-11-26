@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -158,7 +157,8 @@ func startComponent(
 	clusterPath string,
 	inc int,
 ) (err error) {
-	flags := strings.Split(startConfig.ComponentFlags, " ")
+	flags := strings.Fields(startConfig.ComponentFlags)
+
 	modifyPortFlag(flags, inc)
 
 	cmd := exec.CommandContext(ctx, startConfig.ComponentPath, flags...)
@@ -255,7 +255,10 @@ func ensureSecretsCreation(
 				err := client.Resources().Get(
 					ctx, mcc.SecretRef.Name, mcc.SecretRef.Namespace, &secret,
 				)
-				if err != nil && !apierrors.IsNotFound(err) {
+				if err != nil {
+					if apierrors.IsNotFound(err) {
+						err = nil // need to retry for notfound error
+					}
 					return false, err
 				}
 			}
@@ -264,9 +267,12 @@ func ensureSecretsCreation(
 					ctx, mcc.CredentialsSecretRef.Name, mcc.CredentialsSecretRef.Namespace, &secret,
 				)
 				if err != nil && !apierrors.IsNotFound(err) {
+					if apierrors.IsNotFound(err) {
+						err = nil // need to retry for notfound error
+					}
 					return false, err
 				}
 			}
-			return true, nil
+			return true, nil // both secrets found
 		})
 }
