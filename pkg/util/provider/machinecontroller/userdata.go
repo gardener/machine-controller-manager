@@ -38,18 +38,14 @@ var (
 	urlEncodedMachineNamePlaceholder = url.QueryEscape(MachineNamePlaceholder)
 )
 
-func (c *controller) addBootstrapTokenToUserData(ctx context.Context, machine *v1alpha1.Machine, secret *corev1.Secret) error {
-	var (
-		userDataB []byte
-		userDataS string
-		exists    bool
-	)
-
-	if userDataB, exists = secret.Data["userData"]; !exists {
-		// If userData key is not founds
+// addBootstrapTokenAndMachineNameToUserData replaces the bootstrap token and machine name placeholders in the userData of the given secret.
+func (c *controller) addBootstrapTokenAndMachineNameToUserData(ctx context.Context, machine *v1alpha1.Machine, secret *corev1.Secret) error {
+	userDataB, exists := secret.Data["userData"]
+	if !exists {
+		// If userData key is not found
 		return fmt.Errorf("userdata field not found in secret for machine %q", machine.Name)
 	}
-	userDataS = string(userDataB)
+	userDataS := string(userDataB)
 
 	// create bootstrap token if running with target cluster
 	if c.targetCoreClient != nil {
@@ -64,39 +60,17 @@ func (c *controller) addBootstrapTokenToUserData(ctx context.Context, machine *v
 		)
 
 		if strings.Contains(userDataS, BootstrapTokenPlaceholder) {
-			klog.V(4).Infof("replacing placeholder %s with %s in user-data!", BootstrapTokenPlaceholder, token)
 			userDataS = strings.ReplaceAll(userDataS, BootstrapTokenPlaceholder, token)
 		} else if strings.Contains(userDataS, urlEncodedBootstrapTokenPlaceholder) {
-			klog.V(4).Infof("replacing url encoded placeholder %s with %s in user-data!", urlEncodedBootstrapTokenPlaceholder, url.QueryEscape(token))
 			userDataS = strings.ReplaceAll(userDataS, urlEncodedBootstrapTokenPlaceholder, url.QueryEscape(token))
 		} else {
 			klog.Warningf("no bootstrap token placeholder found in user-data, nothing to replace! Without bootstrap token , node won't join.")
 		}
 	}
 
-	secret.Data["userData"] = []byte(userDataS)
-
-	return nil
-}
-
-func (c *controller) addMachineNameToUserData(machine *v1alpha1.Machine, secret *corev1.Secret) error {
-	var (
-		userDataB []byte
-		userDataS string
-		exists    bool
-	)
-
-	if userDataB, exists = secret.Data["userData"]; !exists {
-		// If userData key is not founds
-		return fmt.Errorf("userdata field not found in secret for machine %q", machine.Name)
-	}
-	userDataS = string(userDataB)
-
 	if strings.Contains(userDataS, MachineNamePlaceholder) {
-		klog.V(4).Infof("replacing placeholder %s with %s in user-data!", MachineNamePlaceholder, machine.Name)
 		userDataS = strings.ReplaceAll(userDataS, MachineNamePlaceholder, machine.Name)
 	} else if strings.Contains(userDataS, urlEncodedMachineNamePlaceholder) {
-		klog.V(4).Infof("replacing url encoded placeholder %s with %s in user-data!", urlEncodedMachineNamePlaceholder, url.QueryEscape(machine.Name))
 		userDataS = strings.ReplaceAll(userDataS, urlEncodedMachineNamePlaceholder, url.QueryEscape(machine.Name))
 	} else {
 		klog.Info("no machine name placeholder found in user-data, nothing to replace! Without machine name , node won't join if node-agent-authorizer is enabled.")
