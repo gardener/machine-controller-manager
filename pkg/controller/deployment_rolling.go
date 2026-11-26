@@ -438,7 +438,9 @@ func (dc *controller) annotateNodesBackingMachineSets(ctx context.Context, Machi
 
 func (dc *controller) machineSetsScaledToZero(MachineSets []*v1alpha1.MachineSet) bool {
 	for _, machineSet := range MachineSets {
-		if machineSet.Spec.Replicas != 0 && machineSet.Status.AvailableReplicas != 0 && machineSet.Status.FullyLabeledReplicas != 0 && machineSet.Status.ReadyReplicas != 0 && machineSet.Status.Replicas != 0 {
+		if machineSet.Spec.Replicas != 0 || machineSet.Status.AvailableReplicas != 0 ||
+			machineSet.Status.FullyLabeledReplicas != 0 || machineSet.Status.ReadyReplicas != 0 ||
+			machineSet.Status.Replicas != 0 {
 			return false
 		}
 	}
