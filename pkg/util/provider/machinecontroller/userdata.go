@@ -7,6 +7,7 @@ package controller
 import (
 	"context"
 	"crypto/rand"
+	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
 	"math/big"
@@ -144,7 +145,8 @@ func generateRandomStringFromCharset(n int, allowedCharacters string) (string, e
 }
 
 func getTokenIDAndSecretName(machineName string) (string, string) {
-	tokenID := hex.EncodeToString([]byte(machineName)[len(machineName)-5:])[:6]
+	h := sha256.Sum256([]byte(machineName))
+	tokenID := hex.EncodeToString(h[:])[:6]
 	secretName := bootstraptokenutil.BootstrapTokenSecretName(tokenID)
 	return tokenID, secretName
 }
