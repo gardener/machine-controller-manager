@@ -82,7 +82,7 @@ func (c *controller) addBootstrapTokenAndMachineNameToUserData(ctx context.Conte
 	return nil
 }
 
-// Create the token secret if it does not exist yet, otherwise recreate it in place with a fresh token.
+// Create the token secret if it does not exist yet, otherwise update with a fresh token.
 func (c *controller) createOrRefreshBootstrapToken(ctx context.Context, machine *v1alpha1.Machine) (*corev1.Secret, error) {
 	tokenID, secretName := getTokenIDAndSecretName(machine.Name)
 
