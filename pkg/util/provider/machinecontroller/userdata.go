@@ -116,6 +116,9 @@ func (c *controller) createOrRefreshBootstrapToken(ctx context.Context, machine 
 }
 
 func (c *controller) deleteBootstrapToken(ctx context.Context, machineName string) error {
+	if c.targetCoreClient == nil {
+		return nil
+	}
 	_, secretName := getTokenIDAndSecretName(machineName)
 	err := c.targetCoreClient.CoreV1().Secrets(metav1.NamespaceSystem).Delete(ctx, secretName, metav1.DeleteOptions{})
 	if err != nil && apierrors.IsNotFound(err) {
