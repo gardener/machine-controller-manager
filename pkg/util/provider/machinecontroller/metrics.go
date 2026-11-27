@@ -105,6 +105,9 @@ func updateMachineStatusConditionMetric(machine *v1alpha1.Machine, mMeta metav1.
 	})
 
 	for _, condition := range machine.Status.Conditions {
+		if !v1alpha1.AllowedNodeConditionTypes.Has(condition.Type) {
+			continue
+		}
 		var status float64
 		switch condition.Status {
 		case v1.ConditionTrue:
