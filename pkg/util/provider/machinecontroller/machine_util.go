@@ -225,6 +225,17 @@ func nodeConditionsHaveChanged(oldConditions []v1.NodeCondition, newConditions [
 	return addedOrUpdatedConditions, removedConditions, len(addedOrUpdatedConditions) != 0 || len(removedConditions) != 0
 }
 
+// filterNodeConditions returns only conditions whose type is in v1alpha1.AllowedNodeConditionTypes,
+func filterNodeConditions(conditions []v1.NodeCondition) []v1.NodeCondition {
+	filtered := make([]v1.NodeCondition, 0, len(conditions))
+	for _, c := range conditions {
+		if v1alpha1.AllowedNodeConditionTypes.Has(c.Type) {
+			filtered = append(filtered, c)
+		}
+	}
+	return filtered
+}
+
 func mergeDataMaps(in map[string][]byte, dataMaps ...map[string][]byte) map[string][]byte {
 	out := make(map[string][]byte)
 
@@ -970,7 +981,7 @@ func (c *controller) reconcileMachineHealth(ctx context.Context, machine *v1alph
 	} else {
 		populatedConditions, removedConditions, isChanged := nodeConditionsHaveChanged(machine.Status.Conditions, node.Status.Conditions)
 		if isChanged {
-			clone.Status.Conditions = node.Status.Conditions
+			clone.Status.Conditions = filterNodeConditions(node.Status.Conditions)
 
 			klog.V(3).Infof("Conditions of node %q backing machine %q with providerID %q have changed.\nAdded/Updated Conditions:\n\n%s\nRemoved Conditions:\n\n%s\n", getNodeName(machine), machine.Name, getProviderID(machine), getFormattedNodeConditions(populatedConditions), getFormattedNodeConditions(removedConditions))
 			cloneDirty = true

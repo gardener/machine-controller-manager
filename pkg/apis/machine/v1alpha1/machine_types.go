@@ -11,6 +11,7 @@ package v1alpha1
 import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/sets"
 )
 
 // WARNING!
@@ -277,6 +278,20 @@ const (
 
 	// InstanceDeletionResumed indicates that instance deletion is no longer suspended
 	InstanceDeletionResumed string = "InstanceDeletionResumed"
+)
+
+// AllowedNodeConditionTypes is the set of condition types MCM copies from Node into Machine.Status.
+var AllowedNodeConditionTypes = sets.New(
+	corev1.NodeReady,
+	corev1.NodeMemoryPressure,
+	corev1.NodeDiskPressure,
+	corev1.NodePIDPressure,
+	corev1.NodeNetworkUnavailable,
+	NodeInPlaceUpdate,
+	NodePreserved,
+	ConditionInstanceDeletionSuspended,
+	// ReadonlyFilesystem is a custom condition set by the kubelet on kernel-detected read-only filesystems
+	corev1.NodeConditionType("ReadonlyFilesystem"),
 )
 
 // CurrentStatus contains information about the current status of Machine.
