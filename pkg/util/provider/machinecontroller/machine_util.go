@@ -225,6 +225,17 @@ func nodeConditionsHaveChanged(oldConditions []v1.NodeCondition, newConditions [
 	return addedOrUpdatedConditions, removedConditions, len(addedOrUpdatedConditions) != 0 || len(removedConditions) != 0
 }
 
+// filterNodeConditions returns only conditions whose type is in v1alpha1.AllowedNodeConditionTypes,
+func filterNodeConditions(conditions []v1.NodeCondition) []v1.NodeCondition {
+	filtered := make([]v1.NodeCondition, 0, len(conditions))
+	for _, c := range conditions {
+		if v1alpha1.AllowedNodeConditionTypes.Has(c.Type) {
+			filtered = append(filtered, c)
+		}
+	}
+	return filtered
+}
+
 func mergeDataMaps(in map[string][]byte, dataMaps ...map[string][]byte) map[string][]byte {
 	out := make(map[string][]byte)
 
@@ -970,7 +981,7 @@ func (c *controller) reconcileMachineHealth(ctx context.Context, machine *v1alph
 	} else {
 		populatedConditions, removedConditions, isChanged := nodeConditionsHaveChanged(machine.Status.Conditions, node.Status.Conditions)
 		if isChanged {
-			clone.Status.Conditions = node.Status.Conditions
+			clone.Status.Conditions = filterNodeConditions(node.Status.Conditions)
 
 			klog.V(3).Infof("Conditions of node %q backing machine %q with providerID %q have changed.\nAdded/Updated Conditions:\n\n%s\nRemoved Conditions:\n\n%s\n", getNodeName(machine), machine.Name, getProviderID(machine), getFormattedNodeConditions(populatedConditions), getFormattedNodeConditions(removedConditions))
 			cloneDirty = true
@@ -1469,14 +1480,13 @@ func (c *controller) drainNodeForInPlace(ctx context.Context, machine *v1alpha1.
 		timeOutDuration                             = c.getEffectiveDrainTimeout(machine).Duration
 		forceDrainLabelPresent                      = machine.Labels["force-drain"] == "True"
 		nodeName                                    = machine.Labels[v1alpha1.NodeLabelKey]
-		nodeNotReadyDuration                        = 5 * time.Minute
-		ReadonlyFilesystem     v1.NodeConditionType = "ReadonlyFilesystem"
+		nodeNotReadyDuration = 5 * time.Minute
 	)
 
 	for _, condition := range machine.Status.Conditions {
 		if condition.Type == v1.NodeReady {
 			nodeReadyCondition = condition
-		} else if condition.Type == ReadonlyFilesystem {
+		} else if condition.Type == v1alpha1.NodeReadonlyFilesystem {
 			readOnlyFileSystemCondition = condition
 		}
 	}
@@ -1607,8 +1617,7 @@ func (c *controller) drainNode(ctx context.Context, deleteMachineRequest *driver
 		pvReattachTimeOut                         = c.safetyOptions.PvReattachTimeout.Duration
 		timeOutDuration                           = c.getEffectiveDrainTimeout(deleteMachineRequest.Machine).Duration
 		nodeName                                  = machine.Labels[v1alpha1.NodeLabelKey]
-		nodeNotReadyDuration                      = 5 * time.Minute
-		ReadonlyFilesystem   v1.NodeConditionType = "ReadonlyFilesystem"
+		nodeNotReadyDuration = 5 * time.Minute
 	)
 
 	if labelValue, exists := machine.Labels["force-deletion"]; exists {
@@ -1631,7 +1640,7 @@ func (c *controller) drainNode(ctx context.Context, deleteMachineRequest *driver
 	for _, condition := range machine.Status.Conditions {
 		if condition.Type == v1.NodeReady {
 			nodeReadyCondition = condition
-		} else if condition.Type == ReadonlyFilesystem {
+		} else if condition.Type == v1alpha1.NodeReadonlyFilesystem {
 			readOnlyFileSystemCondition = condition
 		}
 	}
@@ -2698,8 +2707,7 @@ func (c *controller) drainPreservedNode(ctx context.Context, machine *v1alpha1.M
 		timeOutDuration                             = c.getEffectiveDrainTimeout(machine).Duration
 		forceDrainLabelPresent                      = machine.Labels["force-drain"] == "True"
 		nodeName                                    = machine.Labels[v1alpha1.NodeLabelKey]
-		nodeNotReadyDuration                        = 5 * time.Minute
-		ReadonlyFilesystem     v1.NodeConditionType = "ReadonlyFilesystem"
+		nodeNotReadyDuration = 5 * time.Minute
 	)
 	if nodeName == "" {
 		klog.Warningf("(drainNode) machine %q has no node name. Skipping drain.", machine.Name)
@@ -2709,7 +2717,7 @@ func (c *controller) drainPreservedNode(ctx context.Context, machine *v1alpha1.M
 	for _, condition := range machine.Status.Conditions {
 		if condition.Type == v1.NodeReady {
 			nodeReadyCondition = condition
-		} else if condition.Type == ReadonlyFilesystem {
+		} else if condition.Type == v1alpha1.NodeReadonlyFilesystem {
 			readOnlyFileSystemCondition = condition
 		}
 	}

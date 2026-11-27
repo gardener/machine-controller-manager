@@ -98,7 +98,16 @@ func updateMachineCSPhaseMetric(machine *v1alpha1.Machine, mMeta metav1.ObjectMe
 }
 
 func updateMachineStatusConditionMetric(machine *v1alpha1.Machine, mMeta metav1.ObjectMeta) {
+	// Delete all existing series for this machine so that condition types no longer present in machine.Status are removed.
+	metrics.MachineStatusCondition.DeletePartialMatch(prometheus.Labels{
+		"name":      mMeta.Name,
+		"namespace": mMeta.Namespace,
+	})
+
 	for _, condition := range machine.Status.Conditions {
+		if !v1alpha1.AllowedNodeConditionTypes.Has(condition.Type) {
+			continue
+		}
 		var status float64
 		switch condition.Status {
 		case v1.ConditionTrue:
