@@ -75,21 +75,21 @@ chmod "0640" "/var/lib/gardener-node-agent/credentials/machine-name"
 		}
 	})
 
-	Describe("#addBootstrapTokenToUserData", func() {
-		It("should generate a bootstrap token replace the magic string with it", func() {
-			Expect(machineController.addBootstrapTokenToUserData(ctx, machine, userDataSecret)).To(Succeed())
-			Expect(userDataSecret.Data["userData"]).To(Equal(fmt.Appendf(nil, userDataTemplate, getBootstrapToken(), "<<MACHINE_NAME>>")))
+	Describe("#addBootstrapTokenAndMachineNameToUserData", func() {
+		It("should generate a bootstrap token and replace the magic strings with the token and machine name", func() {
+			Expect(machineController.addBootstrapTokenAndMachineNameToUserData(ctx, machine, userDataSecret)).To(Succeed())
+			Expect(userDataSecret.Data["userData"]).To(Equal(fmt.Appendf(nil, userDataTemplate, getBootstrapToken(), machine.Name)))
 		})
 
 		It("should do nothing if there is no magic string", func() {
 			userDataSecret.Data["userData"] = []byte("foobar")
-			Expect(machineController.addBootstrapTokenToUserData(ctx, machine, userDataSecret)).To(Succeed())
+			Expect(machineController.addBootstrapTokenAndMachineNameToUserData(ctx, machine, userDataSecret)).To(Succeed())
 			Expect(userDataSecret.Data["userData"]).To(Equal([]byte("foobar")))
 		})
 
 		It("should fail if the secret does not contain a userData key", func() {
 			delete(userDataSecret.Data, "userData")
-			Expect(machineController.addBootstrapTokenToUserData(ctx, machine, userDataSecret)).To(MatchError(ContainSubstring("userdata field not found in secret for machine")))
+			Expect(machineController.addBootstrapTokenAndMachineNameToUserData(ctx, machine, userDataSecret)).To(MatchError(ContainSubstring("userdata field not found in secret for machine")))
 		})
 
 		When("running without target cluster", func() {
@@ -97,34 +97,16 @@ chmod "0640" "/var/lib/gardener-node-agent/credentials/machine-name"
 				machineController.targetCoreClient = nil
 			})
 
-			It("should not generate a bootstrap token and keep the magic string", func() {
-				Expect(machineController.addBootstrapTokenToUserData(ctx, machine, userDataSecret)).To(Succeed())
-				Expect(userDataSecret.Data["userData"]).To(Equal(fmt.Appendf(nil, userDataTemplate, "<<BOOTSTRAP_TOKEN>>", "<<MACHINE_NAME>>")))
+			It("should not generate a bootstrap token and keep the bootstrap token magic string but replace the machine name", func() {
+				Expect(machineController.addBootstrapTokenAndMachineNameToUserData(ctx, machine, userDataSecret)).To(Succeed())
+				Expect(userDataSecret.Data["userData"]).To(Equal(fmt.Appendf(nil, userDataTemplate, "<<BOOTSTRAP_TOKEN>>", machine.Name)))
 			})
 
 			It("should do nothing if there is no magic string", func() {
 				userDataSecret.Data["userData"] = []byte("foobar")
-				Expect(machineController.addBootstrapTokenToUserData(ctx, machine, userDataSecret)).To(Succeed())
+				Expect(machineController.addBootstrapTokenAndMachineNameToUserData(ctx, machine, userDataSecret)).To(Succeed())
 				Expect(userDataSecret.Data["userData"]).To(Equal([]byte("foobar")))
 			})
-		})
-	})
-
-	Describe("#addMachineNameToUserData", func() {
-		It("should replace the magic string with the machine name", func() {
-			Expect(machineController.addMachineNameToUserData(machine, userDataSecret)).To(Succeed())
-			Expect(userDataSecret.Data["userData"]).To(Equal(fmt.Appendf(nil, userDataTemplate, "<<BOOTSTRAP_TOKEN>>", machine.Name)))
-		})
-
-		It("should do nothing if there is no magic string", func() {
-			userDataSecret.Data["userData"] = []byte("foobar")
-			Expect(machineController.addMachineNameToUserData(machine, userDataSecret)).To(Succeed())
-			Expect(userDataSecret.Data["userData"]).To(Equal([]byte("foobar")))
-		})
-
-		It("should fail if the secret does not contain a userData key", func() {
-			delete(userDataSecret.Data, "userData")
-			Expect(machineController.addMachineNameToUserData(machine, userDataSecret)).To(MatchError(ContainSubstring("userdata field not found in secret for machine")))
 		})
 	})
 })

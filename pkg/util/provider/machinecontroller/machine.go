@@ -361,6 +361,11 @@ func (c *controller) reconcileClusterMachineTermination(key string) error {
 		return nil
 	}
 
+	// Delete bootstrap token associated with the machine
+	if err := c.deleteBootstrapToken(ctx, machine.Name); err != nil {
+		klog.Errorf("cannot delete bootstrap token for machine %q: %v", machine.Name, err)
+	}
+
 	// Process a delete event
 	retryPeriod, err := c.triggerDeletionFlow(
 		ctx,
@@ -407,16 +412,6 @@ func (c *controller) triggerCreationFlow(ctx context.Context, createMachineReque
 	// by the `CreateMachine` or `InitializeMachine` calls. Before persisting, the addresses are deduplicated.
 	addresses.Insert(createMachineRequest.Machine.Status.Addresses...)
 
-	// we should avoid mutating Secret, since it goes all the way into the Informer's store
-	secretCopy := createMachineRequest.Secret.DeepCopy()
-	if err := c.addBootstrapTokenToUserData(ctx, machine, secretCopy); err != nil {
-		return machineutils.ShortRetry, err
-	}
-	if err := c.addMachineNameToUserData(machine, secretCopy); err != nil {
-		return machineutils.ShortRetry, err
-	}
-	createMachineRequest.Secret = secretCopy
-
 	// Find out if VM exists on provider for this machine object
 	getMachineStatusResponse, err := c.driver.GetMachineStatus(
 		ctx,
@@ -443,6 +438,14 @@ func (c *controller) triggerCreationFlow(ctx context.Context, createMachineReque
 			// In this case, invoke a CreateMachine() call
 			if machine.Spec.ProviderID == "" {
 				// If no providerID is present
+
+				// we should avoid mutating Secret, since it goes all the way into the Informer's store
+				secretCopy := createMachineRequest.Secret.DeepCopy()
+				if err := c.addBootstrapTokenAndMachineNameToUserData(ctx, machine, secretCopy); err != nil {
+					return machineutils.ShortRetry, err
+				}
+				createMachineRequest.Secret = secretCopy
+
 				klog.V(2).Infof("Creating a VM for machine %q, please wait!", machine.Name)
 				klog.V(2).Infof("The machine creation is triggered with timeout of %s", c.getEffectiveCreationTimeout(createMachineRequest.Machine).Duration)
 				createMachineResponse, err := c.driver.CreateMachine(ctx, createMachineRequest)
@@ -477,7 +480,7 @@ func (c *controller) triggerCreationFlow(ctx context.Context, createMachineReque
 								},
 							},
 							MachineClass: createMachineRequest.MachineClass,
-							Secret:       secretCopy,
+							Secret:       createMachineRequest.Secret,
 						}
 
 						_, err := c.driver.DeleteMachine(ctx, deleteMachineRequest)
