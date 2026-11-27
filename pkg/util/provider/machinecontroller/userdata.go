@@ -50,8 +50,8 @@ func (c *controller) addBootstrapTokenAndMachineNameToUserData(ctx context.Conte
 
 	// create bootstrap token if running with target cluster
 	if c.targetCoreClient != nil {
-		klog.V(4).Infof("Creating bootstrap token!")
 		bootstrapTokenSecret, err := c.createOrRefreshBootstrapToken(ctx, machine)
+		klog.V(4).Infof("Created bootstrap token with name: %s for machine %s", bootstrapTokenSecret.Name, machine.Name)
 		if err != nil {
 			return err
 		}
@@ -125,6 +125,7 @@ func (c *controller) deleteBootstrapToken(ctx context.Context, machineName strin
 		// Object no longer exists and has been deleted
 		return nil
 	}
+	klog.V(4).Infof("Deleted bootstrap token with name: %s for machine %s", secretName, machineName)
 	return err
 }
 
