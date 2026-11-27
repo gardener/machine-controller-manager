@@ -278,6 +278,9 @@ const (
 
 	// InstanceDeletionResumed indicates that instance deletion is no longer suspended
 	InstanceDeletionResumed string = "InstanceDeletionResumed"
+
+	// NodeReadonlyFilesystem is a node condition type set by the kubelet when a kernel-detected read-only filesystem is observed
+	NodeReadonlyFilesystem corev1.NodeConditionType = "ReadonlyFilesystem"
 )
 
 // AllowedNodeConditionTypes is the set of condition types MCM copies from Node into Machine.Status.
@@ -290,8 +293,7 @@ var AllowedNodeConditionTypes = sets.New(
 	NodeInPlaceUpdate,
 	NodePreserved,
 	ConditionInstanceDeletionSuspended,
-	// ReadonlyFilesystem is a custom condition set by the kubelet on kernel-detected read-only filesystems
-	corev1.NodeConditionType("ReadonlyFilesystem"),
+	NodeReadonlyFilesystem,
 )
 
 // CurrentStatus contains information about the current status of Machine.

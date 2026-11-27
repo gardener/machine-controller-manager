@@ -1480,14 +1480,13 @@ func (c *controller) drainNodeForInPlace(ctx context.Context, machine *v1alpha1.
 		timeOutDuration                             = c.getEffectiveDrainTimeout(machine).Duration
 		forceDrainLabelPresent                      = machine.Labels["force-drain"] == "True"
 		nodeName                                    = machine.Labels[v1alpha1.NodeLabelKey]
-		nodeNotReadyDuration                        = 5 * time.Minute
-		ReadonlyFilesystem     v1.NodeConditionType = "ReadonlyFilesystem"
+		nodeNotReadyDuration = 5 * time.Minute
 	)
 
 	for _, condition := range machine.Status.Conditions {
 		if condition.Type == v1.NodeReady {
 			nodeReadyCondition = condition
-		} else if condition.Type == ReadonlyFilesystem {
+		} else if condition.Type == v1alpha1.NodeReadonlyFilesystem {
 			readOnlyFileSystemCondition = condition
 		}
 	}
@@ -1618,8 +1617,7 @@ func (c *controller) drainNode(ctx context.Context, deleteMachineRequest *driver
 		pvReattachTimeOut                         = c.safetyOptions.PvReattachTimeout.Duration
 		timeOutDuration                           = c.getEffectiveDrainTimeout(deleteMachineRequest.Machine).Duration
 		nodeName                                  = machine.Labels[v1alpha1.NodeLabelKey]
-		nodeNotReadyDuration                      = 5 * time.Minute
-		ReadonlyFilesystem   v1.NodeConditionType = "ReadonlyFilesystem"
+		nodeNotReadyDuration = 5 * time.Minute
 	)
 
 	if labelValue, exists := machine.Labels["force-deletion"]; exists {
@@ -1642,7 +1640,7 @@ func (c *controller) drainNode(ctx context.Context, deleteMachineRequest *driver
 	for _, condition := range machine.Status.Conditions {
 		if condition.Type == v1.NodeReady {
 			nodeReadyCondition = condition
-		} else if condition.Type == ReadonlyFilesystem {
+		} else if condition.Type == v1alpha1.NodeReadonlyFilesystem {
 			readOnlyFileSystemCondition = condition
 		}
 	}
@@ -2709,8 +2707,7 @@ func (c *controller) drainPreservedNode(ctx context.Context, machine *v1alpha1.M
 		timeOutDuration                             = c.getEffectiveDrainTimeout(machine).Duration
 		forceDrainLabelPresent                      = machine.Labels["force-drain"] == "True"
 		nodeName                                    = machine.Labels[v1alpha1.NodeLabelKey]
-		nodeNotReadyDuration                        = 5 * time.Minute
-		ReadonlyFilesystem     v1.NodeConditionType = "ReadonlyFilesystem"
+		nodeNotReadyDuration = 5 * time.Minute
 	)
 	if nodeName == "" {
 		klog.Warningf("(drainNode) machine %q has no node name. Skipping drain.", machine.Name)
@@ -2720,7 +2717,7 @@ func (c *controller) drainPreservedNode(ctx context.Context, machine *v1alpha1.M
 	for _, condition := range machine.Status.Conditions {
 		if condition.Type == v1.NodeReady {
 			nodeReadyCondition = condition
-		} else if condition.Type == ReadonlyFilesystem {
+		} else if condition.Type == v1alpha1.NodeReadonlyFilesystem {
 			readOnlyFileSystemCondition = condition
 		}
 	}
